@@ -1,0 +1,402 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Capabilities Manager</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+
+        .header {
+            padding: 22px 30px;
+            background: #111827;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #94a3b8;
+        }
+
+        .container {
+            padding: 30px;
+        }
+
+        .toolbar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        }
+
+        .card h3 {
+            margin: 0 0 6px;
+            font-size: 21px;
+        }
+
+        .meta {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 14px;
+            word-break: break-word;
+        }
+
+        .status-line {
+            margin-bottom: 12px;
+            color: #e5e7eb;
+            font-size: 14px;
+        }
+
+        .capabilities {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .cap-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .cap-row input {
+            width: 18px;
+            height: 18px;
+        }
+
+        .save-btn {
+            margin-top: 16px;
+            width: 100%;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+
+        .badge.multi {
+            background: #075985;
+            color: #bae6fd;
+        }
+
+        .badge.single {
+            background: #14532d;
+            color: #bbf7d0;
+        }
+
+        .message {
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .success {
+            color: #86efac;
+        }
+
+        .error {
+            color: #fecaca;
+        }
+
+        .loading {
+            color: #94a3b8;
+            padding: 30px;
+        }
+
+        .admin-home-btn {
+            display: inline-block;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .admin-home-btn:hover {
+            background: #475569;
+        }
+    </style>
+    <link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Device Capabilities Manager</h1>
+        <p>Select what each node can measure or control. More than one capability automatically makes the node multi.</p>
+    </div>
+
+    <div class="container">
+        <div class="toolbar">
+            <button class="admin-home-btn" onclick="window.location.href='/admin'">
+                ← Admin Home
+            </button>
+
+            <button onclick="loadDevices()">
+                Refresh Devices
+            </button>
+        </div>
+
+        <div id="devicesArea" class="loading">
+            Loading devices...
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const requestedDeviceId = params.get("device_id");
+        const capabilityOptions = [
+            { key: "environment", label: "Environment" },
+            { key: "energy", label: "Energy" },
+            { key: "safety", label: "Safety" },
+            { key: "occupancy", label: "Occupancy" }
+        ];
+
+        function escapeHtml(value) {
+            if(value === null || value === undefined) return "";
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function getCapabilitiesFromDevice(device) {
+            if(device.capabilities && Array.isArray(device.capabilities) && device.capabilities.length) {
+                return device.capabilities;
+            }
+
+            if(["environment", "energy", "safety", "occupancy"].includes(device.node_type)) {
+                return [device.node_type];
+            }
+
+            if(device.node_type === "multi") {
+                return ["environment", "energy", "safety", "occupancy"];
+            }
+
+            return [];
+        }
+
+        function buildCapabilityCheckboxes(device) {
+            const caps = getCapabilitiesFromDevice(device);
+
+            return capabilityOptions.map(cap => {
+                const checked = caps.includes(cap.key) ? "checked" : "";
+
+                return `
+                    <label class="cap-row">
+                        <input 
+                            type="checkbox" 
+                            class="cap-check"
+                            data-device-id="${escapeHtml(device.device_id)}"
+                            value="${cap.key}"
+                            ${checked}
+                        >
+                        <span>${cap.label}</span>
+                    </label>
+                `;
+            }).join("");
+        }
+
+        function nodeTypeBadge(device) {
+            const caps = getCapabilitiesFromDevice(device);
+
+            if(caps.length > 1 || device.node_type === "multi") {
+                return `<span class="badge multi">MULTI</span>`;
+            }
+
+            return `<span class="badge single">SINGLE</span>`;
+        }
+
+        async function loadDevices() {
+            const area = document.getElementById("devicesArea");
+            area.className = "loading";
+            area.innerHTML = "Loading devices...";
+
+            try {
+                const res = await fetch("/devices-status");
+
+                if(!res.ok) {
+                    throw new Error("Failed to load devices");
+                }
+
+                const devices = await res.json();
+
+                if(!devices.length) {
+                    area.innerHTML = "No devices found.";
+                    return;
+                }
+
+                area.className = "device-grid";
+                area.innerHTML = "";
+
+                devices.forEach(device => {
+                    const card = document.createElement("div");
+                    card.className = "card";
+
+                    if (requestedDeviceId && String(device.device_id) === String(requestedDeviceId)) {
+                        card.style.borderColor = "#60a5fa";
+                        card.style.boxShadow = "0 0 0 2px rgba(96,165,250,0.45), 0 14px 34px rgba(0,0,0,0.35)";
+                    }
+
+                    const label = device.label || device.device_id;
+                    const status = device.telemetry?.device_status || "unknown";
+
+                    card.innerHTML = `
+                        <h3>${escapeHtml(label)} ${nodeTypeBadge(device)}</h3>
+
+                        <div class="meta">
+                            Device ID: ${escapeHtml(device.device_id)}<br>
+                            Current Type: ${escapeHtml(device.node_type || "--")}<br>
+                            Room: ${escapeHtml(device.room || "--")}<br>
+                            Floor: ${escapeHtml(device.floor || "--")}
+                        </div>
+
+                        <div class="status-line">
+                            Live Status: <b>${escapeHtml(status)}</b>
+                        </div>
+
+                        <div class="capabilities">
+                            ${buildCapabilityCheckboxes(device)}
+                        </div>
+
+                        <button class="save-btn" onclick="saveCapabilities('${escapeHtml(device.device_id)}')">
+                            Save Capabilities & Sync Formatter
+                        </button>
+
+                        <div id="msg-${escapeHtml(device.device_id)}" class="message"></div>
+                    `;
+
+                    area.appendChild(card);
+                    if (requestedDeviceId && String(device.device_id) === String(requestedDeviceId)) {
+                        setTimeout(() => {
+                        card.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }, 200);
+                    }
+                });
+
+            } catch(err) {
+                area.className = "error";
+                area.innerHTML = "Error loading devices: " + err.message;
+            }
+        }
+
+        async function saveCapabilities(deviceId) {
+            const msg = document.getElementById("msg-" + deviceId);
+
+            const checks = document.querySelectorAll(
+                `.cap-check[data-device-id="${deviceId}"]:checked`
+            );
+
+            const capabilities = Array.from(checks).map(c => c.value);
+
+            if (!capabilities.length) {
+                msg.className = "message error";
+                msg.innerHTML = "Select at least one capability.";
+                return;
+            }
+
+            try {
+
+                msg.className = "message loading";
+                msg.innerHTML = "Saving capabilities and syncing TTN formatter...";
+
+                const res = await fetch(`/devices/${deviceId}/capabilities`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        capabilities: capabilities
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.detail || "Failed to save capabilities");
+                }
+
+                const syncRes = await fetch(`/devices/${deviceId}/sync-formatter`, {
+                    method: "POST"
+                });
+
+                const syncData = await syncRes.json();
+
+                if (!syncRes.ok) {
+                    msg.className = "message error";
+                    msg.innerHTML =
+                        `Capabilities saved. Node type is now: ${data.node_type}. ` +
+                        `But formatter sync failed: ${syncData.detail || "Unknown error"}`;
+                    return;
+                }
+
+                msg.className = "message success";
+                msg.innerHTML =
+                    `Saved successfully. Node type is now: ${data.node_type}. ` +
+                    `TTN formatter synced.`;
+
+                
+
+            } catch (err) {
+                msg.className = "message error";
+                msg.innerHTML = "Error: " + err.message;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", loadDevices);
+    </script>
+
+</body>
+</html>
+    

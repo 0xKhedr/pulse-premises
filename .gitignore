@@ -1,0 +1,31 @@
+# Environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Data & Config
+*.db
+*.whl
+*.csv
+.env
+firmware/lorawan_credentials.h
+firmware/lilygo_cayenne_lpp_node/lorawan_credentials.h
+firmware/espcam_lorawan_node/lorawan_credentials.h
+.docker-local-ca.cer
+
+# Runtime-uploaded floorplan/site images. Existing committed demo assets
+# stay tracked; this only stops new uploads being committed by accident.
+uploads/*
+!uploads/.gitkeep
+
+# Compiled firmware. Reproducible from the sketch with tools/node_firmware.sh.
+build/

@@ -1,0 +1,600 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Floor Editor</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:#0f172a;
+    color:#e5e7eb;
+}
+
+.header{
+    padding:24px 34px;
+    background:#111827;
+    border-bottom:1px solid #334155;
+}
+
+.header h1{
+    margin:0;
+    font-size:28px;
+    color:#f8fafc;
+}
+
+.header p{
+    margin:8px 0 0;
+    color:#94a3b8;
+}
+
+.toolbar{
+    padding:16px 34px;
+    background:#0f172a;
+    border-bottom:1px solid #1e293b;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+
+.toolbar label{
+    color:#cbd5e1;
+    font-weight:bold;
+}
+
+.toolbar input,
+.toolbar button{
+    width:auto;
+    padding:10px 13px;
+    border-radius:8px;
+    border:1px solid #334155;
+    font-size:14px;
+}
+
+.toolbar input{
+    background:#020617;
+    color:white;
+}
+
+.toolbar button{
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+    color:white;
+    background:#2563eb;
+}
+
+.toolbar button:hover{
+    background:#1d4ed8;
+}
+
+.adminHomeBtn{
+    background:#334155 !important;
+}
+
+.adminHomeBtn:hover{
+    background:#475569 !important;
+}
+
+.layout{
+    display:flex;
+    height:calc(100vh - 152px);
+}
+
+.editor{
+    flex:1;
+    position:relative;
+    overflow:auto;
+    padding:24px 34px;
+}
+
+.canvasBox{
+    position:relative;
+    display:block;
+    width:calc(100vw - 430px);
+    background:#111827;
+    border:1px solid #334155;
+    border-radius:16px;
+    padding:14px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.35);
+}
+
+#floorImage{
+    width:100%;
+    height:auto;
+    display:block;
+    border:1px solid #334155;
+    border-radius:12px;
+    background:#020617;
+    opacity:0.92;
+}
+
+#overlay{
+    position:absolute;
+    top:14px;
+    left:14px;
+    width:calc(100% - 28px);
+    height:calc(100% - 28px);
+}
+
+.sidePanel{
+    width:330px;
+    background:#111827;
+    border-left:1px solid #334155;
+    padding:18px;
+    overflow:auto;
+    box-shadow:-8px 0 24px rgba(0,0,0,0.25);
+}
+
+.sidePanel h2{
+    margin-top:0;
+    color:#f8fafc;
+}
+
+.sidePanel h3{
+    color:#93c5fd;
+}
+
+.roomItem{
+    padding:10px;
+    border-radius:8px;
+    background:#020617;
+    border:1px solid #334155;
+    margin-bottom:8px;
+    cursor:pointer;
+    color:#e5e7eb;
+}
+
+.roomItem:hover{
+    background:#1e293b;
+}
+
+.roomItem.active{
+    background:#78350f;
+    border-color:#f59e0b;
+    font-weight:bold;
+}
+
+.sidePanel label{
+    color:#cbd5e1;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.sidePanel input,
+.sidePanel button{
+    width:100%;
+    box-sizing:border-box;
+    padding:10px;
+    margin-top:8px;
+    margin-bottom:10px;
+    border-radius:8px;
+}
+
+.sidePanel input{
+    border:1px solid #334155;
+    background:#020617;
+    color:white;
+}
+
+.sidePanel button{
+    border:none;
+    background:#2563eb;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.sidePanel button:hover{
+    background:#1d4ed8;
+}
+
+.deleteBtn{
+    background:#dc2626 !important;
+}
+
+.deleteBtn:hover{
+    background:#b91c1c !important;
+}
+
+.clearBtn{
+    background:#64748b !important;
+}
+
+.clearBtn:hover{
+    background:#475569 !important;
+}
+
+.savedRoom{
+    fill:rgba(37,99,235,0.20);
+    stroke:#60a5fa;
+    stroke-width:3;
+}
+
+.selectedRoom{
+    fill:rgba(245,158,11,0.25);
+    stroke:#f59e0b;
+    stroke-width:4;
+}
+
+.newRoom{
+    fill:rgba(239,68,68,0.25);
+    stroke:#ef4444;
+    stroke-width:3;
+}
+
+.point{
+    fill:#ef4444;
+    stroke:white;
+    stroke-width:2;
+}
+
+.roomLabel{
+    fill:#93c5fd;
+    font-size:15px;
+    font-weight:bold;
+    paint-order:stroke;
+    stroke:#020617;
+    stroke-width:3px;
+}
+
+.hint{
+    font-size:12px;
+    color:#94a3b8;
+    line-height:1.5;
+}
+
+hr{
+    border:none;
+    border-top:1px solid #334155;
+    margin:16px 0;
+}
+</style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Floor Editor</h1>
+    <p>Draw, edit, and delete room polygons on the selected floor plan.</p>
+</div>
+
+<div class="toolbar">
+    <button class="adminHomeBtn" onclick="window.location.href='/admin'">
+        ← Admin Home
+    </button>
+
+    <label>Floor:</label>
+    
+    <select id="floorId" onchange="loadFloor()"></select>
+</div>
+
+<div class="layout">
+
+    <div class="editor">
+        <div class="canvasBox">
+            <img id="floorImage">
+            <svg id="overlay"></svg>
+        </div>
+    </div>
+
+    <div class="sidePanel">
+        <h2>Room Editor</h2>
+
+        <button onclick="newRoom()">+ New Room</button>
+
+        <h3>Rooms</h3>
+        <div id="roomList"></div>
+
+        <hr>
+
+        <label>Room Name</label>
+        <input id="roomName" placeholder="Room name">
+
+        <button onclick="saveRoom()">Save Room</button>
+        <button class="clearBtn" onclick="clearDrawing()">Clear Drawing</button>
+        <button class="deleteBtn" onclick="deleteRoom()">Delete Selected Room</button>
+
+        <p class="hint">
+            Blue = saved room<br>
+            Orange = selected room<br>
+            Red = current drawing
+        </p>
+    </div>
+
+</div>
+
+<script>
+let floorData = null;
+let selectedDeviceId = null;
+let selectedRoomId = null;
+let rooms = [];
+let currentPoints = [];
+let selectedRoom = null;
+let mode = "new";
+
+const image = document.getElementById("floorImage");
+const overlay = document.getElementById("overlay");
+
+function originalToDisplay(p){
+    return {
+        x: p.x * image.clientWidth / floorData.floor.image_width,
+        y: p.y * image.clientHeight / floorData.floor.image_height
+    };
+}
+
+function displayToOriginal(x, y){
+    return {
+        x: Math.round(x * floorData.floor.image_width / image.clientWidth),
+        y: Math.round(y * floorData.floor.image_height / image.clientHeight)
+    };
+}
+
+async function loadFloor(){
+    const floorId = document.getElementById("floorId").value;
+
+    if (!floorId) {
+        
+        return;
+    }
+
+    const res = await fetch(`/floors/${floorId}/details`);
+    floorData = await res.json();
+
+    const roomsRes = await fetch(`/floors/${floorId}/rooms`);
+    rooms = await roomsRes.json();
+
+    image.src = floorData.floor.image_path;
+
+    image.onload = function(){
+        overlay.setAttribute("width", image.clientWidth);
+        overlay.setAttribute("height", image.clientHeight);
+        draw();
+    };
+
+    renderRoomList();
+
+    if(image.complete){
+        draw();
+    }
+}
+
+function renderRoomList(){
+    const list = document.getElementById("roomList");
+    list.innerHTML = "";
+
+    rooms.forEach(room => {
+        const div = document.createElement("div");
+        div.className = "roomItem" + (selectedRoom && selectedRoom.id === room.id ? " active" : "");
+        div.innerText = room.room_name;
+
+        div.onclick = function(){
+            selectRoom(room);
+        };
+
+        list.appendChild(div);
+    });
+}
+
+function selectRoom(room){
+    selectedRoom = room;
+    mode = "edit";
+    currentPoints = room.polygon_points ? [...room.polygon_points] : [];
+
+    document.getElementById("roomName").value = room.room_name;
+
+    renderRoomList();
+    draw();
+}
+
+function newRoom(){
+    selectedRoom = null;
+    mode = "new";
+    currentPoints = [];
+    document.getElementById("roomName").value = "";
+    renderRoomList();
+    draw();
+}
+
+overlay.addEventListener("click", function(e){
+    if(!floorData) return;
+
+    const rect = overlay.getBoundingClientRect();
+    const displayX = e.clientX - rect.left;
+    const displayY = e.clientY - rect.top;
+
+    const p = displayToOriginal(displayX, displayY);
+    currentPoints.push(p);
+
+    draw();
+});
+
+function draw(){
+    overlay.innerHTML = "";
+
+    rooms.forEach(room => {
+        if(!room.polygon_points || room.polygon_points.length < 3) return;
+
+        const pts = room.polygon_points.map(originalToDisplay);
+
+        const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        polygon.setAttribute("points", pts.map(p => `${p.x},${p.y}`).join(" "));
+        polygon.setAttribute("class", selectedRoom && selectedRoom.id === room.id ? "selectedRoom" : "savedRoom");
+
+        polygon.style.cursor = "pointer";
+        polygon.onclick = function(e){
+            e.stopPropagation();
+            selectRoom(room);
+        };
+
+        overlay.appendChild(polygon);
+
+        const center = originalToDisplay({x: room.x, y: room.y});
+
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", center.x);
+        label.setAttribute("y", center.y);
+        label.setAttribute("class", "roomLabel");
+        label.textContent = room.room_name;
+
+        overlay.appendChild(label);
+    });
+
+    drawCurrentPolygon();
+}
+
+function drawCurrentPolygon(){
+    const displayPoints = currentPoints.map(originalToDisplay);
+
+    displayPoints.forEach(p => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", p.x);
+        c.setAttribute("cy", p.y);
+        c.setAttribute("r", 5);
+        c.setAttribute("class", "point");
+        overlay.appendChild(c);
+    });
+
+    if(displayPoints.length >= 3){
+        const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        polygon.setAttribute("points", displayPoints.map(p => `${p.x},${p.y}`).join(" "));
+        polygon.setAttribute("class", "newRoom");
+        overlay.appendChild(polygon);
+    }
+}
+
+function clearDrawing(){
+    currentPoints = [];
+    draw();
+}
+
+async function saveRoom(){
+    const floorId = document.getElementById("floorId").value;
+    const roomName = document.getElementById("roomName").value.trim();
+
+    if(!roomName){
+        alert("Enter room name");
+        return;
+    }
+
+    if(currentPoints.length < 3){
+        alert("Click at least 3 points");
+        return;
+    }
+
+    let url = "";
+    let method = "";
+
+    if(mode === "edit" && selectedRoom){
+        url = `/rooms/${selectedRoom.id}`;
+        method = "PUT";
+    } else {
+        url = `/floors/${floorId}/rooms`;
+        method = "POST";
+    }
+
+    const res = await fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            room_name: roomName,
+            polygon_points: currentPoints
+        })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+        alert(JSON.stringify(data));
+        return;
+    }
+
+    alert("Room saved");
+
+    selectedRoom = null;
+    currentPoints = [];
+    document.getElementById("roomName").value = "";
+
+    await loadFloor();
+}
+
+async function deleteRoom(){
+    if(!selectedRoom){
+        alert("Select a room first");
+        return;
+    }
+
+    if(!confirm("Delete room: " + selectedRoom.room_name + "?")){
+        return;
+    }
+
+    const res = await fetch(`/rooms/${selectedRoom.id}`, {
+        method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+        alert(JSON.stringify(data));
+        return;
+    }
+
+    alert("Room deleted");
+
+    selectedRoom = null;
+    currentPoints = [];
+    document.getElementById("roomName").value = "";
+
+    await loadFloor();
+}
+
+
+
+window.onload = loadFloor;
+
+async function loadFloorDropdown() {
+    const select = document.getElementById("floorId");
+
+    try {
+        const res = await fetch("/floors");
+        const floors = await res.json();
+
+        select.innerHTML = `<option value="">Select floor</option>`;
+
+        floors.forEach(floor => {
+            const label = `${floor.name || "Floor"} / Building ID ${floor.building_id} / ID ${floor.id}`;
+
+            select.innerHTML += `
+                <option value="${floor.id}">
+                    ${label}
+                </option>
+            `;
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        const requestedFloorId = params.get("floor_id");
+
+        if (
+            requestedFloorId &&
+            floors.some(floor => String(floor.id) === String(requestedFloorId))
+        ) {
+            select.value = requestedFloorId;
+            loadFloor();
+        }
+
+    } catch (err) {
+        alert("Could not load floors: " + err.message);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadFloorDropdown);
+</script>
+
+</body>
+</html>

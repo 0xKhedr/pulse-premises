@@ -1,0 +1,21 @@
+{
+  "name": "Smart Building Management System",
+  "short_name": "SmartBMS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "description": "IoT Smart Building Telemetry Dashboard",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/192/2905/2905145.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2905/2905145.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

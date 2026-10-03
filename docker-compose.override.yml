@@ -1,0 +1,17 @@
+# Local development conveniences.
+#
+# Docker Compose merges this file automatically, so `docker compose up` picks
+# it up with no extra flags. Deploy WITHOUT it so the image stays
+# self-contained:
+#
+#     docker compose -f docker-compose.yml up -d --build
+#
+# Templates and static assets are baked into the image by COPY, so without
+# these mounts every edit needs a full rebuild before it shows up. Mounted
+# read-only: the app only ever reads them, and :ro keeps the non-root
+# container user from writing to your working tree.
+services:
+  sbms-app:
+    volumes:
+      - ./templates:/app/templates:ro
+      - ./static:/app/static:ro

@@ -1,0 +1,1259 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Alarm Settings</title>
+
+    <style>
+        body{
+            margin:0;
+            font-family:Arial, sans-serif;
+            background:#0f172a;
+            color:#e5e7eb;
+        }
+
+        .header{
+            padding:24px 34px;
+            background:#111827;
+            border-bottom:1px solid #334155;
+        }
+
+        .header h1{
+            margin:0;
+            font-size:28px;
+            color:#f8fafc;
+        }
+
+        .header p{
+            margin:8px 0 0;
+            color:#94a3b8;
+            font-size:15px;
+        }
+
+        .toolbar{
+            padding:16px 34px;
+            background:#0f172a;
+            border-bottom:1px solid #1e293b;
+            display:flex;
+            gap:12px;
+            align-items:center;
+            flex-wrap:wrap;
+        }
+
+        .adminHomeBtn{
+            display:inline-block;
+            background:#334155;
+            color:white;
+            border:none;
+            border-radius:8px;
+            padding:10px 14px;
+            cursor:pointer;
+            font-weight:bold;
+            text-decoration:none;
+        }
+
+        .adminHomeBtn:hover{
+            background:#475569;
+        }
+
+        .container{
+            padding:24px 34px 34px;
+        }
+
+        .grid{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:22px;
+            align-items:start;
+        }
+
+        .card{
+            background:#111827;
+            border:1px solid #334155;
+            border-radius:16px;
+            padding:22px;
+            box-shadow:0 16px 40px rgba(0,0,0,0.35);
+            margin-bottom:22px;
+        }
+
+        .login-wrapper{
+            max-width:480px;
+            margin:40px auto;
+        }
+
+        h2{
+            margin-top:0;
+            color:#f8fafc;
+            font-size:22px;
+        }
+
+        h3{
+            margin-top:0;
+            color:#93c5fd;
+        }
+
+        p{
+            color:#94a3b8;
+            line-height:1.5;
+        }
+
+        label{
+            display:block;
+            margin-top:14px;
+            margin-bottom:6px;
+            color:#cbd5e1;
+            font-weight:bold;
+            font-size:14px;
+        }
+
+        input,
+        select,
+        textarea,
+        button{
+            width:100%;
+            padding:11px 12px;
+            margin-top:6px;
+            margin-bottom:14px;
+            border-radius:8px;
+            box-sizing:border-box;
+            font-size:14px;
+        }
+
+        input,
+        select,
+        textarea{
+            background:#020617;
+            color:white;
+            border:1px solid #334155;
+            outline:none;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus{
+            border-color:#60a5fa;
+        }
+
+        textarea{
+            resize:vertical;
+            min-height:250px;
+            font-family:Consolas, monospace;
+            line-height:1.45;
+        }
+
+        button{
+            background:#2563eb;
+            color:white;
+            border:none;
+            font-weight:bold;
+            cursor:pointer;
+        }
+
+        button:hover{
+            background:#1d4ed8;
+        }
+
+        .success-btn{
+            background:#16a34a;
+        }
+
+        .success-btn:hover{
+            background:#15803d;
+        }
+
+        .delete-btn{
+            background:#dc2626;
+            width:auto;
+            margin:0;
+            padding:8px 12px;
+        }
+
+        .delete-btn:hover{
+            background:#b91c1c;
+        }
+
+        .recipient{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            background:#020617;
+            border:1px solid #334155;
+            padding:12px;
+            border-radius:10px;
+            margin-bottom:10px;
+        }
+
+        .recipient-left{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            min-width:0;
+        }
+
+        .recipient-left b{
+            color:#e5e7eb;
+            word-break:break-all;
+        }
+
+        .recipient input[type="checkbox"]{
+            width:auto;
+            margin:0;
+            accent-color:#16a34a;
+        }
+
+        .hidden{
+            display:none;
+        }
+
+        .hint{
+            font-size:13px;
+            color:#94a3b8;
+            line-height:1.6;
+            background:#020617;
+            border:1px solid #334155;
+            border-radius:10px;
+            padding:12px;
+            margin-top:10px;
+        }
+
+        .statusBox{
+            display:none;
+            margin-top:12px;
+            padding:12px;
+            border-radius:10px;
+            font-size:14px;
+        }
+
+        .statusBox.good{
+            display:block;
+            background:#14532d;
+            color:#bbf7d0;
+            border:1px solid #22c55e;
+        }
+
+        .statusBox.bad{
+            display:block;
+            background:#7f1d1d;
+            color:#fecaca;
+            border:1px solid #ef4444;
+        }
+
+        .empty{
+            padding:14px;
+            background:#020617;
+            border:1px solid #334155;
+            border-radius:10px;
+            color:#94a3b8;
+        }
+
+        .full-width{
+            grid-column:1 / -1;
+        }
+
+        .badge{
+            display:inline-block;
+            padding:3px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:bold;
+            white-space:nowrap;
+        }
+
+        .badge.override{
+            background:#78350f;
+            color:#fed7aa;
+            border:1px solid #f59e0b;
+        }
+
+        .badge.none{
+            background:#1e293b;
+            color:#94a3b8;
+            border:1px solid #334155;
+        }
+
+        .deviceRow{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            background:#020617;
+            border:1px solid #334155;
+            padding:12px;
+            border-radius:10px;
+            margin-bottom:10px;
+            cursor:pointer;
+        }
+
+        .deviceRow:hover{
+            border-color:#60a5fa;
+        }
+
+        /* the selected device needs to stay obvious even once the badge above scrolls out of view */
+        .deviceRow.selected{
+            border-color:#2563eb;
+            box-shadow:0 0 0 1px #2563eb inset;
+        }
+
+        .deviceRow-left{
+            min-width:0;
+        }
+
+        .deviceRow-title{
+            color:#e5e7eb;
+            font-weight:bold;
+        }
+
+        .deviceRow-sub{
+            color:#94a3b8;
+            font-size:13px;
+            margin-top:2px;
+        }
+
+        .ruleRow{
+            background:#020617;
+            border:1px solid #334155;
+            border-radius:10px;
+            padding:14px;
+            margin-bottom:12px;
+        }
+
+        /* an override changes real behavior on real hardware, so it gets its own accent
+           rather than relying on the badge text alone */
+        .ruleRow.overridden{
+            border-color:#f59e0b;
+            box-shadow:0 0 0 1px #f59e0b inset;
+        }
+
+        .ruleRow-header{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            flex-wrap:wrap;
+            gap:8px;
+        }
+
+        .ruleRow-title{
+            color:#e5e7eb;
+            font-weight:bold;
+        }
+
+        .ruleRow-sub{
+            color:#94a3b8;
+            font-size:13px;
+        }
+
+        .ruleRow-values{
+            display:flex;
+            gap:22px;
+            flex-wrap:wrap;
+            margin:10px 0;
+            font-size:13px;
+            color:#94a3b8;
+        }
+
+        .ruleRow-values b{
+            color:#e5e7eb;
+        }
+
+        .ruleRow-controls{
+            display:grid;
+            grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+            gap:0 12px;
+        }
+
+        .ruleRow-controls label{
+            margin-top:4px;
+        }
+
+        .ruleRow-actions{
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            margin-top:4px;
+        }
+
+        .ruleRow-actions button{
+            width:auto;
+            margin:0;
+            padding:8px 14px;
+        }
+
+        .stale-notice{
+            background:#1e293b;
+            border:1px solid #475569;
+            border-radius:10px;
+            padding:12px;
+            margin-bottom:16px;
+            font-size:13px;
+            color:#cbd5e1;
+        }
+
+        .stale-notice-row{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px;
+            margin-top:8px;
+        }
+
+        .stale-notice-row button{
+            width:auto;
+            margin:0;
+            padding:6px 12px;
+        }
+
+        @media(max-width:900px){
+            .grid{
+                grid-template-columns:1fr;
+            }
+
+            .container{
+                padding:20px 18px;
+            }
+
+            .header{
+                padding:22px 18px;
+            }
+
+            .toolbar{
+                padding:14px 18px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Alarm Settings</h1>
+    <p>Manage alarm email recipients and customize the email template used when alarms are triggered.</p>
+</div>
+
+<div class="toolbar">
+    <button class="adminHomeBtn" onclick="window.location.href='/admin'">
+        ← Admin Home
+    </button>
+</div>
+
+<div class="container">
+
+    <div id="loginCard" class="card login-wrapper">
+        <h2>Alarm Settings Access</h2>
+        <p>Enter the admin password to unlock alarm email settings.</p>
+
+        <label>Admin Password</label>
+        <input type="password" id="adminPassword" placeholder="Enter admin password">
+
+        <button class="success-btn" onclick="unlockPage()">Open Settings</button>
+
+        <div id="loginStatus" class="statusBox"></div>
+
+        <div class="hint">
+            This protects alarm email recipients and email template editing.
+        </div>
+    </div>
+
+    <div id="settingsArea" class="hidden">
+
+        <div class="grid">
+
+            <div class="card">
+                <h2>Recipients</h2>
+                <p>Add or remove emails that should receive alarm notifications.</p>
+
+                <div id="recipientList">
+                    <div class="empty">Unlock settings to load recipients.</div>
+                </div>
+
+                <label>Add Recipient Email</label>
+                <input type="email" id="newEmail" placeholder="example@gmail.com">
+
+                <button class="success-btn" onclick="addRecipient()">Add Recipient</button>
+
+                <div id="recipientStatus" class="statusBox"></div>
+            </div>
+
+            <div class="card">
+                <h2>Email Template</h2>
+                <p>Customize the subject and body used for alarm notification emails.</p>
+
+                <label>Subject Template</label>
+                <input type="text" id="subjectTemplate">
+
+                <label>Body Template</label>
+                <textarea id="bodyTemplate" rows="14"></textarea>
+
+                <button onclick="saveTemplate()">Save Template</button>
+
+                <div id="templateStatus" class="statusBox"></div>
+
+                <div class="hint">
+                    Available variables:<br>
+                    {device_id}, {node_type}, {room}, {alarms}, {telemetry}
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <h2>Per-Device Alarm Thresholds</h2>
+                <p>
+                    Alarm rules normally come from a device's sensor profile, so every device on that
+                    profile trips at the same value. Use this to override a trip point or mute a rule
+                    for one device only &mdash; anything left alone keeps following the profile.
+                </p>
+
+                <div id="deviceList">
+                    <div class="empty">Loading devices...</div>
+                </div>
+
+                <div id="staleOverridesNotice"></div>
+
+                <div id="deviceRulesArea">
+                    <div class="empty">Select a device above to view its alarm rules.</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+let adminPassword = "";
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function showStatus(id, message, good=true) {
+    const box = document.getElementById(id);
+
+    if (!box) {
+        return;
+    }
+
+    box.className = good ? "statusBox good" : "statusBox bad";
+    box.innerText = message;
+}
+
+function clearStatus(id) {
+    const box = document.getElementById(id);
+
+    if (!box) {
+        return;
+    }
+
+    box.className = "statusBox";
+    box.innerText = "";
+}
+
+async function unlockPage(){
+    adminPassword = document.getElementById("adminPassword").value;
+
+    clearStatus("loginStatus");
+
+    if(!adminPassword){
+        showStatus("loginStatus", "Enter admin password first.", false);
+        return;
+    }
+
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("settingsArea").classList.remove("hidden");
+
+    await loadSettings();
+    await loadOverrideDevices();
+}
+
+async function loadSettings(){
+    const recipientList = document.getElementById("recipientList");
+    recipientList.innerHTML = `<div class="empty">Loading alarm settings...</div>`;
+
+    try {
+        const res = await fetch("/alarm-settings");
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || "Failed to load alarm settings");
+        }
+
+        recipientList.innerHTML = "";
+
+        if (!data.recipients || data.recipients.length === 0) {
+            recipientList.innerHTML = `<div class="empty">No recipients added yet.</div>`;
+        } else {
+            data.recipients.forEach(r => {
+                const div = document.createElement("div");
+                div.className = "recipient";
+
+                div.innerHTML = `
+                    <div class="recipient-left">
+                        <input type="checkbox" ${r.enabled ? "checked" : ""}
+                            onchange="toggleRecipient(${r.id}, this.checked)">
+                        <b>${escapeHtml(r.email)}</b>
+                    </div>
+
+                    <button class="delete-btn" onclick="deleteRecipient(${r.id})">
+                        Delete
+                    </button>
+                `;
+
+                recipientList.appendChild(div);
+            });
+        }
+
+        if (data.template) {
+            document.getElementById("subjectTemplate").value =
+                data.template.subject_template || "";
+
+            document.getElementById("bodyTemplate").value =
+                data.template.body_template || "";
+        }
+
+    } catch (err) {
+        recipientList.innerHTML = `
+            <div class="statusBox bad" style="display:block;">
+                ${escapeHtml(err.message)}
+            </div>
+        `;
+    }
+}
+
+async function addRecipient(){
+    const email = document.getElementById("newEmail").value.trim();
+
+    clearStatus("recipientStatus");
+
+    if (!email) {
+        showStatus("recipientStatus", "Recipient email is required.", false);
+        return;
+    }
+
+    const res = await fetch("/alarm-settings/recipients", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            admin_password:adminPassword,
+            email:email
+        })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+        showStatus("recipientStatus", data.detail || "Failed to add recipient.", false);
+        return;
+    }
+
+    document.getElementById("newEmail").value = "";
+
+    showStatus("recipientStatus", "Recipient added successfully.", true);
+    await loadSettings();
+}
+
+async function deleteRecipient(id){
+    if (!confirm("Delete this recipient?")) {
+        return;
+    }
+
+    clearStatus("recipientStatus");
+
+    const res = await fetch(
+        "/alarm-settings/recipients/" + id +
+        "?admin_password=" + encodeURIComponent(adminPassword),
+        { method:"DELETE" }
+    );
+
+    const data = await res.json();
+
+    if(!res.ok){
+        showStatus("recipientStatus", data.detail || "Failed to delete recipient.", false);
+        return;
+    }
+
+    showStatus("recipientStatus", "Recipient deleted.", true);
+    await loadSettings();
+}
+
+async function toggleRecipient(id, enabled){
+    clearStatus("recipientStatus");
+
+    const res = await fetch("/alarm-settings/recipients/" + id + "/enabled", {
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            admin_password:adminPassword,
+            enabled:enabled
+        })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+        showStatus("recipientStatus", data.detail || "Failed to update recipient.", false);
+        await loadSettings();
+        return;
+    }
+
+    showStatus("recipientStatus", "Recipient status updated.", true);
+}
+
+async function saveTemplate(){
+    const subject = document.getElementById("subjectTemplate").value.trim();
+    const body = document.getElementById("bodyTemplate").value.trim();
+
+    clearStatus("templateStatus");
+
+    if (!subject || !body) {
+        showStatus("templateStatus", "Subject and body template are required.", false);
+        return;
+    }
+
+    const res = await fetch("/alarm-settings/template", {
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            admin_password:adminPassword,
+            subject_template:subject,
+            body_template:body
+        })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+        showStatus("templateStatus", data.detail || "Failed to save template.", false);
+        return;
+    }
+
+    showStatus("templateStatus", "Template updated successfully.", true);
+}
+
+/* ---------- Per-Device Alarm Thresholds ---------- */
+
+// the server documents two error shapes ({"detail": "text"} and
+// {"detail": {"message": "text"}}) for the override endpoints, so pull the
+// message out defensively instead of assuming one of them
+function errorMessage(data, fallback) {
+    const detail = data && data.detail;
+
+    if (typeof detail === "string" && detail) {
+        return detail;
+    }
+
+    if (detail && typeof detail === "object" && typeof detail.message === "string" && detail.message) {
+        return detail.message;
+    }
+
+    return fallback;
+}
+
+let currentDeviceId = null;
+let deviceOverridesData = [];
+
+async function fetchOverrideDevices() {
+    const res = await fetch("/alarm-overrides");
+    const data = await res.json();
+
+    if (!res.ok) {
+        throw new Error(errorMessage(data, "Failed to load devices."));
+    }
+
+    return data.devices || [];
+}
+
+async function loadOverrideDevices() {
+    const deviceList = document.getElementById("deviceList");
+    deviceList.innerHTML = `<div class="empty">Loading devices...</div>`;
+
+    try {
+        deviceOverridesData = await fetchOverrideDevices();
+        renderDeviceList(deviceOverridesData);
+    } catch (err) {
+        deviceList.innerHTML = `
+            <div class="statusBox bad" style="display:block;">
+                ${escapeHtml(err.message)}
+            </div>
+        `;
+    }
+}
+
+// called after a save/revert so the override_count badge reflects reality
+// instead of a locally guessed +/-1
+async function refreshDeviceOverrideCount() {
+    try {
+        deviceOverridesData = await fetchOverrideDevices();
+        renderDeviceList(deviceOverridesData);
+    } catch (err) {
+        // the row just edited already shows the authoritative state from its
+        // own response, so a failed badge refresh isn't worth surfacing
+    }
+}
+
+function renderDeviceList(devices) {
+    const container = document.getElementById("deviceList");
+    container.innerHTML = "";
+
+    if (!devices || devices.length === 0) {
+        container.innerHTML = `<div class="empty">No devices found.</div>`;
+        return;
+    }
+
+    devices.forEach(d => {
+        const row = document.createElement("div");
+        row.className = "deviceRow" + (d.device_id === currentDeviceId ? " selected" : "");
+
+        row.innerHTML = `
+            <div class="deviceRow-left">
+                <div class="deviceRow-title">${escapeHtml(d.label || d.device_id)}</div>
+                <div class="deviceRow-sub">
+                    ${escapeHtml(d.device_id)}
+                    ${d.profile_code
+                        ? " &middot; " + escapeHtml(d.profile_name) + " (" + escapeHtml(d.profile_code) + ") &middot; " + escapeHtml(String(d.rule_count)) + " rule(s)"
+                        : " &middot; no profile assigned"}
+                </div>
+            </div>
+        `;
+
+        const badge = document.createElement("span");
+        badge.className = "badge " + (d.override_count > 0 ? "override" : "none");
+        badge.textContent = d.override_count > 0
+            ? d.override_count + " override(s)"
+            : "no overrides";
+        row.appendChild(badge);
+
+        row.addEventListener("click", () => selectDevice(d.device_id));
+        container.appendChild(row);
+    });
+}
+
+function selectDevice(deviceId) {
+    currentDeviceId = deviceId;
+    renderDeviceList(deviceOverridesData);
+    loadDeviceRules(deviceId);
+}
+
+async function loadDeviceRules(deviceId) {
+    const rulesArea = document.getElementById("deviceRulesArea");
+    const staleArea = document.getElementById("staleOverridesNotice");
+    rulesArea.innerHTML = `<div class="empty">Loading rules...</div>`;
+    staleArea.innerHTML = "";
+
+    try {
+        const res = await fetch("/alarm-overrides/" + encodeURIComponent(deviceId));
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(errorMessage(data, "Failed to load device rules."));
+        }
+
+        renderDeviceRules(data);
+    } catch (err) {
+        rulesArea.innerHTML = `
+            <div class="statusBox bad" style="display:block;">
+                ${escapeHtml(err.message)}
+            </div>
+        `;
+    }
+}
+
+function renderDeviceRules(data) {
+    const rulesArea = document.getElementById("deviceRulesArea");
+    const staleArea = document.getElementById("staleOverridesNotice");
+    rulesArea.innerHTML = "";
+    staleArea.innerHTML = "";
+
+    // no profile assigned: say so plainly rather than rendering an empty table
+    if (!data.profile_code) {
+        rulesArea.innerHTML = `
+            <div class="empty">
+                ${escapeHtml(data.label || data.device_id)} has no sensor profile assigned,
+                so there are no alarm rules to override.
+            </div>
+        `;
+        return;
+    }
+
+    if (data.stale_overrides && data.stale_overrides.length > 0) {
+        renderStaleNotice(data.device_id, data.stale_overrides);
+    }
+
+    if (!data.rules || data.rules.length === 0) {
+        rulesArea.innerHTML = `
+            <div class="empty">
+                The assigned profile (${escapeHtml(data.profile_name)}) defines no alarm rules yet.
+            </div>
+        `;
+        return;
+    }
+
+    data.rules.forEach(rule => {
+        rulesArea.appendChild(renderRuleRow(data.device_id, rule));
+    });
+}
+
+function renderStaleNotice(deviceId, staleOverrides) {
+    const staleArea = document.getElementById("staleOverridesNotice");
+
+    const box = document.createElement("div");
+    box.className = "stale-notice";
+
+    const title = document.createElement("div");
+    title.innerHTML = `<b>${escapeHtml(String(staleOverrides.length))} leftover override(s)</b> no longer match this device's current profile and have no effect.`;
+    box.appendChild(title);
+
+    staleOverrides.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "stale-notice-row";
+
+        const text = document.createElement("span");
+        text.textContent = item.rule_code + " — " + item.reason;
+        row.appendChild(text);
+
+        const btn = document.createElement("button");
+        btn.className = "delete-btn";
+        btn.textContent = "Remove";
+        btn.addEventListener("click", () => removeStaleOverride(deviceId, item.rule_code, box, row));
+        row.appendChild(btn);
+
+        box.appendChild(row);
+    });
+
+    const status = document.createElement("div");
+    status.id = "staleOverridesStatus";
+    status.className = "statusBox";
+    box.appendChild(status);
+
+    staleArea.appendChild(box);
+}
+
+async function removeStaleOverride(deviceId, ruleCode, noticeBox, rowEl) {
+    clearStatus("staleOverridesStatus");
+
+    try {
+        const res = await fetch(
+            "/alarm-overrides/" + encodeURIComponent(deviceId) + "/" + encodeURIComponent(ruleCode),
+            { method: "DELETE" }
+        );
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(errorMessage(data, "Failed to remove stale override."));
+        }
+
+        rowEl.remove();
+
+        // once the last leftover is cleared the whole notice card is noise
+        if (!noticeBox.querySelector(".stale-notice-row")) {
+            noticeBox.remove();
+        }
+
+        refreshDeviceOverrideCount();
+    } catch (err) {
+        showStatus("staleOverridesStatus", err.message, false);
+    }
+}
+
+// profile vs. effective are rendered with the same formatter so the two
+// numbers on screen are always directly comparable, unit and all
+function inheritPlaceholder(profileValue) {
+    if (profileValue === null || profileValue === undefined) {
+        return "Inherit (profile sets none)";
+    }
+    return "Inherit (" + profileValue + ")";
+}
+
+function formatRuleValue(rule, side) {
+    if (!rule.numeric) {
+        return side.enabled ? "on" : "muted";
+    }
+
+    const show = v => (v === null || v === undefined) ? "—" : v;
+
+    let text;
+    if (rule.needs_second_threshold) {
+        text = show(side.threshold_value) + " .. " + show(side.threshold_value_2);
+    } else {
+        text = rule.operator + " " + show(side.threshold_value);
+    }
+
+    if (rule.unit) {
+        text += " " + rule.unit;
+    }
+
+    if (!side.enabled) {
+        text += " (muted)";
+    }
+
+    return text;
+}
+
+function renderRuleRow(deviceId, rule) {
+    const profile = rule.profile;
+    const effective = rule.effective;
+    const override = rule.override;
+
+    const row = document.createElement("div");
+    row.className = "ruleRow" + (rule.overridden ? " overridden" : "");
+    // rule_code is expected to be a plain identifier, but encodeURIComponent
+    // keeps getElementById lookups safe even if that ever stops being true
+    row.id = "ruleRow_" + encodeURIComponent(rule.rule_code);
+
+    row.innerHTML = `
+        <div class="ruleRow-header">
+            <div>
+                <div class="ruleRow-title">
+                    ${escapeHtml(rule.field_label)}
+                    <span class="ruleRow-sub">(${escapeHtml(rule.rule_code)})</span>
+                </div>
+                <div class="ruleRow-sub">${escapeHtml(rule.operator)} &middot; severity: ${escapeHtml(rule.severity)}</div>
+            </div>
+            <span class="badge ${rule.overridden ? "override" : "none"}">${rule.overridden ? "Overridden" : "Inherited"}</span>
+        </div>
+        <div class="ruleRow-values">
+            <div>Profile default: <b>${escapeHtml(formatRuleValue(rule, profile))}</b></div>
+            <div>Effective now: <b>${escapeHtml(formatRuleValue(rule, effective))}</b></div>
+        </div>
+    `;
+
+    const controls = document.createElement("div");
+    controls.className = "ruleRow-controls";
+
+    if (rule.numeric) {
+        const wrap1 = document.createElement("div");
+        const label1 = document.createElement("label");
+        label1.textContent = rule.needs_second_threshold ? "Threshold (low)" : "Threshold";
+        const thresholdInput1 = document.createElement("input");
+        thresholdInput1.type = "number";
+        thresholdInput1.step = "any";
+        thresholdInput1.className = "thresholdInput1";
+        // A profile rule can legitimately carry no number yet, and
+        // "Inherit (null)" reads like a bug rather than an empty default
+        thresholdInput1.placeholder = inheritPlaceholder(profile.threshold_value);
+        if (override && override.threshold_value !== null && override.threshold_value !== undefined) {
+            thresholdInput1.value = override.threshold_value;
+        }
+        wrap1.appendChild(label1);
+        wrap1.appendChild(thresholdInput1);
+        controls.appendChild(wrap1);
+
+        if (rule.needs_second_threshold) {
+            const wrap2 = document.createElement("div");
+            const label2 = document.createElement("label");
+            label2.textContent = "Threshold (high)";
+            const thresholdInput2 = document.createElement("input");
+            thresholdInput2.type = "number";
+            thresholdInput2.step = "any";
+            thresholdInput2.className = "thresholdInput2";
+            thresholdInput2.placeholder = inheritPlaceholder(profile.threshold_value_2);
+            if (override && override.threshold_value_2 !== null && override.threshold_value_2 !== undefined) {
+                thresholdInput2.value = override.threshold_value_2;
+            }
+            wrap2.appendChild(label2);
+            wrap2.appendChild(thresholdInput2);
+            controls.appendChild(wrap2);
+        }
+    }
+
+    const enableWrap = document.createElement("div");
+    const enableLabel = document.createElement("label");
+    enableLabel.textContent = "Enabled";
+    const enableSelect = document.createElement("select");
+    enableSelect.className = "enableSelect";
+    [["", "Inherit from profile"], ["true", "Force on"], ["false", "Muted"]].forEach(([val, text]) => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = text;
+        enableSelect.appendChild(opt);
+    });
+    // an override.enabled that is explicitly false is a real mute, not "unset" -
+    // only a genuinely missing/null field means "inherit", so check for true/false, not truthiness
+    if (override && override.enabled === true) {
+        enableSelect.value = "true";
+    } else if (override && override.enabled === false) {
+        enableSelect.value = "false";
+    } else {
+        enableSelect.value = "";
+    }
+    enableWrap.appendChild(enableLabel);
+    enableWrap.appendChild(enableSelect);
+    controls.appendChild(enableWrap);
+
+    const noteWrap = document.createElement("div");
+    const noteLabel = document.createElement("label");
+    noteLabel.textContent = "Note (optional)";
+    const noteInput = document.createElement("input");
+    noteInput.type = "text";
+    noteInput.className = "noteInput";
+    noteInput.placeholder = "Reason for this override";
+    // assigning .value is a property write, not markup, so this is safe even
+    // though notes are free text written by whoever set the override
+    noteInput.value = (override && override.note) ? override.note : "";
+    noteWrap.appendChild(noteLabel);
+    noteWrap.appendChild(noteInput);
+    controls.appendChild(noteWrap);
+
+    row.appendChild(controls);
+
+    const statusBox = document.createElement("div");
+    statusBox.className = "statusBox";
+    statusBox.id = "ruleStatus_" + encodeURIComponent(rule.rule_code);
+    row.appendChild(statusBox);
+
+    const actions = document.createElement("div");
+    actions.className = "ruleRow-actions";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "success-btn";
+    saveBtn.textContent = "Save";
+    saveBtn.addEventListener("click", () => saveOverride(deviceId, rule));
+    actions.appendChild(saveBtn);
+
+    if (rule.overridden) {
+        const revertBtn = document.createElement("button");
+        revertBtn.className = "delete-btn";
+        revertBtn.textContent = "Revert to profile";
+        revertBtn.addEventListener("click", () => revertOverride(deviceId, rule));
+        actions.appendChild(revertBtn);
+    }
+
+    row.appendChild(actions);
+
+    return row;
+}
+
+async function saveOverride(deviceId, rule) {
+    const statusId = "ruleStatus_" + encodeURIComponent(rule.rule_code);
+    clearStatus(statusId);
+
+    const row = document.getElementById("ruleRow_" + encodeURIComponent(rule.rule_code));
+    if (!row) {
+        return;
+    }
+
+    const thresholdInput1 = row.querySelector(".thresholdInput1");
+    const thresholdInput2 = row.querySelector(".thresholdInput2");
+    const enableSelect = row.querySelector(".enableSelect");
+    const noteInput = row.querySelector(".noteInput");
+
+    const noteValue = noteInput.value.trim();
+    const body = { note: noteValue ? noteValue : null };
+
+    if (rule.numeric) {
+        const raw1 = thresholdInput1.value.trim();
+        if (raw1 === "") {
+            body.threshold_value = null;
+        } else {
+            const n1 = Number(raw1);
+            if (!Number.isFinite(n1)) {
+                showStatus(statusId, "Threshold must be a number.", false);
+                return;
+            }
+            body.threshold_value = n1;
+        }
+
+        if (rule.needs_second_threshold) {
+            const raw2 = thresholdInput2.value.trim();
+            if (raw2 === "") {
+                body.threshold_value_2 = null;
+            } else {
+                const n2 = Number(raw2);
+                if (!Number.isFinite(n2)) {
+                    showStatus(statusId, "Second threshold must be a number.", false);
+                    return;
+                }
+                body.threshold_value_2 = n2;
+            }
+
+            // between/outside only make sense with both bounds set, or neither (pure
+            // inherit) - catch the half-filled case here to avoid an obviously wasted round trip
+            if ((body.threshold_value === null) !== (body.threshold_value_2 === null)) {
+                showStatus(statusId, "Set both thresholds, or leave both blank to inherit.", false);
+                return;
+            }
+        } else {
+            body.threshold_value_2 = null;
+        }
+    } else {
+        body.threshold_value = null;
+        body.threshold_value_2 = null;
+    }
+
+    body.enabled = enableSelect.value === "" ? null : enableSelect.value === "true";
+
+    try {
+        const res = await fetch(
+            "/alarm-overrides/" + encodeURIComponent(deviceId) + "/" + encodeURIComponent(rule.rule_code),
+            {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            }
+        );
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(errorMessage(data, "Failed to save override."));
+        }
+
+        // re-render from the server's rule object rather than guessing at the new
+        // state - it knows the true effective/overridden values, we don't
+        const newRow = renderRuleRow(deviceId, data.rule);
+        row.replaceWith(newRow);
+        showStatus("ruleStatus_" + encodeURIComponent(data.rule.rule_code), "Saved.", true);
+        refreshDeviceOverrideCount();
+    } catch (err) {
+        showStatus(statusId, err.message, false);
+    }
+}
+
+async function revertOverride(deviceId, rule) {
+    if (!confirm("Revert " + rule.rule_code + " to the profile default?")) {
+        return;
+    }
+
+    const statusId = "ruleStatus_" + encodeURIComponent(rule.rule_code);
+    const row = document.getElementById("ruleRow_" + encodeURIComponent(rule.rule_code));
+
+    try {
+        const res = await fetch(
+            "/alarm-overrides/" + encodeURIComponent(deviceId) + "/" + encodeURIComponent(rule.rule_code),
+            { method: "DELETE" }
+        );
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(errorMessage(data, "Failed to revert override."));
+        }
+
+        if (row) {
+            const newRow = renderRuleRow(deviceId, data.rule);
+            row.replaceWith(newRow);
+        }
+        refreshDeviceOverrideCount();
+    } catch (err) {
+        if (row) {
+            showStatus(statusId, err.message, false);
+        }
+    }
+}
+
+document.addEventListener("keydown", function(event) {
+    if (event.key === "Enter" && !document.getElementById("loginCard").classList.contains("hidden")) {
+        unlockPage();
+    }
+});
+</script>
+
+</body>
+</html>

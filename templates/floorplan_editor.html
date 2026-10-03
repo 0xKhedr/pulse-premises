@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Client Portal</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+        }
+
+        header {
+            padding: 22px 30px;
+            background: #111827;
+            border-bottom: 1px solid #334155;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        header p {
+            margin: 8px 0 0;
+            color: #94a3b8;
+        }
+
+        .container {
+            padding: 24px 30px;
+            display: grid;
+            grid-template-columns: 330px 1fr;
+            gap: 22px;
+        }
+
+        .activity-container {
+            padding: 0 30px 30px 30px;
+        }
+
+        .card {
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 19px;
+        }
+
+        .muted {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .tree-client {
+            margin-bottom: 18px;
+        }
+
+        .tree-title {
+            font-weight: bold;
+            color: #93c5fd;
+            margin-bottom: 8px;
+        }
+
+        .tree-site {
+            margin-left: 12px;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+        }
+
+        .tree-building {
+            margin-left: 24px;
+            margin-bottom: 8px;
+            color: #d1d5db;
+        }
+
+        .floor-btn {
+            display: block;
+            width: calc(100% - 36px);
+            margin-left: 36px;
+            margin-top: 6px;
+            padding: 9px 10px;
+            background: #020617;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .floor-btn:hover {
+            background: #1e293b;
+        }
+
+        .floor-btn.active {
+            background: #2563eb;
+            border-color: #60a5fa;
+        }
+
+        .logout-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .logout-btn:hover {
+            background: #b91c1c;
+        }
+
+        .permissions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .perm {
+            padding: 7px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: #334155;
+            color: #e5e7eb;
+        }
+
+        .perm.on {
+            background: #166534;
+        }
+
+        .perm.off {
+            background: #7f1d1d;
+        }
+
+        .viewer {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #334155;
+            background: #020617;
+        }
+
+        #floorImage {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .node-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2563eb;
+            color: white;
+            border: 3px solid white;
+            cursor: pointer;
+            z-index: 15;
+            box-shadow: 0 3px 12px rgba(0,0,0,.4);
+            font-size: 15px;
+        }
+
+        .gateway-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #64748b;
+            color: white;
+            border: 3px solid white;
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 3px 12px rgba(0,0,0,.4);
+            font-size: 18px;
+        }
+
+        .gateway-marker.online {
+            background: #16a34a;
+        }
+
+        .gateway-marker.offline {
+            background: #dc2626;
+        }
+
+        .gateway-marker.error {
+            background: #f97316;
+        }
+
+        .gateway-marker.unknown {
+            background: #64748b;
+        }
+
+        .details {
+            margin-top: 18px;
+            background: #020617;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .details h3 {
+            margin-top: 0;
+            color: #93c5fd;
+        }
+
+        .details p {
+            margin: 7px 0;
+        }
+
+        .empty {
+            padding: 30px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .activity-title {
+            margin: 0;
+        }
+
+        .activity-subtitle {
+            margin: 6px 0 0 0;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .refresh-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .refresh-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .activity-item {
+            padding: 12px 14px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #020617;
+        }
+
+        .activity-message {
+            font-weight: 700;
+            color: #f9fafb;
+        }
+
+        .activity-meta {
+            margin-top: 6px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .activity-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #1e3a8a;
+            color: #bfdbfe;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .activity-empty {
+            padding: 14px;
+            background: #020617;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #94a3b8;
+        }
+
+        .activity-error {
+            padding: 14px;
+            background: #7f1d1d;
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            color: white;
+        }
+        .export-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .export-card {
+        display: block;
+        text-decoration: none;
+        background: #020617;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 16px;
+        color: #e5e7eb;
+        transition: 0.2s;
+        cursor: pointer;
+    }
+
+    .export-card:hover {
+        background: #1e293b;
+        border-color: #60a5fa;
+        transform: translateY(-2px);
+    }
+
+    .export-card h3 {
+        margin: 8px 0 6px 0;
+        font-size: 17px;
+        color: #bfdbfe;
+    }
+
+    .export-card p {
+        margin: 0;
+        color: #94a3b8;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .export-badge {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #7c3aed;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+        @media(max-width: 1000px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+<header>
+    <h1>Client Portal</h1>
+    <p id="clientSubtitle">Loading allowed sites, buildings, floors, devices, and gateways...</p>
+    <button class="refresh-btn" onclick="window.location.href='/logout'">
+        Logout
+    </button>
+</header>
+
+<div class="container">
+    <div class="card">
+        <h2>Allowed Locations</h2>
+        <div id="tree"></div>
+    </div>
+
+    <div class="card">
+        <h2 id="floorTitle">Select a floor</h2>
+
+        <div class="permissions" id="permissions"></div>
+
+        <div id="viewerArea" class="empty">
+            Choose a floor from the left side.
+        </div>
+
+        <div class="details" id="detailsBox" style="display:none;"></div>
+    </div>
+</div>
+
+<div class="activity-container">
+    <div class="card">
+        <h2 style="margin:0;">Exports</h2>
+        <p class="activity-subtitle">
+            Download reports for your allowed areas only.
+        </p>
+
+        <div class="export-grid">
+            <div class="export-card" onclick="exportClientFullStructureCsv()">
+                <span class="export-badge">CSV</span>
+                <h3>Full Structure Export</h3>
+                <p>
+                    Export your allowed clients, sites, buildings, floors, rooms, devices, and gateways.
+                </p>
+            </div>
+
+            <div class="export-card" onclick="exportClientAlarmHistoryCsv()">
+                <span class="export-badge">CSV</span>
+                <h3>Alarm History Export</h3>
+                <p>
+                    Export alarm history for your allowed scope. If a floor is selected, only that floor is exported.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="activity-container">
+    <div class="card">
+        <div class="activity-header">
+            <div>
+                <h2 class="activity-title">Activity Log</h2>
+                <p class="activity-subtitle">
+                    Recent alarm and device activity for your allowed areas.
+                </p>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="refresh-btn" onclick="loadClientActivityLog()">
+                Refresh
+                </button>
+            </div>
+
+        <div id="clientActivityLog" style="margin-top:16px;">
+            Loading activity...
+        </div>
+    </div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const userId = params.get("user_id") || "1";
+
+let structureData = null;
+let selectedFloorId = null;
+let currentLiveData = null;
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function showError(message) {
+    document.getElementById("viewerArea").innerHTML = `
+        <div class="empty">${escapeHtml(message)}</div>
+    `;
+}
+
+async function loadStructure() {
+    try {
+        const res = await fetch(`/client-portal/${userId}/allowed-structure`);
+
+        if (!res.ok) {
+            showError("Could not load client access. Check user_id or permissions.");
+            return;
+        }
+
+        structureData = await res.json();
+
+        document.getElementById("clientSubtitle").innerText =
+            `${structureData.user.name} - ${structureData.user.email}`;
+
+        drawTree(structureData.structure);
+
+    } catch (error) {
+        showError("Could not load client portal data.");
+    }
+}
+
+function drawTree(structure) {
+    const tree = document.getElementById("tree");
+    tree.innerHTML = "";
+
+    if (!structure || structure.length === 0) {
+        tree.innerHTML = `<div class="empty">No allowed locations for this user.</div>`;
+        return;
+    }
+
+    structure.forEach(client => {
+        const clientDiv = document.createElement("div");
+        clientDiv.className = "tree-client";
+
+        clientDiv.innerHTML = `<div class="tree-title">Client: ${escapeHtml(client.name)}</div>`;
+
+        client.sites.forEach(site => {
+            const siteDiv = document.createElement("div");
+            siteDiv.className = "tree-site";
+            siteDiv.innerHTML = `Site: ${escapeHtml(site.name)}`;
+
+            site.buildings.forEach(building => {
+                const buildingDiv = document.createElement("div");
+                buildingDiv.className = "tree-building";
+                buildingDiv.innerHTML = `Building: ${escapeHtml(building.name)}`;
+
+                building.floors.forEach(floor => {
+                    const btn = document.createElement("button");
+                    btn.className = "floor-btn";
+                    btn.id = "floorBtn_" + floor.id;
+
+                    let floorLabel = floor.name || ("Floor " + floor.floor_number);
+
+                    if (
+                        floor.floor_number &&
+                        floor.name &&
+                        floor.name.toLowerCase() === ("floor " + floor.floor_number).toLowerCase()
+                    ) {
+                        floorLabel = floor.name;
+                    }
+
+                    btn.innerText = floorLabel;
+                    btn.onclick = () => loadFloor(floor.id);
+                    buildingDiv.appendChild(btn);
+                });
+
+                siteDiv.appendChild(buildingDiv);
+            });
+
+            clientDiv.appendChild(siteDiv);
+        });
+
+        tree.appendChild(clientDiv);
+    });
+}
+
+function drawPermissions(permissions) {
+    const box = document.getElementById("permissions");
+
+    box.innerHTML = `
+        <span class="perm on">Level: ${escapeHtml(permissions.access_level)}</span>
+        <span class="perm ${permissions.can_view_devices ? "on" : "off"}">Devices</span>
+        <span class="perm ${permissions.can_view_gateways ? "on" : "off"}">Gateways</span>
+        <span class="perm ${permissions.can_view_alarms ? "on" : "off"}">Alarms</span>
+        <span class="perm ${permissions.can_view_telemetry ? "on" : "off"}">Telemetry</span>
+        <span class="perm ${permissions.can_manage_email_settings ? "on" : "off"}">Email Settings</span>
+    `;
+}
+
+async function loadFloor(floorId) {
+    selectedFloorId = floorId;
+
+    document.querySelectorAll(".floor-btn").forEach(btn => {
+        btn.classList.remove("active");
+    });
+
+    const activeBtn = document.getElementById("floorBtn_" + floorId);
+
+    if (activeBtn) {
+        activeBtn.classList.add("active");
+    }
+
+    const res = await fetch(`/client-portal/${userId}/floors/${floorId}/live`);
+
+    if (!res.ok) {
+        showError("You do not have permission to open this floor.");
+        return;
+    }
+
+    currentLiveData = await res.json();
+
+    document.getElementById("floorTitle").innerText =
+        currentLiveData.floor.name || ("Floor " + floorId);
+
+    drawPermissions(currentLiveData.permissions);
+    drawFloor();
+}
+
+function drawFloor() {
+    const floor = currentLiveData.floor;
+
+    if (!floor.image_path) {
+        showError("This floor does not have an uploaded image.");
+        return;
+    }
+
+    document.getElementById("viewerArea").innerHTML = `
+        <div class="viewer" id="viewer">
+            <img id="floorImage" src="${escapeHtml(floor.image_path)}">
+        </div>
+    `;
+
+    const img = document.getElementById("floorImage");
+
+    img.onload = function() {
+        drawDevices();
+        drawGateways();
+    };
+
+    img.onerror = function() {
+        showError("Could not load floor image: " + floor.image_path);
+    };
+}
+
+function drawDevices() {
+    if (!currentLiveData.permissions.can_view_devices) {
+        return;
+    }
+
+    const viewer = document.getElementById("viewer");
+    const img = document.getElementById("floorImage");
+    const floor = currentLiveData.floor;
+
+    currentLiveData.rooms.forEach(room => {
+        if (!room.devices) {
+            return;
+        }
+
+        room.devices.forEach(device => {
+            if (device.x === null || device.y === null) {
+                return;
+            }
+
+            const marker = document.createElement("div");
+            marker.className = "node-marker";
+            marker.innerHTML = "●";
+            marker.title = device.label || device.device_id;
+
+            marker.style.left = (device.x * img.clientWidth / floor.image_width) + "px";
+            marker.style.top = (device.y * img.clientHeight / floor.image_height) + "px";
+
+            marker.onclick = async function(event) {
+                event.stopPropagation();
+
+                showDetails(`
+                    <h3>Device Details</h3>
+                    <p><strong>Label:</strong> ${escapeHtml(device.label || "--")}</p>
+                    <p><strong>Device ID:</strong> ${escapeHtml(device.device_id)}</p>
+                    <p><strong>Type:</strong> ${escapeHtml(device.node_type)}</p>
+                    <p><strong>Room:</strong> ${escapeHtml(device.room || room.room_name || "--")}</p>
+                    <p><strong>Position:</strong> X ${escapeHtml(device.x)} / Y ${escapeHtml(device.y)}</p>
+                    <hr>
+                    <p class="muted">Loading telemetry...</p>
+                `);
+
+                await loadDeviceTelemetry(device, room);
+            };
+
+            viewer.appendChild(marker);
+        });
+    });
+}
+
+async function loadDeviceTelemetry(device, room) {
+    const box = document.getElementById("detailsBox");
+
+    let baseHtml = `
+        <h3>Device Details</h3>
+        <p><strong>Label:</strong> ${escapeHtml(device.label || "--")}</p>
+        <p><strong>Device ID:</strong> ${escapeHtml(device.device_id)}</p>
+        <p><strong>Type:</strong> ${escapeHtml(device.node_type)}</p>
+        <p><strong>Room:</strong> ${escapeHtml(device.room || room.room_name || "--")}</p>
+        <p><strong>Position:</strong> X ${escapeHtml(device.x)} / Y ${escapeHtml(device.y)}</p>
+    `;
+
+    if (!currentLiveData.permissions.can_view_telemetry) {
+        box.innerHTML = baseHtml + `
+            <hr>
+            <h3>Live Telemetry</h3>
+            <p class="muted">Telemetry permission is disabled for this user.</p>
+        `;
+        return;
+    }
+
+    try {
+        const res = await fetch(`/client-portal/${userId}/devices/${device.device_id}/latest-telemetry`);
+
+        if (!res.ok) {
+            box.innerHTML = baseHtml + `
+                <hr>
+                <h3>Live Telemetry</h3>
+                <p class="muted">Could not load telemetry.</p>
+            `;
+            return;
+        }
+
+        const data = await res.json();
+        const telemetry = data.telemetry || {};
+
+        let telemetryHtml = `
+            <hr>
+            <h3>Live Telemetry</h3>
+        `;
+
+        if (Object.keys(telemetry).length === 0) {
+            telemetryHtml += `<p class="muted">No telemetry received yet.</p>`;
+        } else {
+            Object.keys(telemetry).forEach(key => {
+                const value = telemetry[key];
+
+                if (
+                    key === "alarm_active" ||
+                    key === "alarm_message" ||
+                    key === "received_by_gateways" ||
+                    key === "gateway_id" ||
+                    key === "rssi" ||
+                    key === "snr" ||
+                    key === "spreading_factor" ||
+                    key === "bandwidth" ||
+                    key === "frequency"
+                ) {
+                    return;
+                }
+
+                if (key === "temperature") {
+                    telemetryHtml += `<p><strong>Temperature:</strong> ${escapeHtml(value)} °C</p>`;
+                }
+
+                else if (key === "humidity") {
+                    telemetryHtml += `<p><strong>Humidity:</strong> ${escapeHtml(value)} %</p>`;
+                }
+
+                else if (key === "battery_percent") {
+                    telemetryHtml += `<p><strong>Battery:</strong> 🔋 ${escapeHtml(value)}%</p>`;
+                }
+
+                else if (key === "battery_voltage") {
+                    telemetryHtml += `<p><strong>Battery Voltage:</strong> ${escapeHtml(value)} V</p>`;
+                }
+
+                else if (key === "battery_status") {
+                    let color = "#22c55e";
+
+                    if (value === "low") color = "#f97316";
+                    if (value === "critical") color = "#ef4444";
+
+                    telemetryHtml += `
+                        <p>
+                            <strong>Battery Status:</strong>
+                            <span style="color:${color};font-weight:bold;">
+                                ${escapeHtml(String(value).toUpperCase())}
+                            </span>
+                        </p>
+                    `;
+                }
+
+                else if (key === "signal_status") {
+                    let color = "#22c55e";
+
+                    if (value === "weak") color = "#f97316";
+                    if (value === "poor") color = "#ef4444";
+
+                    telemetryHtml += `
+                        <p>
+                            <strong>Connection Quality:</strong>
+                            <span style="color:${color};font-weight:bold;">
+                                ${escapeHtml(String(value).toUpperCase())}
+                            </span>
+                        </p>
+                    `;
+                }
+
+                else if (key === "local_updated_at") {
+                    return;
+                }
+
+                else {
+                    telemetryHtml += `<p><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</p>`;
+                }
+            });
+        }
+
+        const alarmClass = data.alarm_active ? "color:#ef4444;font-weight:bold;" : "color:#22c55e;font-weight:bold;";
+
+        telemetryHtml += `
+            <p><strong>Alarm:</strong> <span style="${alarmClass}">${escapeHtml(data.alarm_message || "OK")}</span></p>
+            <p><strong>Last Update:</strong> ${escapeHtml(data.updated_at || telemetry.local_updated_at || "--")}</p>
+        `;
+
+        box.innerHTML = baseHtml + telemetryHtml;
+
+    } catch (e) {
+        box.innerHTML = baseHtml + `
+            <hr>
+            <h3>Live Telemetry</h3>
+            <p class="muted">Telemetry loading error.</p>
+        `;
+    }
+}
+
+function drawGateways() {
+    if (!currentLiveData.permissions.can_view_gateways) {
+        return;
+    }
+
+    const viewer = document.getElementById("viewer");
+    const img = document.getElementById("floorImage");
+    const floor = currentLiveData.floor;
+
+    currentLiveData.gateways.forEach(gw => {
+        if (gw.x === null || gw.y === null) {
+            return;
+        }
+
+        const marker = document.createElement("div");
+        const status = gw.status || "unknown";
+
+        marker.className = "gateway-marker " + status;
+        marker.innerHTML = "📡";
+        marker.title = gw.label || gw.name || gw.gateway_id;
+
+        marker.style.left = (gw.x * img.clientWidth / floor.image_width) + "px";
+        marker.style.top = (gw.y * img.clientHeight / floor.image_height) + "px";
+
+        marker.onclick = function(event) {
+            event.stopPropagation();
+
+            showDetails(`
+                <h3>Gateway Details</h3>
+                <p><strong>Name:</strong> ${escapeHtml(gw.name || "--")}</p>
+                <p><strong>Label:</strong> ${escapeHtml(gw.label || "--")}</p>
+                <p><strong>Gateway ID:</strong> ${escapeHtml(gw.gateway_id)}</p>
+                <p><strong>Status:</strong> ${escapeHtml(status.toUpperCase())}</p>
+                <p><strong>Last Seen:</strong> ${escapeHtml(gw.last_seen || "--")}</p>
+                <p><strong>Position:</strong> X ${escapeHtml(gw.x || "--")} / Y ${escapeHtml(gw.y || "--")}</p>
+                <p><strong>Note:</strong> ${escapeHtml(gw.location_note || "--")}</p>
+            `);
+        };
+
+        viewer.appendChild(marker);
+    });
+}
+
+function showDetails(html) {
+    const box = document.getElementById("detailsBox");
+    box.style.display = "block";
+    box.innerHTML = html;
+}
+
+async function loadClientActivityLog() {
+    const box = document.getElementById("clientActivityLog");
+
+    if (!box) {
+        console.log("clientActivityLog element not found");
+        return;
+    }
+
+    box.innerHTML = "Loading activity...";
+
+    try {
+        const response = await fetch(`/client-portal/${userId}/activity-log?limit=50`);
+
+        if (!response.ok) {
+            throw new Error("Failed to load activity log");
+        }
+
+        const logs = await response.json();
+
+        if (!logs || logs.length === 0) {
+            box.innerHTML = `
+                <div class="activity-empty">
+                    No recent activity found.
+                </div>
+            `;
+            return;
+        }
+
+        box.innerHTML = logs.map(function(log) {
+            return `
+                <div class="activity-item">
+                    <div class="activity-message">
+                        ${escapeHtml(log.message || "")}
+                    </div>
+
+                    <div class="activity-meta">
+                        ${escapeHtml(log.timestamp || log.created_at || "")}
+                        · <span class="activity-badge">${escapeHtml(log.action || "")}</span>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+    } catch (error) {
+        console.error("Activity log error:", error);
+
+        box.innerHTML = `
+            <div class="activity-error">
+                Error loading activity log: ${escapeHtml(error.message)}
+            </div>
+        `;
+    }
+}
+
+function exportClientAlarmHistoryCsv() {
+    const query = new URLSearchParams();
+
+    query.set("limit", "5000");
+
+    if (selectedFloorId) {
+        query.set("floor_id", selectedFloorId);
+    }
+
+    window.location.href = `/client-portal/${userId}/alarms/export.csv?` + query.toString();
+}
+
+function exportClientFullStructureCsv() {
+    window.location.href = `/client-portal/${userId}/export/full-structure.csv`;
+}
+
+loadStructure();
+loadClientActivityLog();
+</script>
+<script src="/static/help_system.js"></script>
+
+<!-- UX Systems -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<script src="/static/onboarding_tour.js"></script>
+<script src="/static/search_system.js"></script>
+<script src="/static/realtime_toasts.js"></script>
+
+<!-- Chart.js & Graphs System -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/graphs.js?v=3"></script>
+<script src="/static/generate_firmware.js?v=3"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>
+<script src="/static/analytics_widget.js"></script>
+</body>
+
+
+</html>

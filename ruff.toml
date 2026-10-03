@@ -1,0 +1,68 @@
+# Lint configuration for `ruff check app tests` (run by .github/workflows/ci.yml).
+#
+# The selected rules are the ones that catch real defects in this codebase.
+# F is the important one: F821 (undefined name) is what would have caught the
+# 171 dangling references a refactor left behind across the router package,
+# and F401 keeps imports honest so those references stay resolvable.
+
+target-version = "py310"
+line-length = 120
+
+[lint]
+select = [
+    "E4",    # import placement
+    "E7",    # statement-level mistakes
+    "E9",    # syntax / IO errors
+    "F",     # pyflakes: undefined names, unused imports, unused locals
+    "I",     # import sorting
+    "B",     # bugbear: mutable defaults, misuse of builtins
+    "PIE",   # misc correctness
+    "PERF",  # obvious performance mistakes
+    "RUF",   # ruff-specific correctness
+    "UP",    # pyupgrade
+    "SIM",   # simplification
+    "TRY",   # exception-handling mistakes
+]
+
+ignore = [
+    # FastAPI's dependency system is built on call-in-default (File(...),
+    # Query(...), Depends(...)); flagging it here is a false positive.
+    "B008",
+    # `x != x` is the standard NaN check and is used deliberately in the
+    # profile telemetry validators.
+    "PLR0124",
+    # The codebase deliberately degrades rather than failing when an optional
+    # upstream (ThingsBoard, TTN, SMTP) misbehaves. These would require
+    # enumerating exception types across every integration boundary.
+    "TRY003",
+    "TRY300",
+    "TRY400",
+    # Implicit Optional in signatures is pervasive and understood; converting
+    # every one is churn without behaviour change.
+    "RUF013",
+    # app/main.py MUST import the routers at the bottom of the file: each
+    # router does `from app.main import ...` at its top, so the names have to
+    # exist before the router modules load. Moving these imports up would
+    # reintroduce a circular import.
+    "E402",
+    # Style-only, and all high-count. None of these indicate a defect; they
+    # would be a large mechanical rewrite of working error-handling code.
+    "TRY301",  # raise inside try
+    "SIM105",  # contextlib.suppress instead of try/except/pass
+    "B904",    # `raise ... from err` inside except
+    "TRY004",  # prefer TypeError for type checks
+    "SIM102",  # collapsible if
+    "SIM108",  # ternary instead of if/else
+    "SIM110",  # any()/all() instead of a loop
+    "SIM210",  # `bool(x)` instead of if/else True/False
+    "RUF005",  # unpacking instead of list concatenation
+    "PERF401", # list comprehension instead of append loop
+    "PERF402", # list() instead of a copy loop
+    "PERF203", # try/except inside a loop -- deliberate per-row error handling
+]
+
+[lint.per-file-ignores]
+# Tests bind values purely to document intent, and assert on them indirectly.
+"tests/*" = ["F841"]
+# Migrations are written as flat, explicit scripts on purpose.
+"app/db/migrations/*" = ["RUF059"]

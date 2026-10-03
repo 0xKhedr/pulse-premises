@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Node Placement Editor</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:#0f172a;
+    color:#e5e7eb;
+}
+
+.header{
+    padding:24px 34px;
+    background:#111827;
+    border-bottom:1px solid #334155;
+}
+
+.header h1{
+    margin:0;
+    font-size:28px;
+    color:#f8fafc;
+}
+
+.header p{
+    margin:8px 0 0;
+    color:#cbd5e1;
+}
+
+.toolbar{
+    padding:16px 34px;
+    background:#0f172a;
+    border-bottom:1px solid #1e293b;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+
+.toolbar label{
+    color:#cbd5e1;
+    font-weight:bold;
+}
+
+.toolbar input,
+.toolbar select,
+.toolbar option,
+.toolbar button{
+    width:auto;
+    padding:10px 13px;
+    border-radius:8px;
+    border:1px solid #334155;
+    font-size:14px;
+}
+
+.toolbar input,
+.toolbar select,
+option {
+    background:#1e293b !important;
+    color:#ffffff !important;
+}
+
+.toolbar button{
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+    color:white;
+    background:#2563eb;
+}
+
+.toolbar button:hover{
+    background:#1d4ed8;
+}
+
+.adminHomeBtn{
+    background:#334155 !important;
+}
+
+.adminHomeBtn:hover{
+    background:#475569 !important;
+}
+
+.layout{
+    display:flex;
+    height:calc(100vh - 152px);
+}
+
+.mapArea{
+    flex:1;
+    position:relative;
+    overflow:auto;
+    padding:24px 34px;
+}
+
+.canvasBox{
+    position:relative;
+    width:calc(100vw - 430px);
+    background:#111827;
+    border:1px solid #334155;
+    border-radius:16px;
+    padding:14px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.35);
+}
+
+#floorImage{
+    width:100%;
+    height:auto;
+    display:block;
+    border:1px solid #334155;
+    border-radius:12px;
+    background:#020617;
+    opacity:0.92;
+}
+
+#overlay{
+    position:absolute;
+    top:14px;
+    left:14px;
+    width:calc(100% - 28px);
+    height:calc(100% - 28px);
+}
+
+#nodesLayer{
+    position:absolute;
+    top:14px;
+    left:14px;
+    width:calc(100% - 28px);
+    height:calc(100% - 28px);
+}
+
+.roomPolygon{
+    fill:rgba(37,99,235,0.18);
+    stroke:#60a5fa;
+    stroke-width:3;
+}
+
+.roomLabel{
+    fill:#93c5fd;
+    font-size:15px;
+    font-weight:bold;
+    paint-order:stroke;
+    stroke:#020617;
+    stroke-width:3px;
+}
+
+.node{
+    position:absolute;
+    transform:translate(-50%, -50%);
+    padding:8px 12px;
+    border-radius:999px;
+    background:#16a34a;
+    color:white;
+    font-weight:bold;
+    font-size:12px;
+    cursor:grab;
+    z-index:20;
+    white-space:nowrap;
+    box-shadow:0 8px 20px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,0.25);
+}
+
+.node.selected{
+    outline:4px solid #f59e0b;
+}
+
+.sidePanel{
+    width:330px;
+    background:#111827;
+    border-left:1px solid #334155;
+    padding:18px;
+    overflow:auto;
+    box-shadow:-8px 0 24px rgba(0,0,0,0.25);
+}
+
+.sidePanel h2{
+    margin-top:0;
+    color:#f8fafc;
+}
+
+.sidePanel h3{
+    color:#93c5fd;
+}
+
+.deviceItem{
+    padding:10px;
+    border-radius:8px;
+    background:#020617;
+    border:1px solid #334155;
+    margin-bottom:8px;
+    cursor:pointer;
+    color:#e5e7eb;
+}
+
+.deviceItem:hover{
+    background:#1e293b;
+}
+
+.deviceItem.active{
+    background:#78350f;
+    border-color:#f59e0b;
+    font-weight:bold;
+}
+
+.sidePanel label{
+    color:#cbd5e1;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.sidePanel input,
+.sidePanel select,
+.sidePanel button{
+    width:100%;
+    box-sizing:border-box;
+    padding:10px;
+    margin-top:8px;
+    margin-bottom:10px;
+    border-radius:8px;
+}
+
+.sidePanel input,
+.sidePanel select{
+    border:1px solid #334155;
+    background:#020617;
+    color:white;
+}
+
+.sidePanel button{
+    border:none;
+    background:#2563eb;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.sidePanel button:hover{
+    background:#1d4ed8;
+}
+
+.saveBtn{
+    background:#16a34a !important;
+}
+
+.saveBtn:hover{
+    background:#15803d !important;
+}
+
+.resetBtn{
+    background:#64748b !important;
+}
+
+.resetBtn:hover{
+    background:#475569 !important;
+}
+
+.hint{
+    font-size:12px;
+    color:#94a3b8;
+    line-height:1.5;
+}
+
+hr{
+    border:none;
+    border-top:1px solid #334155;
+    margin: 16px 0;
+}
+
+.discoveredInboxSection {
+    background: #0f172a;
+    border: 1px solid #0284c7;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 14px;
+    margin-bottom: 14px;
+}
+
+.inboxHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.unplacedBadge {
+    background: #64748b;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 7px;
+    border-radius: 999px;
+}
+
+.unplacedList {
+    margin-top: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.unplacedItem {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: default;
+    transition: border-color 0.2s;
+}
+
+.unplacedItem:hover {
+    border-color: #38bdf8;
+}
+
+.placeNowBtn {
+    margin-top: 8px;
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    background: #0284c7 !important;
+    color: white !important;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+}
+
+.placeNowBtn:hover {
+    background: #0369a1 !important;
+}
+
+.addDeviceBtn{
+    background:#16a34a !important;
+    color:white !important;
+}
+
+.addDeviceBtn:hover{
+    background:#15803d !important;
+}
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modalCard {
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 18px;
+    padding: 24px;
+    width: 450px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    color: white;
+}
+
+.modalCard h3 {
+    margin-top: 0;
+    color: #f8fafc;
+    font-size: 20px;
+}
+
+.modalCard label {
+    display: block;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    color: #cbd5e1;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.modalCard input, .modalCard select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #020617;
+    color: white;
+    box-sizing: border-box;
+}
+
+.modalActions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modalActions button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+</style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Node Placement Editor</h1>
+    <p>Choose a floor plan, add devices, drag nodes to position, and save their floor location.</p>
+</div>
+
+<div class="toolbar">
+    <button class="adminHomeBtn" onclick="window.location.href='/admin'">
+        ← Admin Home
+    </button>
+
+    <span id="floorControlGroup">
+        <label>Floor:</label>
+        <input id="floorSearch" type="search" placeholder="Search client, site, building or floor" oninput="filterFloorOptions()">
+        <select id="floorId" onchange="loadFloor()"></select>
+    </span>
+
+    <span id="floorBreadcrumb" class="hint">Select a floor</span>
+
+    <button class="addDeviceBtn" onclick="openAddDeviceModal()">
+        + Add New Device
+    </button>
+</div>
+
+<div class="layout">
+
+    <div class="mapArea">
+        <div class="canvasBox" id="canvasBox">
+            <img id="floorImage">
+            <svg id="overlay"></svg>
+            <div id="nodesLayer"></div>
+        </div>
+    </div>
+
+    <div class="sidePanel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0;">Node Placement</h2>
+            <button class="addDeviceBtn" style="padding:6px 10px; font-size:12px;" onclick="openAddDeviceModal()">+ Add Device</button>
+        </div>
+
+        <!-- Discovered / Unplaced Devices Inbox -->
+        <div class="discoveredInboxSection" id="discoveredInboxSection">
+            <div class="inboxHeader" onclick="toggleDiscoveredDrawer()">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:16px;">📥</span>
+                    <span style="font-weight:bold; color:#38bdf8; font-size:14px;">Discovered Devices</span>
+                    <span id="unplacedBadge" class="unplacedBadge">0</span>
+                </div>
+                <span id="drawerToggleIcon" style="color:#94a3b8; font-size:11px;">▼</span>
+            </div>
+            <div id="unplacedList" class="unplacedList">
+                <div style="color:#64748b; font-size:12px; font-style:italic; padding:6px 0;">No unplaced devices waiting. Any new LoRa node will appear here automatically!</div>
+            </div>
+        </div>
+
+        <hr>
+
+        <h3>Placed Devices</h3>
+        <div id="deviceList"></div>
+
+        <hr>
+
+        <label>Selected Device</label>
+        <input id="selectedDeviceName" readonly>
+
+        <span id="roomAssignmentSection">
+            <label>Assign To Room</label>
+            <select id="roomSelect"></select>
+            <button onclick="assignToRoom()">Assign To Room Center</button>
+        </span>
+
+        <button class="saveBtn" onclick="savePosition()">Save Current Position</button>
+        <button class="resetBtn" id="resetPositionBtn" onclick="resetToRoomCenter()">Reset To Center</button>
+
+        <p class="hint" id="modeHint">
+            Drag node on the map, then press Save Current Position.
+        </p>
+    </div>
+
+</div>
+
+<!-- Modal Dialog: Add Device Directly -->
+<div id="addDeviceModal" class="modalOverlay" style="display:none;">
+    <div class="modalCard">
+        <h3>+ Add New Device to Map</h3>
+        
+        <label>Device ID *</label>
+        <input id="modalDeviceId" placeholder="Example: ENV-NODE-105">
+
+        <label>Label / Friendly Name</label>
+        <input id="modalDeviceLabel" placeholder="Example: Main Lobby Temp Sensor">
+
+        <label>Node Type</label>
+        <select id="modalNodeType">
+            <option value="gateway">Gateway (LoRaWAN / Edge Base Station)</option>
+            <option value="environment">Environment (Temp/Humid/CO2/IAQ)</option>
+            <option value="energy">Energy (Power/Current/Voltage)</option>
+            <option value="safety">Safety (Smoke/Gas/Water Leak)</option>
+            <option value="occupancy">Occupancy (Motion/Presence/PIR)</option>
+            <option value="actuator">Actuator (Relay/HVAC Control)</option>
+            <option value="hybrid">Hybrid Node</option>
+            <option value="multi">Multi-Sensor Node</option>
+        </select>
+
+        <p class="hint">The device will be added to the floor currently selected in the editor.</p>
+
+        <div class="modalActions">
+            <button class="addDeviceBtn" onclick="submitModalAddDevice()">Create & Add Device</button>
+            <button class="resetBtn" onclick="closeAddDeviceModal()">Cancel</button>
+        </div>
+
+        <div id="modalStatus" style="margin-top:12px; font-size:13px;"></div>
+    </div>
+</div>
+
+<script>
+let floorData = null;
+let selectedDevice = null;
+let selectedNodeEl = null;
+let dragging = false;
+let dragDevice = null;
+let unplacedDevices = [];
+let discoveredDrawerOpen = true;
+
+function toggleDiscoveredDrawer() {
+    discoveredDrawerOpen = !discoveredDrawerOpen;
+    const listEl = document.getElementById("unplacedList");
+    const iconEl = document.getElementById("drawerToggleIcon");
+    if (listEl) listEl.style.display = discoveredDrawerOpen ? "flex" : "none";
+    if (iconEl) iconEl.innerText = discoveredDrawerOpen ? "▼" : "▶";
+}
+
+async function loadUnplacedDevices() {
+    try {
+        const res = await fetch("/devices/unplaced");
+        if (!res.ok) return;
+        unplacedDevices = await res.json();
+        renderUnplacedDevices();
+    } catch (e) {
+        console.error("Could not load unplaced devices:", e);
+    }
+}
+
+function renderUnplacedDevices() {
+    const listEl = document.getElementById("unplacedList");
+    const badgeEl = document.getElementById("unplacedBadge");
+    if (!listEl || !badgeEl) return;
+
+    badgeEl.innerText = unplacedDevices.length;
+    if (unplacedDevices.length > 0) {
+        badgeEl.style.background = "#16a34a";
+    } else {
+        badgeEl.style.background = "#64748b";
+    }
+
+    if (unplacedDevices.length === 0) {
+        listEl.innerHTML = `<div style="color:#64748b; font-size:12px; font-style:italic; padding:6px 0;">No unplaced devices waiting. Any new LoRa node will appear here automatically!</div>`;
+        return;
+    }
+
+    listEl.innerHTML = "";
+    unplacedDevices.forEach(dev => {
+        const item = document.createElement("div");
+        item.className = "unplacedItem";
+        item.draggable = true;
+        item.addEventListener("dragstart", event => {
+            event.dataTransfer.setData("text/device-id", dev.device_id);
+            event.dataTransfer.effectAllowed = "move";
+        });
+
+        let teleText = "";
+        if (dev.telemetry && Object.keys(dev.telemetry).length > 0) {
+            const t = dev.telemetry;
+            const parts = [];
+            if (t.temperature !== undefined) parts.push(`🌡 ${t.temperature}°C`);
+            if (t.humidity !== undefined) parts.push(`💧 ${t.humidity}%`);
+            if (t.battery_voltage !== undefined) parts.push(`🔋 ${t.battery_voltage}V`);
+            if (t.battery !== undefined) parts.push(`🔋 ${t.battery}%`);
+            if (t.voltage !== undefined) parts.push(`⚡ ${t.voltage}V`);
+            if (t.motion !== undefined) parts.push(t.motion ? "🚶 Motion" : "Clear");
+            if (t.alarm !== undefined) parts.push(t.alarm ? "🚨 Alarm" : "OK");
+            if (t.rssi !== undefined) parts.push(`RSSI ${t.rssi} dBm`);
+            if (t.snr !== undefined) parts.push(`SNR ${t.snr} dB`);
+            if (t.gateway_id) parts.push(`Gateway ${t.gateway_id}`);
+            if (parts.length > 0) teleText = parts.join(" | ");
+        }
+        if (!teleText) teleText = "Live on LoRaWAN";
+
+        item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:bold; color:#f8fafc; font-size:13px;">${iconFor(dev.node_type)} ${dev.label || dev.device_id}</span>
+                <span style="font-size:10px; background:#16a34a; color:white; padding:2px 6px; border-radius:4px;">🟢 Discovered</span>
+            </div>
+            <div style="font-size:11px; color:#94a3b8; margin-top:3px;">
+                ${dev.dev_eui ? 'DevEUI: ' + dev.dev_eui : dev.device_id}
+            </div>
+            <div style="font-size:11px; color:#cbd5e1; margin-top:3px;">
+                State: ${dev.connection_state || "never_connected"}
+                ${dev.last_seen ? " · Last seen " + dev.last_seen : ""}
+            </div>
+            <div style="font-size:11px; color:#38bdf8; margin-top:3px; font-weight:bold;">
+                ${teleText}
+            </div>
+            <button class="placeNowBtn" onclick="placeUnplacedDevice('${dev.device_id}')">
+                📍 Place on This Map
+            </button>
+        `;
+        listEl.appendChild(item);
+    });
+}
+
+function placeUnplacedDevice(deviceId, displayX = null, displayY = null) {
+    const dev = unplacedDevices.find(d => d.device_id === deviceId);
+    if (!dev) return;
+
+    if (!image.clientWidth || !image.clientHeight) {
+        alert("Please wait for the map image to load first.");
+        return;
+    }
+
+    const centerDisplayX = displayX ?? Math.round(image.clientWidth / 2);
+    const centerDisplayY = displayY ?? Math.round(image.clientHeight / 2);
+    const origPos = displayToOriginal(centerDisplayX, centerDisplayY);
+
+    dev.x = origPos.x;
+    dev.y = origPos.y;
+
+    let existingNode = document.getElementById("node_" + dev.device_id);
+    if (!existingNode) {
+        existingNode = document.createElement("div");
+        existingNode.id = "node_" + dev.device_id;
+        existingNode.className = "node";
+        nodesLayer.appendChild(existingNode);
+    }
+
+    existingNode.style.left = centerDisplayX + "px";
+    existingNode.style.top = centerDisplayY + "px";
+    existingNode.innerText = iconFor(dev.node_type) + " " + (dev.label || dev.device_id);
+
+    existingNode.onmousedown = function(e) {
+        e.preventDefault();
+        selectDevice(dev, existingNode);
+        dragging = true;
+        dragDevice = dev;
+        existingNode.style.cursor = "grabbing";
+    };
+
+    existingNode.onclick = function(e) {
+        e.stopPropagation();
+        selectDevice(dev, existingNode);
+    };
+
+    selectDevice(dev, existingNode);
+
+    const hintEl = document.getElementById("modeHint");
+    if (hintEl) {
+        hintEl.innerText = `Placed ${dev.label || dev.device_id} in center. Drag it to its exact spot, then click "Save Current Position".`;
+        hintEl.style.color = "#38bdf8";
+    }
+}
+
+const image = document.getElementById("floorImage");
+const overlay = document.getElementById("overlay");
+const nodesLayer = document.getElementById("nodesLayer");
+
+document.getElementById("canvasBox").addEventListener("dragover", event => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+});
+
+document.getElementById("canvasBox").addEventListener("drop", event => {
+    event.preventDefault();
+    const deviceId = event.dataTransfer.getData("text/device-id");
+    if (!deviceId) return;
+    const rect = nodesLayer.getBoundingClientRect();
+    placeUnplacedDevice(deviceId, event.clientX - rect.left, event.clientY - rect.top);
+});
+
+function iconFor(type){
+    if(type === "environment") return "🌡";
+    if(type === "occupancy") return "👤";
+    if(type === "safety") return "🔥";
+    if(type === "energy") return "⚡";
+    return "📡";
+}
+
+function originalToDisplay(p){
+    const origWidth = floorData?.floor?.image_width || 1000;
+    const origHeight = floorData?.floor?.image_height || 800;
+    return {
+        x: p.x * image.clientWidth / origWidth,
+        y: p.y * image.clientHeight / origHeight
+    };
+}
+
+function displayToOriginal(x, y){
+    const origWidth = floorData?.floor?.image_width || 1000;
+    const origHeight = floorData?.floor?.image_height || 800;
+    return {
+        x: Math.round(x * origWidth / image.clientWidth),
+        y: Math.round(y * origHeight / image.clientHeight)
+    };
+}
+
+async function openAddDeviceModal() {
+    const modal = document.getElementById("addDeviceModal");
+    const status = document.getElementById("modalStatus");
+    
+    status.innerText = "";
+    modal.style.display = "flex";
+
+    if (!document.getElementById("floorId")?.value) {
+        status.style.color = "#fecaca";
+        status.innerText = "Select a floor before creating a device.";
+    }
+}
+
+function closeAddDeviceModal() {
+    document.getElementById("addDeviceModal").style.display = "none";
+}
+
+async function submitModalAddDevice() {
+    const device_id = document.getElementById("modalDeviceId").value.trim();
+    const label = document.getElementById("modalDeviceLabel").value.trim();
+    const node_type = document.getElementById("modalNodeType").value;
+    const status = document.getElementById("modalStatus");
+    const floorId = document.getElementById("floorId")?.value;
+
+    if (!device_id) {
+        status.style.color = "#fecaca";
+        status.innerText = "Device ID is required.";
+        return;
+    }
+
+    if (!floorId) {
+        status.style.color = "#fecaca";
+        status.innerText = "Please select a floor.";
+        return;
+    }
+
+    const payload = {
+        device_id: device_id,
+        label: label || device_id,
+        node_type: node_type,
+        floor_id: Number(floorId)
+    };
+
+    try {
+        status.style.color = "#93c5fd";
+        status.innerText = "Creating device...";
+
+        const res = await fetch("/devices", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "Failed to create device");
+        }
+
+        status.style.color = "#86efac";
+        status.innerText = `Device '${device_id}' added successfully!`;
+
+        setTimeout(async () => {
+            closeAddDeviceModal();
+            document.getElementById("modalDeviceId").value = "";
+            document.getElementById("modalDeviceLabel").value = "";
+
+            await loadFloor();
+        }, 500);
+
+    } catch (err) {
+        status.style.color = "#fecaca";
+        status.innerText = err.message;
+    }
+}
+
+async function loadFloor(){
+    const floorId = document.getElementById("floorId").value;
+
+    if (!floorId) {
+        return;
+    }
+
+    selectedDevice = null;
+    selectedNodeEl = null;
+    dragDevice = null;
+
+    document.getElementById("selectedDeviceName").value = "";
+    document.getElementById("deviceList").innerHTML = "";
+    document.getElementById("roomSelect").innerHTML = "";
+    nodesLayer.innerHTML = "";
+    overlay.innerHTML = "";
+
+    const res = await fetch(`/floors/${floorId}/live`);
+    floorData = await res.json();
+
+    const floor = floorData.floor || {};
+    document.getElementById("floorBreadcrumb").innerText = [
+        floor.client_name,
+        floor.site_name,
+        floor.building_name,
+        floor.name || floor.floor_number,
+    ].filter(Boolean).join(" → ");
+
+    if (!floorData.floor || !floorData.floor.image_path) {
+        alert("No floor plan image has been uploaded for this floor yet.");
+        return;
+    }
+
+    image.src = floorData.floor.image_path;
+
+    image.onload = function(){
+        overlay.setAttribute("width", image.clientWidth);
+        overlay.setAttribute("height", image.clientHeight);
+
+        drawRooms();
+        drawNodes();
+        renderDeviceList();
+        renderRoomSelect();
+    };
+
+    if(image.complete){
+        drawRooms();
+        drawNodes();
+        renderDeviceList();
+        renderRoomSelect();
+    }
+}
+
+function allDevices(){
+    let devices = [];
+    if (!floorData) return devices;
+
+    (floorData.floor_devices || []).forEach(device => {
+        device._room = null;
+        devices.push(device);
+    });
+
+    (floorData.rooms || []).forEach(room => {
+        room.devices.forEach(device => {
+            device._room = room;
+            devices.push(device);
+        });
+    });
+
+    return devices;
+}
+
+function drawRooms(){
+    overlay.innerHTML = "";
+    if (!floorData || !floorData.rooms) return;
+
+    floorData.rooms.forEach(room => {
+        if(!room.polygon_points || room.polygon_points.length < 3) return;
+
+        const pts = room.polygon_points.map(originalToDisplay);
+
+        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        poly.setAttribute("points", pts.map(p => `${p.x},${p.y}`).join(" "));
+        poly.setAttribute("class", "roomPolygon");
+        overlay.appendChild(poly);
+
+        const center = originalToDisplay({x: room.x, y: room.y});
+
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", center.x);
+        label.setAttribute("y", center.y);
+        label.setAttribute("class", "roomLabel");
+        label.textContent = room.room_name;
+        overlay.appendChild(label);
+    });
+}
+
+function drawNodes(){
+    nodesLayer.innerHTML = "";
+
+    allDevices().forEach(device => {
+        const node = document.createElement("div");
+
+        const room = device._room;
+
+        const px = device.x ?? room?.x;
+        const py = device.y ?? room?.y;
+        if (px === null || px === undefined || py === null || py === undefined) return;
+
+        const pos = originalToDisplay({x:px, y:py});
+
+        node.className = "node";
+        node.style.left = pos.x + "px";
+        node.style.top = pos.y + "px";
+
+        node.innerText =
+            iconFor(device.node_type) + " " + (device.label || device.device_id);
+
+        node.onmousedown = function(e){
+            e.preventDefault();
+            selectDevice(device, node);
+            dragging = true;
+            dragDevice = device;
+            node.style.cursor = "grabbing";
+        };
+
+        node.onclick = function(e){
+            e.stopPropagation();
+            selectDevice(device, node);
+        };
+
+        nodesLayer.appendChild(node);
+    });
+}
+
+document.addEventListener("mousemove", function(e){
+    if(!dragging || !dragDevice || !selectedNodeEl) return;
+
+    const rect = nodesLayer.getBoundingClientRect();
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    selectedNodeEl.style.left = x + "px";
+    selectedNodeEl.style.top = y + "px";
+
+    const original = displayToOriginal(x, y);
+
+    dragDevice.x = original.x;
+    dragDevice.y = original.y;
+});
+
+document.addEventListener("mouseup", function(){
+    if(selectedNodeEl){
+        selectedNodeEl.style.cursor = "grab";
+    }
+
+    dragging = false;
+    dragDevice = null;
+});
+
+function selectDevice(device, nodeEl){
+    selectedDevice = device;
+
+    if(selectedNodeEl){
+        selectedNodeEl.classList.remove("selected");
+    }
+
+    selectedNodeEl = nodeEl;
+
+    if(selectedNodeEl){
+        selectedNodeEl.classList.add("selected");
+    }
+
+    document.getElementById("selectedDeviceName").value =
+        device.label || device.device_id;
+
+    document.getElementById("roomSelect").value = device.room_id || "";
+    renderDeviceList();
+}
+
+function renderDeviceList(){
+    const list = document.getElementById("deviceList");
+    list.innerHTML = "";
+
+    allDevices().forEach(device => {
+        const div = document.createElement("div");
+
+        div.className =
+            "deviceItem" +
+            (selectedDevice && selectedDevice.device_id === device.device_id ? " active" : "");
+
+        div.innerText =
+            iconFor(device.node_type) + " " + (device.label || device.device_id);
+
+        div.onclick = function(){
+            selectedDevice = device;
+            document.getElementById("selectedDeviceName").value =
+                device.label || device.device_id;
+            document.getElementById("roomSelect").value =
+                device.room_id || "";
+            renderDeviceList();
+        };
+
+        list.appendChild(div);
+    });
+}
+
+function renderRoomSelect(){
+    const select = document.getElementById("roomSelect");
+    select.innerHTML = '<option value="">Floor only (no room)</option>';
+    if (!floorData || !floorData.rooms) return;
+
+    floorData.rooms.forEach(room => {
+        const opt = document.createElement("option");
+        opt.value = room.id;
+        opt.textContent = room.room_name;
+        select.appendChild(opt);
+    });
+}
+
+async function savePosition(){
+    if(!selectedDevice){
+        alert("Select a device first");
+        return;
+    }
+
+    const payload = {
+        x: selectedDevice.x,
+        y: selectedDevice.y
+    };
+
+    const floorId = document.getElementById("floorId")?.value;
+    if (!floorId) {
+        alert("Select a floor first");
+        return;
+    }
+    payload.floor_id = Number(floorId);
+    const roomId = document.getElementById("roomSelect")?.value;
+    if (roomId) payload.room_id = Number(roomId);
+
+    const res = await fetch(`/devices/${selectedDevice.device_id}/position`, {
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+        alert(JSON.stringify(data));
+        return;
+    }
+
+    alert("Device position saved!");
+
+    await loadUnplacedDevices();
+
+    await loadFloor();
+}
+
+function getRoomById(roomId){
+    return floorData.rooms.find(r => Number(r.id) === Number(roomId));
+}
+
+async function assignToRoom(){
+    if(!selectedDevice){
+        alert("Select a device first");
+        return;
+    }
+
+    const roomId = document.getElementById("roomSelect").value;
+    const room = getRoomById(roomId);
+
+    if(!room){
+        alert("Select room");
+        return;
+    }
+
+    selectedDevice.x = room.x;
+    selectedDevice.y = room.y;
+    selectedDevice.room_id = room.id;
+
+    await savePosition();
+}
+
+async function resetToRoomCenter(){
+    await assignToRoom();
+}
+
+window.onload = function() {
+    loadFloor();
+    loadUnplacedDevices();
+    setInterval(loadUnplacedDevices, 8000);
+};
+
+async function loadFloorDropdown() {
+    const select = document.getElementById("floorId");
+
+    try {
+        const res = await fetch("/floors");
+        const floors = await res.json();
+
+        select.innerHTML = `<option value="">Select floor</option>`;
+
+        floors.forEach(floor => {
+            const label = [
+                floor.client_name,
+                floor.site_name,
+                floor.building_name,
+                floor.name || `Floor ${floor.floor_number}`,
+            ].filter(Boolean).join(" → ");
+
+            select.innerHTML += `
+                <option value="${floor.id}">
+                    ${label}
+                </option>
+            `;
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        const requestedFloorId = params.get("floor_id");
+
+        if (
+            requestedFloorId &&
+            floors.some(floor => String(floor.id) === String(requestedFloorId))
+        ) {
+            select.value = requestedFloorId;
+            loadFloor();
+        }
+
+        else if (floors.length > 0) {
+            select.value = floors[0].id;
+            loadFloor();
+        }
+
+    } catch (err) {
+        console.error("Could not load floors:", err);
+    }
+}
+
+function filterFloorOptions() {
+    const search = document.getElementById("floorSearch").value.trim().toLowerCase();
+    const select = document.getElementById("floorId");
+    Array.from(select.options).forEach((option, index) => {
+        if (index === 0) return;
+        option.hidden = Boolean(search) && !option.textContent.toLowerCase().includes(search);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    loadFloorDropdown();
+    loadUnplacedDevices();
+});
+</script>
+
+<script src="/static/help_system.js"></script>
+
+<!-- UX Systems -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<script src="/static/onboarding_tour.js"></script>
+<script src="/static/search_system.js"></script>
+<script src="/static/realtime_toasts.js"></script>
+
+<!-- Chart.js & Graphs System -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/graphs.js?v=3"></script>
+<script src="/static/generate_firmware.js?v=3"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>
+<script src="/static/analytics_widget.js"></script>
+</body>
+
+
+</html>

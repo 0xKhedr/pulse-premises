@@ -1,0 +1,296 @@
+================================================================================
+SMART BUILDING MANAGEMENT SYSTEM (SBMS) - AGENT MEMORY & CODEBASE REFERENCE
+================================================================================
+Last Updated: 13 September 2026
+Repository: IoT-GUC/smart-building-management-system
+Primary Stack: Python 3.11+, FastAPI, SQLite (WAL mode), Jinja2/Vanilla JS, LoRaWAN (TTN v3), ThingsBoard
+
+--------------------------------------------------------------------------------
+1. PROJECT OVERVIEW & CORE DOMAIN
+--------------------------------------------------------------------------------
+This platform manages IoT sensors and building assets across physical locations.
+The canonical spatial hierarchy is:
+    Client -> Site -> Building -> Floor -> Room -> Device
+
+Sensors communicate via LoRaWAN (The Things Network v3) using Cayenne LPP encoding.
+Uplinks hit the webhook endpoint (POST /ttn-webhook), normalize telemetry, evaluate
+alarm thresholds, update live status, forward timeseries to ThingsBoard, broadcast
+to WebSocket clients (/ws/alarms), and trigger email notifications when necessary.
+
+--------------------------------------------------------------------------------
+2. DIRECTORY STRUCTURE & FILE MAP
+--------------------------------------------------------------------------------
+app/
+  config.py               - Pydantic BaseSettings loading environment from .env
+  dependencies.py         - FastAPI dependency helpers (get_db, auth)
+  main.py                 - FastAPI application core:
+                            - Lifespan manager (runs migrations, spawns offline_watchdog)
+                            - auth_middleware (strict deny-by-default)
+                            - TTN webhook background ingestion pipeline
+                            - Telemetry normalization & alarm evaluation
+                            - Periodic maintenance & watchdog tasks
+  db/
+    connection.py         - SQLite connection factory (WAL mode, foreign keys, row_factory)
+                            and sequential migration runner.
+    migrations/           - Numbered migrations, 001_initial.py through 008. Notable:
+                            005_auto_discovery        - is_placed column, CAYENNE_LPP_V1 seed profile.
+                            006_floor_commissioning_invariant
+                                                      - TRIGGERS aborting any insert/update that
+                                                        leaves is_placed=1 with a NULL floor_id.
+                            007_legacy_device_normalization
+                                                      - Backfills floor_id/building_id/site_id upward
+                                                        from room_id; normalizes profile columns.
+                            008_repair_placement_clobber
+                                                      - Repairs devices whose is_placed was wrongly
+                                                        cleared by 005's second UPDATE overwriting
+                                                        its own first one.
+  models/                 - Database data classes/helpers.
+  schemas/
+    core.py               - Pydantic validation schemas (Device, etc.).
+  services/
+    alarm_engine.py       - Threshold evaluation, battery/signal enrichment, system alarm detection.
+    device_state.py       - build_device_state(): THE canonical definition of commissioned /
+                            connection_state / monitoring_state. Never re-derive these inline.
+    export_safety.py      - redact_secrets() (recursive, substring match on SECRET_KEY_PARTS) and
+                            SafeDictWriter (CSV formula-injection escaping ONLY - it does NOT
+                            strip secrets; the two are separate concerns and both are needed).
+    lorawan_identity.py   - derive_dev_eui_from_mac(): must stay byte-identical to the firmware's
+                            initUniqueDevEUI(). Pinned by test_shared_dev_eui_derivation_matches_firmware.
+    provisioning.py       - Device onboarding, hierarchy validation, room lookups.
+    thingsboard.py        - ThingsBoard client: device creation, attribute sync, telemetry sync.
+    ttn.py                - TTN v3 REST client: end-device identity, network/app server configs.
+    uploads.py            - File storage service for uploaded floorplan & campus images.
+    websockets.py         - Connection manager & broadcast engine. Scope is resolved server-side at
+                            handshake and stored; broadcast is FAIL-CLOSED.
+  routers/                - 17 modular route controllers:
+    admin.py              - Admin summary metrics and CSV exports.
+    alarms.py             - Active alerts, threshold configurations, email templates.
+    audit.py              - System audit event logging & CSV export.
+    auth.py               - Session authentication, login/logout, /me.
+    client_portal.py      - Tenancy-scoped portal endpoints for client role users.
+    clients.py            - Client entity CRUD.
+    devices.py            - Device CRUD, /devices/unplaced, /devices/{id}/position, bulk import.
+    firmware.py           - Modular sensor firmware generator & module registry.
+    gateways.py           - Gateway monitoring, placement, and health sync.
+    hierarchy.py          - Sites, buildings, floors, rooms endpoints.
+    integrations.py       - TTN & ThingsBoard configuration endpoints, /provision-options.
+    pages.py              - HTML page render routes.
+    profiles.py           - Sensor profiles, catalog, fields, rules, and versions.
+    root.py               - Root page, /healthz, /service-worker.js.
+    telemetry.py          - Historical telemetry, /api/analytics summary.
+    webhooks.py           - POST /ttn-webhook endpoint with shared-secret verification.
+    ws.py                 - WebSocket /ws/alarms route with tenant-scoped filtering.
+
+firmware/
+  lilygo_cayenne_lpp_node.ino - Production ESP32 + SX1262/SX1276 LoRaWAN node firmware.
+  lorawan_credentials.example.h - Placeholder header. The real lorawan_credentials.h is
+                                GITIGNORED and generated by tools/generate_lorawan_credentials.py.
+
+templates/                - 28 HTML templates (admin views, client portal, canvas editors).
+static/                   - Vanilla JS components (analytics, search, graphs, toasts) & CSS.
+uploads/                  - Uploaded floorplan maps and site blueprints (gitignored except .gitkeep).
+tests/                    - 29 pytest files, 444 passing tests. route_inventory.py is a SHARED
+                            HELPER, not a test module (deliberately not named test_*).
+tools/                    - Operator scripts: generate_lorawan_credentials.py, register_ttn_devices.py,
+                            sync_ttn_credentials.py, reconcile_legacy_database.py, hardware_acceptance.py.
+tools/archive/            - Historical backup files (EXCLUDED from pytest and linters, DO NOT EDIT).
+Dockerfile / docker-compose.yml / requirements-dev.txt
+                          - See section 5.
+
+--------------------------------------------------------------------------------
+3. CRITICAL SUBSYSTEM MECHANICS
+--------------------------------------------------------------------------------
+
+A. Zero-Touch Auto-Discovery Pipeline:
+   NOTE: the node runs in PURE LoRA MODE - firmware does WiFi.mode(WIFI_OFF) and btStop(),
+   has no IP stack, no SSID/password, and makes NO HTTP calls. The node and the backend do
+   NOT need to share a network. Path is: node -> LoRa RF -> gateway -> TTN -> HTTPS webhook.
+   The requirement is that TTN can reach the SERVER's webhook URL. (The Admin UI previously
+   told operators the opposite; corrected in admin_setup_asset_management_page.html and
+   admin_audit_log_page.html.)
+   Placement is anchored to a FLOOR; rooms are optional refinement. The node receives nothing
+   back from the backend - it is uplink-only.
+   1. Unregistered device sends LoRaWAN uplink to POST /ttn-webhook.
+   2. Webhook verifies the shared secret (X-Webhook-Secret). It FAILS CLOSED: if
+      TTN_WEBHOOK_SECRET is unset, every request is rejected with 503.
+   3. Background worker (process_ttn_webhook_background) checks devices table:
+      - If unknown, calls auto_provision_discovered_device():
+        - Refuses with 429 once MAX_UNPLACED_DISCOVERED_DEVICES unplaced rows exist
+          (bounds the inbox; known devices are unaffected).
+        - Inserts into devices with is_placed=0, status='online', chip_mac = dev_eui or device_id.
+        - Uses INSERT OR IGNORE to prevent race conditions on concurrent uplinks.
+        - Automatically assigns universal CAYENNE_LPP_V1 profile.
+        - Logs 'device_auto_discovered' audit event.
+   4. Unplaced devices appear in the "Discovered Devices" inbox drawer in node_placement_editor.html.
+   5. Admin drags and places node on floorplan -> PUT /devices/{id}/position sets x, y, floor_id,
+      resolves full hierarchy (room/floor/building/site/client) and sets is_placed=1.
+
+B. Cayenne LPP Telemetry Normalization:
+   - Cayenne fields like 'temperature_1', 'relative_humidity_2', 'presence_3' are mapped via
+     CAYENNE_CHANNEL_PREFIX_MAP in app/main.py. The PREFIX is what maps; the channel number is
+     free (an unmapped prefix passes through unchanged).
+   - Mapped prefixes: temperature, relative_humidity/humidity->humidity, presence/motion->motion,
+     alarm, digital_in/out, analog_in/out, voltage, current, power, luminosity/lux->lux,
+     barometric_pressure/pressure->pressure, battery.
+   - Normalized standard keys ('temperature', 'humidity', 'motion') are generated for rule evaluation.
+   - Raw channel keys are also preserved in telemetry dict for multi-channel display.
+   - A reading is only STORED if its field_key is declared on the device's sensor profile.
+     CAYENNE_LPP_V1 is self-describing: all 13 fields (temperature, humidity, motion, alarm,
+     voltage, current, power, battery, co2, lux, pressure, analog_in, digital_in) are optional
+     and nullable, so heterogeneous sensor nodes share one profile. A NEW profile is only needed
+     for a field key outside that list.
+
+C. Alarm Engine & State Tracking:
+   - Alarms are SUPPRESSED until a device is commissioned (see build_device_state).
+     Uncommissioned devices sit in 'discovery' monitoring_state and never alarm.
+   - Sensor Profile Alarms:
+     - Multi-condition rules (gt, lt, between, outside, contains, ==, !=).
+     - Stateful debouncing via profile_alarm_runtime_state table (debounce_seconds, cooldown_seconds).
+     - Auto-resolves in alarm_history when reading returns to normal (if rule.auto_resolve=1).
+   - System Alarms (Battery & Signal):
+     - Low battery (<=20%) and poor signal quality (RSSI/SNR).
+     - State-tracked in alarm_history (alarm_type='system' AND resolved=0).
+     - Only inserts history and sends email on initial trigger (never floods emails on every uplink).
+     - Automatically resolves when battery or signal condition recovers.
+
+D. Real-Time WebSockets (/ws/alarms):
+   - The HTTP auth middleware DOES NOT RUN for websocket scopes. The endpoint authenticates the
+     handshake itself and closes unauthenticated sockets with code 1008.
+   - Scope is resolved server-side (resolve_allowed_scopes) and stored on the connection. A client
+     may narrow its view but can never widen it; set_scope ignores out-of-scope requests.
+   - broadcast() is FAIL-CLOSED: a connection with no verified scope receives nothing.
+   - Grants keep their narrow level: a floor grant must not become a client-wide subscription.
+   - Payload includes: type='ALARM', device_id, device_name, rule, telemetry.
+
+E. Authentication & Authorization:
+   - Middleware: app.main:auth_middleware uses a strict DENY-BY-DEFAULT model.
+   - Public exact paths: '/', '/login', '/admin-login', '/client-login', '/auth/login',
+     '/auth/status', '/logout', '/me', '/docs', '/redoc', '/openapi.json', '/favicon.ico',
+     '/service-worker.js', '/manifest.json', '/healthz'.
+   - Public prefixes: '/uploads', '/ttn-webhook', '/static'.
+   - NOTE: '/provision' and '/provision-options' are ADMIN-ONLY. They were public historically;
+     do not re-add them to the allowlist. Firmware makes no HTTP calls to this server.
+   - Roles: 'admin' (full access) and 'client' (tenancy-scoped portal).
+   - Any unknown/unregistered path requires an authenticated administrator session.
+
+F. SQLite Concurrency & Maintenance:
+   - Database is SQLite (smarthome.db) running in PRAGMA journal_mode=WAL.
+   - Background tasks run in offline_watchdog every 300s (offloaded to a threadpool via
+     asyncio.to_thread; the connection is opened INSIDE the worker thread because sqlite3
+     connections are thread-bound):
+     1. check_offline_devices: marks devices with no telemetry in >24h as OFFLINE.
+     2. cleanup_expired_sessions: revokes expired rows in auth_sessions.
+     3. purge_old_telemetry: deletes rows in historical_telemetry older than 30 days.
+   - GOLDEN RULE: Never execute database write transactions (conn.commit) inline inside
+     read-only request handlers.
+
+--------------------------------------------------------------------------------
+4. INVARIANTS THAT HAVE ALREADY BEEN BROKEN ONCE
+--------------------------------------------------------------------------------
+Each of these caused a real defect. Preserve them.
+
+1. SECRETS NEVER LEAVE THE SERVER.
+   Any dict built from `SELECT *` on devices, or from audit_log.details, must pass through
+   redact_secrets() before being returned or written to CSV. Six endpoints leaked the LoRaWAN
+   app_key this way. SafeDictWriter does NOT do this - it only escapes CSV formulas.
+
+2. CLEARING A DEVICE'S LOCATION MUST ALSO CLEAR is_placed.
+   Migration 006's trigger aborts any UPDATE leaving is_placed=1 with a NULL floor_id. Every
+   cascade delete (client/site/building/floor) clears the location, so each must set
+   is_placed = 0 in the SAME statement or the whole delete fails with a 500.
+
+3. "COMMISSIONED" HAS ONE DEFINITION.
+   Call build_device_state(...)['commissioned']. It was previously re-derived inline in three
+   places; they agreed by luck, not by construction.
+
+4. OPTIONAL UPSTREAMS MUST DEGRADE, NOT 500.
+   TTN and ThingsBoard calls must be wrapped so an unreachable upstream marks one item as
+   errored/offline rather than failing the whole endpoint. /gateways/health caught only
+   HTTPException and crashed the entire dashboard on any network error.
+
+5. LOGGING CALLS MUST USE %s PLACEHOLDERS.
+   logger.error("thing failed:", exc) raises TypeError inside the logging call. 33 of these
+   existed, all inside except blocks, converting handled errors into unhandled 500s.
+
+6. ROUTERS IMPORT FROM app.main AT MODULE TOP LEVEL.
+   This works only because app/main.py imports the routers at the BOTTOM of the file, after
+   every name is defined. Do not move those imports up (ruff E402 is ignored for this reason).
+
+--------------------------------------------------------------------------------
+5. DEPLOYMENT (DOCKER)
+--------------------------------------------------------------------------------
+   docker compose up --build      -> http://localhost:8000
+
+   - Runs as unprivileged user sbms (uid 1000). /app/data and /app/uploads are created and
+     chowned in the image BEFORE any volume attaches, because a named volume inherits its
+     ownership from the image at first mount.
+   - DB persists in the sbms-data NAMED volume (not a bind mount - this avoids SQLite WAL
+     locking problems on Docker Desktop / WSL2). DB_FILE defaults to /app/data/smarthome.db
+     in the image so a bare `docker run` cannot silently write to the ephemeral layer.
+   - uploads/ is a host bind mount. On a Linux host it may need `chown -R 1000:1000 uploads`.
+   - PORT is honoured via shell-form CMD; EXPOSE and compose both default to 8000.
+   - Managed-network TLS interception: save the proxy root CA (DER) as .docker-local-ca.cer and
+     set SBMS_LOCAL_CA_FILE=.docker-local-ca.cer in .env. Compose defaults to the committed
+     EMPTY .docker-local-ca.cer.example, which the build reads as "no corporate CA".
+     The CA install shares a layer with pip install ON PURPOSE: BuildKit excludes secret
+     CONTENTS from the cache key, so a separate CA step built once without the secret caches
+     as a no-op and silently breaks every later build. Do not split them apart again.
+   - TTN_WEBHOOK_SECRET must be set to a real value or ALL telemetry ingestion returns 503.
+   - templates/ and static/ are COPYied into the image, so an edit does NOT appear until a
+     rebuild. docker-compose.override.yml mounts both read-only for local dev (Compose merges
+     it automatically) and they then hot-reload per request. Deploy with
+     `docker compose -f docker-compose.yml up -d --build` to EXCLUDE the override.
+     Python changes always need a rebuild.
+
+--------------------------------------------------------------------------------
+6. VERIFICATION & QUALITY STANDARDS
+--------------------------------------------------------------------------------
+Install dev tooling first (pytest/ruff are NOT in requirements.txt):
+   pip install -r requirements-dev.txt
+
+Whenever making changes to this codebase, always run and verify:
+
+1. Test Suite:
+   pytest -q
+   (All 444 tests MUST pass with 0 failures)
+
+2. Linter:
+   ruff check app tests
+   (Must report "All checks passed!")
+
+3. Bytecode Compilation:
+   python -m compileall -q app tests tools
+   (Ensures zero syntax or import errors)
+
+4. Code Style & Hygiene:
+   - Always close database connections in a single `finally: conn.close()` block, with
+     `except Exception: conn.rollback(); raise` on any path that writes.
+   - Always parameterize SQL queries with `?` (never format raw strings).
+   - When adding columns, use official migrations in app/db/migrations/.
+   - Avoid adding business logic directly into app/main.py; place in app/services/ instead.
+   - Maintain backwards compatibility for existing sensor profiles and router endpoints.
+   - Source files are CRLF. Scripted edits must read AND write with newline="" or the diff
+     becomes the whole file.
+
+5. Whole-Application Sweeps (tests/route_inventory.py):
+   These derive their cases from app.routes at COLLECTION time, so a new endpoint is covered
+   automatically. If you add a route, do not add a one-off test - make the sweep pass.
+     test_mutation_auth_sweep     - every mutating route rejects anonymous callers, and the
+                                    full anonymous sweep changes zero rows.
+     test_secret_leakage_sweep    - every GET route checked against sentinel credentials.
+     test_tenant_isolation_sweep  - cross-tenant IDOR across all client-portal routes, both
+                                    directions (a blanket 403 must not pass).
+     test_lifecycle_integrity     - full tenant built over HTTP, torn down, checked for orphans.
+     test_no_undefined_names      - bytecode scan for NameErrors that only fire at request time.
+
+--------------------------------------------------------------------------------
+7. OPEN ITEMS / KNOWN TRADE-OFFS
+--------------------------------------------------------------------------------
+- SHARED LoRaWAN AppKey: every node is flashed with the same LORAWAN_APP_KEY. This is
+  deliberate and is what enables zero-touch onboarding, but compromising one physical node
+  exposes the fleet's root key. Reconsider before any commercial deployment.
+- Credentials (TTN API key, mail app password) exist in early git history and should be
+  rotated; .env itself is correctly gitignored and untracked.
+- Firmware: all nodes flash the SAME sketch. Only the sensor reads inside do_send() differ.
+  The credentials header and initUniqueDevEUI() are identical everywhere.
+================================================================================

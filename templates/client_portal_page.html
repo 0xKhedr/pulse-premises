@@ -1,0 +1,444 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Client Portal</title>
+    <link rel="stylesheet" href="/static/bright_theme.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+        }
+
+        header {
+            padding: 22px 30px;
+            background: #111827;
+            border-bottom: 1px solid #334155;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        header p {
+            margin: 8px 0 0;
+            color: #94a3b8;
+        }
+
+        .container {
+            padding: 24px 30px;
+            display: grid;
+            grid-template-columns: 330px 1fr;
+            gap: 22px;
+        }
+
+        .activity-container {
+            padding: 0 30px 30px 30px;
+        }
+
+        .card {
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 19px;
+        }
+
+        .muted {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .tree-client {
+            margin-bottom: 18px;
+        }
+
+        .tree-title {
+            font-weight: bold;
+            color: #93c5fd;
+            margin-bottom: 8px;
+        }
+
+        .tree-site {
+            margin-left: 12px;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+        }
+
+        .tree-building {
+            margin-left: 24px;
+            margin-bottom: 8px;
+            color: #d1d5db;
+        }
+
+        .floor-btn {
+            display: block;
+            width: calc(100% - 36px);
+            margin-left: 36px;
+            margin-top: 6px;
+            padding: 9px 10px;
+            background: #020617;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .floor-btn:hover {
+            background: #1e293b;
+        }
+
+        .floor-btn.active {
+            background: #2563eb;
+            border-color: #60a5fa;
+        }
+
+        .logout-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .logout-btn:hover {
+            background: #b91c1c;
+        }
+
+        .permissions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .perm {
+            padding: 7px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: #334155;
+            color: #e5e7eb;
+        }
+
+        .perm.on {
+            background: #166534;
+        }
+
+        .perm.off {
+            background: #7f1d1d;
+        }
+
+        .viewer {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #334155;
+            background: #020617;
+        }
+
+        #floorImage {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .node-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2563eb;
+            color: white;
+            border: 3px solid white;
+            cursor: pointer;
+            z-index: 15;
+            box-shadow: 0 3px 12px rgba(0,0,0,.4);
+            font-size: 15px;
+        }
+
+        .gateway-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #64748b;
+            color: white;
+            border: 3px solid white;
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 3px 12px rgba(0,0,0,.4);
+            font-size: 18px;
+        }
+
+        .gateway-marker.online {
+            background: #16a34a;
+        }
+
+        .gateway-marker.offline {
+            background: #dc2626;
+        }
+
+        .gateway-marker.error {
+            background: #f97316;
+        }
+
+        .gateway-marker.unknown {
+            background: #64748b;
+        }
+
+        .details {
+            margin-top: 18px;
+            background: #020617;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .details h3 {
+            margin-top: 0;
+            color: #93c5fd;
+        }
+
+        .details p {
+            margin: 7px 0;
+        }
+
+        .empty {
+            padding: 30px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .activity-title {
+            margin: 0;
+        }
+
+        .activity-subtitle {
+            margin: 6px 0 0 0;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .refresh-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .refresh-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .activity-item {
+            padding: 12px 14px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #020617;
+        }
+
+        .activity-message {
+            font-weight: 700;
+            color: #f9fafb;
+        }
+
+        .activity-meta {
+            margin-top: 6px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .activity-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #1e3a8a;
+            color: #bfdbfe;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .activity-empty {
+            padding: 14px;
+            background: #020617;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #94a3b8;
+        }
+
+        .activity-error {
+            padding: 14px;
+            background: #7f1d1d;
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            color: white;
+        }
+        .export-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .export-card {
+        display: block;
+        text-decoration: none;
+        background: #020617;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 16px;
+        color: #e5e7eb;
+        transition: 0.2s;
+        cursor: pointer;
+    }
+
+    .export-card:hover {
+        background: #1e293b;
+        border-color: #60a5fa;
+        transform: translateY(-2px);
+    }
+
+    .export-card h3 {
+        margin: 8px 0 6px 0;
+        font-size: 17px;
+        color: #bfdbfe;
+    }
+
+    .export-card p {
+        margin: 0;
+        color: #94a3b8;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .export-badge {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #7c3aed;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+        @media(max-width: 1000px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<header>
+    <h1>Client Portal</h1>
+    <p id="clientSubtitle">Loading allowed sites, buildings, floors, devices, and gateways...</p>
+    <button class="refresh-btn" onclick="window.location.href='/logout'">
+        Logout
+    </button>
+</header>
+
+<div class="container">
+    <div class="card">
+        <h2>Allowed Locations</h2>
+        <div id="tree"></div>
+    </div>
+
+    <div class="card">
+        <h2 id="floorTitle">Select a floor</h2>
+
+        <div class="permissions" id="permissions"></div>
+
+        <div id="viewerArea" class="empty">
+            Choose a floor from the left side.
+        </div>
+
+        <div class="details" id="detailsBox" style="display:none;"></div>
+    </div>
+</div>
+
+<div class="activity-container">
+    <div class="card">
+        <h2 style="margin:0;">Exports</h2>
+        <p class="activity-subtitle">
+            Download reports for your allowed areas only.
+        </p>
+
+        <div class="export-grid">
+            <div class="export-card" onclick="exportClientFullStructureCsv()">
+                <span class="export-badge">CSV</span>
+                <h3>Full Structure Export</h3>
+                <p>
+                    Export your allowed clients, sites, buildings, floors, rooms, devices, and gateways.
+                </p>
+            </div>
+
+            <div class="export-card" onclick="exportClientAlarmHistoryCsv()">
+                <span class="export-badge">CSV</span>
+                <h3>Alarm History Export</h3>
+                <p>
+                    Export alarm history for your allowed scope. If a floor is selected, only that floor is exported.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="activity-container">
+    <div class="card">
+        <div class="activity-header">
+            <div>
+                <h2 class="activity-title">Activity Log</h2>
+                <p class="activity-subtitle">
+                    Recent alarm and device activity for your allowed areas.
+                </p>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="refresh-btn" onclick="loadClientActivityLog()">
+                Refresh
+                </button>
+            </div>
+
+        <div id="clientActivityLog" style="margin-top:16px;">
+            Loading activity...
+        </div>
+    </div>
+</div>
+
+<script src="/static/client_portal.js"></script>
+</body>
+</html>

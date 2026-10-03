@@ -1,0 +1,1400 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Floor Live View</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:#0f172a;
+    color:#e5e7eb;
+}
+
+/* Header like Admin Home */
+.header{
+    padding:24px 34px;
+    background:#111827;
+    border-bottom:1px solid #334155;
+}
+
+.header h1{
+    margin:0;
+    font-size:28px;
+    color:#f8fafc;
+}
+
+.header p{
+    margin:8px 0 0;
+    color:#94a3b8;
+    font-size:15px;
+}
+
+/* Top controls */
+.toolbar{
+    padding:16px 34px;
+    background:#0f172a;
+    border-bottom:1px solid #1e293b;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+
+.toolbar label{
+    color:#cbd5e1;
+    font-weight:bold;
+}
+
+.toolbar input{
+    width:110px;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid #334155;
+    background:#020617;
+    color:white;
+    outline:none;
+}
+
+.toolbar input:focus{
+    border-color:#60a5fa;
+}
+
+.toolbar button{
+    padding:10px 14px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+    color:white;
+}
+
+.adminHomeBtn{
+    background:#334155;
+}
+
+.adminHomeBtn:hover{
+    background:#475569;
+}
+
+.loadBtn{
+    background:#2563eb;
+}
+
+.loadBtn:hover{
+    background:#1d4ed8;
+}
+
+/* Main map area */
+.viewer{
+    position:relative;
+    margin:24px 34px;
+    background:#111827;
+    border:1px solid #334155;
+    border-radius:16px;
+    padding:16px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.35);
+    overflow:hidden;
+}
+
+#floorImage{
+    width:100%;
+    height:auto;
+    display:block;
+    border:1px solid #334155;
+    border-radius:12px;
+    background:#020617;
+    opacity:0.92;
+}
+
+#overlay{
+    position:absolute;
+    top:16px;
+    left:16px;
+    width:calc(100% - 32px);
+    height:calc(100% - 32px);
+    pointer-events:none;
+}
+
+/* Rooms */
+.room-normal{
+    fill:rgba(37,99,235,0.18);
+    stroke:#60a5fa;
+    stroke-width:3;
+}
+
+.room-alarm{
+    fill:rgba(239,68,68,0.25);
+    stroke:#ef4444;
+    stroke-width:4;
+}
+
+.room-label{
+    fill:#93c5fd;
+    font-size:15px;
+    font-weight:bold;
+    paint-order:stroke;
+    stroke:#020617;
+    stroke-width:3px;
+}
+
+/* Device markers */
+.node{
+    position:absolute;
+    transform:translate(-50%, -50%);
+    padding:8px 12px;
+    border-radius:999px;
+    color:white;
+    font-weight:bold;
+    font-size:12px;
+    cursor:pointer;
+    z-index:10;
+    box-shadow:0 8px 20px rgba(0,0,0,.45);
+    white-space:nowrap;
+    border:1px solid rgba(255,255,255,0.25);
+}
+
+.node-green{
+    background:#16a34a;
+}
+
+.node-red{
+    background:#dc2626;
+}
+
+/* Gateway markers */
+.gateway-live-marker{
+    position:absolute;
+    transform:translate(-50%, -50%);
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-size:20px;
+    cursor:pointer;
+    z-index:12;
+    box-shadow:0 10px 24px rgba(0,0,0,.5);
+    border:2px solid rgba(255,255,255,0.35);
+}
+
+.gateway-live-marker.online{
+    background:#16a34a;
+}
+
+.gateway-live-marker.offline{
+    background:#64748b;
+}
+
+.gateway-live-marker.error{
+    background:#dc2626;
+}
+
+.gateway-live-marker.unknown{
+    background:#f97316;
+}
+
+/* Details side panel */
+#sidePanel{
+    position:fixed;
+    top:0;
+    right:-390px;
+    width:350px;
+    height:100vh;
+    background:#111827;
+    color:#e5e7eb;
+    border-left:1px solid #334155;
+    box-shadow:-8px 0 30px rgba(0,0,0,.45);
+    padding:20px;
+    transition:.3s;
+    z-index:1000;
+    overflow:auto;
+}
+
+#sidePanel.open{
+    right:0;
+}
+
+#sidePanel h2{
+    color:#f8fafc;
+    margin-top:4px;
+}
+
+#sidePanel h3{
+    color:#93c5fd;
+}
+
+.closeBtn{
+    float:right;
+    background:#dc2626;
+    color:white;
+    border:none;
+    padding:7px 11px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.closeBtn:hover{
+    background:#b91c1c;
+}
+
+.infoRow{
+    margin:9px 0;
+    padding:8px 10px;
+    background:#020617;
+    border:1px solid #334155;
+    border-radius:8px;
+    font-size:14px;
+}
+
+.infoRow b{
+    color:#cbd5e1;
+}
+
+.muted{
+    color:#94a3b8;
+}
+
+.alarmText{
+    color:#ef4444;
+    font-weight:bold;
+}
+
+hr{
+    border:none;
+    border-top:1px solid #334155;
+    margin:16px 0;
+}
+
+@media(max-width:900px){
+    .toolbar{
+        padding:14px 18px;
+    }
+
+    .header{
+        padding:20px 18px;
+    }
+
+    .viewer{
+        margin:18px;
+        padding:12px;
+    }
+
+    #overlay{
+        top:12px;
+        left:12px;
+        width:calc(100% - 24px);
+        height:calc(100% - 24px);
+    }
+}
+</style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+<div class="toolbar">
+    <button class="adminHomeBtn" onclick="window.location.href='/admin'">
+        ← Admin Home
+    </button>
+
+    <label>Floor:</label>
+    <select id="floorId" onchange="loadFloor()"></select>
+        Load Floor
+    </button>
+</div>
+
+<div class="viewer" id="viewer">
+    <img id="floorImage">
+    <svg id="overlay"></svg>
+    <div id="nodesLayer"></div>
+</div>
+
+<div id="sidePanel">
+    <button class="closeBtn" onclick="closePanel()">X</button>
+    <h2 id="panelTitle">Device</h2>
+    <div id="panelBody"></div>
+</div>
+
+<script>
+let floorData = null;
+
+const image = document.getElementById("floorImage");
+const overlay = document.getElementById("overlay");
+const nodesLayer = document.getElementById("nodesLayer");
+const panel = document.getElementById("sidePanel");
+
+function valueOrDash(v){
+    if(v === null || v === undefined || v === "") return "--";
+    return v;
+}
+
+function isTrue(v){
+    return v === true || v === "true" || v === "True" || v === 1 || v === "1";
+}
+
+function isAlarm(device){
+    const t = device.telemetry || {};
+    return isTrue(t.alarm_active);
+}
+
+function iconFor(type){
+    if(type === "environment") return "🌡";
+    if(type === "occupancy") return "👤";
+    if(type === "safety") return "🔥";
+    if(type === "energy") return "⚡";
+    return "📡";
+}
+
+function originalToDisplay(p){
+    return {
+        x: p.x * image.clientWidth / floorData.floor.image_width,
+        y: p.y * image.clientHeight / floorData.floor.image_height
+    };
+}
+
+function drawRooms(){
+    overlay.innerHTML = "";
+
+    floorData.rooms.forEach(room => {
+        if(!room.polygon_points || room.polygon_points.length < 3) return;
+
+        const hasAlarm = room.devices.some(d => isAlarm(d));
+
+        const displayPoints = room.polygon_points.map(originalToDisplay);
+
+        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        poly.setAttribute("points", displayPoints.map(p => `${p.x},${p.y}`).join(" "));
+        poly.setAttribute("class", hasAlarm ? "room-alarm" : "room-normal");
+        overlay.appendChild(poly);
+
+        const center = originalToDisplay({x: room.x, y: room.y});
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", center.x);
+        text.setAttribute("y", center.y);
+        text.setAttribute("class", "room-label");
+        text.textContent = room.room_name;
+        overlay.appendChild(text);
+    });
+}
+
+
+function allFloorDevices(){
+    const entries = (floorData.floor_devices || []).map(device => ({device, room: null}));
+    floorData.rooms.forEach(room => {
+        (room.devices || []).forEach(device => entries.push({device, room}));
+    });
+    return entries;
+}
+
+function drawNodes(){
+    nodesLayer.innerHTML = "";
+
+    allFloorDevices().forEach(({device, room}) => {
+            const node = document.createElement("div");
+
+            const px = device.x ?? room?.x;
+            const py = device.y ?? room?.y;
+            if (px === null || px === undefined || py === null || py === undefined) return;
+            const pos = originalToDisplay({x:px, y:py});
+
+            node.className = "node " + (isAlarm(device) ? "node-red" : "node-green");
+            node.style.left = pos.x + "px";
+            node.style.top = pos.y + "px";
+
+            node.innerText =
+                iconFor(device.node_type) + " " + (device.label || device.device_id);
+
+            node.onclick = function(e){
+                e.stopPropagation();
+                openPanel(device, room);
+            };
+
+            nodesLayer.appendChild(node);
+
+            applyLatestTelemetryColor(node, device);
+    });
+}
+
+async function applyLatestTelemetryColor(node, device){
+    try {
+        const res = await fetch(`/devices/${device.device_id}/latest-telemetry`);
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const telemetry = data.telemetry || {};
+
+        const batteryStatus = telemetry.battery_status;
+        const alarmActive = data.alarm_active === 1 || data.alarm_active === true;
+
+        node.classList.remove("node-green", "node-orange", "node-red");
+
+        if (alarmActive || batteryStatus === "critical") {
+            node.classList.add("node-red");
+        }
+
+        else if (batteryStatus === "low") {
+            node.classList.add("node-orange");
+        }
+
+        else {
+            node.classList.add("node-green");
+        }
+
+        if (batteryStatus) {
+            node.title =
+                (device.label || device.device_id) +
+                " | Battery: " +
+                (telemetry.battery_percent || "--") +
+                "% | Status: " +
+                batteryStatus;
+        }
+
+    } catch (e) {
+        console.log("Could not load node battery color", e);
+    }
+}
+
+
+function hasCapability(device, capability){
+    const caps = device.capabilities || [];
+
+    if(caps.includes(capability)) return true;
+
+    return device.node_type === capability;
+}
+
+function escapeHtml(value){
+    if(value === null || value === undefined) return "";
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+function formatPlainTelemetryValue(value){
+    if(
+        value === null ||
+        value === undefined ||
+        value === ""
+    ){
+        return "--";
+    }
+
+    if(Array.isArray(value)){
+        return escapeHtml(
+            value.join(", ")
+        );
+    }
+
+    if(typeof value === "object"){
+        try{
+            return escapeHtml(
+                JSON.stringify(value)
+            );
+        }
+        catch(error){
+            return "--";
+        }
+    }
+
+    return escapeHtml(value);
+}
+
+
+function formatBooleanTelemetryValue(value){
+    if(
+        value === true ||
+        value === "true" ||
+        value === "True" ||
+        value === 1 ||
+        value === "1"
+    ){
+        return "YES";
+    }
+
+    if(
+        value === false ||
+        value === "false" ||
+        value === "False" ||
+        value === 0 ||
+        value === "0"
+    ){
+        return "NO";
+    }
+
+    return "--";
+}
+
+
+function formatValueWithUnit(value, unit){
+    if(
+        value === null ||
+        value === undefined ||
+        value === ""
+    ){
+        return "--";
+    }
+
+    const formattedValue =
+        formatPlainTelemetryValue(value);
+
+    if(!unit){
+        return formattedValue;
+    }
+
+    return (
+        formattedValue +
+        " " +
+        escapeHtml(unit)
+    );
+}
+
+
+function formatProfileFieldValue(
+    field,
+    telemetry
+){
+    const fieldKey =
+        field.field_key;
+
+    let value = field.value;
+
+    if(
+        telemetry &&
+        Object.prototype.hasOwnProperty.call(
+            telemetry,
+            fieldKey
+        )
+    ){
+        value = telemetry[fieldKey];
+    }
+
+    const dataType = String(
+        field.data_type || ""
+    ).toLowerCase();
+
+    if(dataType === "boolean"){
+        return formatBooleanTelemetryValue(
+            value
+        );
+    }
+
+    const precision =
+        field.precision_digits;
+
+    if(
+        value !== null &&
+        value !== undefined &&
+        value !== "" &&
+        precision !== null &&
+        precision !== undefined &&
+        Number.isFinite(Number(value))
+    ){
+        value = Number(value).toFixed(
+            Number(precision)
+        );
+    }
+
+    return formatValueWithUnit(
+        value,
+        field.unit
+    );
+}
+
+
+function colorForDeviceState(value){
+    const state = String(
+        value || ""
+    ).toLowerCase();
+
+    if(
+        state === "critical" ||
+        state === "poor" ||
+        state === "offline" ||
+        state === "alarm" ||
+        state === "active"
+    ){
+        return "#ef4444";
+    }
+
+    if(
+        state === "low" ||
+        state === "marginal" ||
+        state === "warning" ||
+        state === "unknown"
+    ){
+        return "#f97316";
+    }
+
+    if(
+        state === "normal" ||
+        state === "good" ||
+        state === "online" ||
+        state === "ok"
+    ){
+        return "#22c55e";
+    }
+
+    return "#cbd5e1";
+}
+
+
+function buildStaticDeviceHtml(
+    device,
+    room,
+    telemetry
+){
+    const t = telemetry || {};
+
+    const statusIcon =
+        t.device_status === "online"
+        ? "🟢"
+        : "🔴";
+
+    const profile =
+        device.profile || null;
+
+    let profileText = "--";
+
+    if(profile){
+        profileText =
+            (
+                profile.profile_name ||
+                profile.profile_code ||
+                "--"
+            );
+
+        if(profile.profile_version){
+            profileText +=
+                " / Version " +
+                profile.profile_version;
+        }
+    }
+    else if(device.profile_code){
+        profileText =
+            device.profile_code;
+
+        if(device.profile_version){
+            profileText +=
+                " / Version " +
+                device.profile_version;
+        }
+    }
+
+    return (
+        `<div class="infoRow">
+            <b>Device ID:</b>
+            ${escapeHtml(device.device_id)}
+        </div>` +
+
+        `<div class="infoRow">
+            <b>Room:</b>
+            ${escapeHtml(
+                room?.room_name || "Floor only"
+            )}
+        </div>` +
+
+        `<div class="infoRow">
+            <b>Type:</b>
+            ${escapeHtml(
+                device.node_type || "--"
+            )}
+        </div>` +
+
+        `<div class="infoRow">
+            <b>Sensor Profile:</b>
+            ${escapeHtml(profileText)}
+        </div>` +
+
+        `<hr>` +
+
+        `<div class="infoRow">
+            <b>Status:</b>
+            ${statusIcon}
+            ${escapeHtml(
+                valueOrDash(
+                    t.device_status
+                )
+            )}
+        </div>` +
+
+        `<div class="infoRow">
+            <b>Last Seen:</b>
+            ${escapeHtml(
+                valueOrDash(
+                    t.last_seen_iso
+                )
+            )}
+        </div>` +
+
+        `<div class="infoRow">
+            <b>Last Update:</b>
+            ${escapeHtml(
+                valueOrDash(
+                    t.last_seen_seconds_ago
+                )
+            )}
+            sec ago
+        </div>`
+    );
+}
+
+
+function buildTelemetryHtml(
+    device,
+    telemetryOverride = null
+){
+    const telemetry = Object.assign(
+        {},
+        device.telemetry || {},
+        telemetryOverride || {}
+    );
+
+    let html = "";
+
+    const capabilities =
+        Array.isArray(device.capabilities)
+        ? device.capabilities
+        : [];
+
+    html += `
+        <div class="infoRow">
+            <b>Capabilities:</b>
+            ${
+                capabilities.length
+                ? escapeHtml(
+                    capabilities.join(", ")
+                )
+                : escapeHtml(
+                    device.node_type || "--"
+                )
+            }
+        </div>
+    `;
+
+    // =====================================================
+    // PROFILE-DRIVEN SENSOR READINGS
+    // =====================================================
+
+    let displayFields = [];
+
+    if(
+        Array.isArray(
+            device.display_telemetry
+        ) &&
+        device.display_telemetry.length
+    ){
+        displayFields =
+            device.display_telemetry;
+    }
+    else if(
+        Array.isArray(
+            device.telemetry_fields
+        )
+    ){
+        displayFields =
+            device.telemetry_fields.filter(
+                field =>
+                    field.visible_floor === true ||
+                    field.visible_floor === 1
+            );
+    }
+
+    html += `
+        <hr>
+        <h3>Sensor Readings</h3>
+    `;
+
+    if(displayFields.length === 0){
+        html += `
+            <p class="muted">
+                No Floor Live sensor fields are enabled
+                in the assigned profile.
+            </p>
+        `;
+    }
+    else{
+        displayFields.forEach(field => {
+            const label =
+                field.label ||
+                String(
+                    field.field_key || ""
+                )
+                .replace(/_/g, " ")
+                .replace(
+                    /\b\w/g,
+                    character =>
+                        character.toUpperCase()
+                );
+
+            const formattedValue =
+                formatProfileFieldValue(
+                    field,
+                    telemetry
+                );
+
+            html += `
+                <div class="infoRow">
+                    <b>${escapeHtml(label)}:</b>
+                    ${formattedValue}
+                </div>
+            `;
+        });
+    }
+
+    // =====================================================
+    // DEVICE HEALTH — PRESERVED FOR EVERY SENSOR PROFILE
+    // =====================================================
+
+    const batteryStatus =
+        telemetry.battery_status;
+
+    const batteryColor =
+        colorForDeviceState(
+            batteryStatus
+        );
+
+    const signalStatus =
+        telemetry.signal_status;
+
+    const signalColor =
+        colorForDeviceState(
+            signalStatus
+        );
+
+    html += `
+        <hr>
+        <h3>Device Health</h3>
+
+        <div class="infoRow">
+            <b>Battery Status:</b>
+            <span
+                style="
+                    color:${batteryColor};
+                    font-weight:bold;
+                "
+            >
+                ${
+                    batteryStatus
+                    ? escapeHtml(
+                        String(
+                            batteryStatus
+                        ).toUpperCase()
+                    )
+                    : "--"
+                }
+            </span>
+        </div>
+
+        <div class="infoRow">
+            <b>Battery:</b>
+            🔋
+            ${formatValueWithUnit(
+                telemetry.battery_percent,
+                "%"
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Battery Voltage:</b>
+            ${formatValueWithUnit(
+                telemetry.battery_voltage,
+                "V"
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Power Source:</b>
+            ${formatPlainTelemetryValue(
+                telemetry.power_source
+            )}
+        </div>
+
+        <hr>
+
+        <div class="infoRow">
+            <b>Signal Quality:</b>
+            <span
+                style="
+                    color:${signalColor};
+                    font-weight:bold;
+                "
+            >
+                ${
+                    signalStatus
+                    ? escapeHtml(
+                        String(
+                            signalStatus
+                        ).toUpperCase()
+                    )
+                    : "--"
+                }
+            </span>
+        </div>
+
+        <div class="infoRow">
+            <b>RSSI:</b>
+            ${formatValueWithUnit(
+                telemetry.rssi,
+                "dBm"
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>SNR:</b>
+            ${formatValueWithUnit(
+                telemetry.snr,
+                "dB"
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Gateway:</b>
+            ${formatPlainTelemetryValue(
+                telemetry.gateway_id
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Received by Gateways:</b>
+            ${formatPlainTelemetryValue(
+                telemetry.received_by_gateways
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Spreading Factor:</b>
+            ${formatPlainTelemetryValue(
+                telemetry.spreading_factor
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Bandwidth:</b>
+            ${formatValueWithUnit(
+                telemetry.bandwidth,
+                "Hz"
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Frequency:</b>
+            ${formatValueWithUnit(
+                telemetry.frequency,
+                "Hz"
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Telemetry Source:</b>
+            ${formatPlainTelemetryValue(
+                telemetry.telemetry_source
+            )}
+        </div>
+    `;
+
+    // =====================================================
+    // CONFIGURATION INFORMATION
+    // =====================================================
+
+    html += `
+        <hr>
+        <h3>Configuration</h3>
+
+        <div class="infoRow">
+            <b>Firmware Version:</b>
+            ${formatPlainTelemetryValue(
+                telemetry.firmware_version ||
+                device.firmware_version
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Configuration Status:</b>
+            ${formatPlainTelemetryValue(
+                device.configuration_status
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Profile Version:</b>
+            ${formatPlainTelemetryValue(
+                device.profile_version
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Payload Version:</b>
+            ${formatPlainTelemetryValue(
+                device.payload_version
+            )}
+        </div>
+    `;
+
+    // =====================================================
+    // ALARM STATUS — PRESERVED
+    // =====================================================
+
+    const alarmActive =
+        isTrue(
+            telemetry.alarm_active
+        );
+
+    const alarmColor =
+        alarmActive
+        ? "#ef4444"
+        : "#22c55e";
+
+    html += `
+        <hr>
+        <h3>Alarm Status</h3>
+
+        <div class="infoRow">
+            <b>Alarm:</b>
+            <span
+                style="
+                    color:${alarmColor};
+                    font-weight:bold;
+                "
+            >
+                ${escapeHtml(
+                    telemetry.alarm_message ||
+                    "OK"
+                )}
+            </span>
+        </div>
+
+        <div class="infoRow">
+            <b>Active Profile Alarms:</b>
+            ${formatPlainTelemetryValue(
+                telemetry
+                    .profile_alarm_active_count
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Active Rule Codes:</b>
+            ${formatPlainTelemetryValue(
+                telemetry
+                    .profile_alarm_rule_codes
+            )}
+        </div>
+
+        <div class="infoRow">
+            <b>Telemetry Last Update:</b>
+            ${formatPlainTelemetryValue(
+                telemetry.telemetry_updated_at ||
+                telemetry.local_updated_at ||
+                telemetry.last_seen_iso
+            )}
+        </div>
+    `;
+
+    return html;
+}
+
+
+async function openPanel(
+    device,
+    room
+){
+    selectedDeviceId =
+        device.device_id;
+
+    selectedRoomId = room?.id || null;
+
+    document.getElementById(
+        "panelTitle"
+    ).innerText =
+        iconFor(
+            device.node_type
+        ) +
+        " " +
+        (
+            device.label ||
+            device.device_id
+        );
+
+    let mergedTelemetry =
+        Object.assign(
+            {},
+            device.telemetry || {}
+        );
+
+    function renderPanel(
+        messageHtml = ""
+    ){
+        const staticHtml =
+            buildStaticDeviceHtml(
+                device,
+                room,
+                mergedTelemetry
+            );
+
+        const telemetryHtml =
+            buildTelemetryHtml(
+                device,
+                mergedTelemetry
+            );
+
+        document.getElementById(
+            "panelBody"
+        ).innerHTML =
+            staticHtml +
+            telemetryHtml +
+            messageHtml;
+
+        panel.classList.add(
+            "open"
+        );
+    }
+
+    // Immediately display the data returned by Floor Live.
+    renderPanel(`
+        <p class="muted">
+            Refreshing latest device telemetry...
+        </p>
+    `);
+
+    try{
+        const response = await fetch(
+            `/devices/${
+                encodeURIComponent(
+                    device.device_id
+                )
+            }/latest-telemetry`
+        );
+
+        if(!response.ok){
+            renderPanel(`
+                <p class="muted">
+                    Latest telemetry could not be refreshed.
+                    Showing the most recent Floor Live data.
+                </p>
+            `);
+
+            return;
+        }
+
+        const data =
+            await response.json();
+
+        const latestTelemetry =
+            (
+                data.telemetry &&
+                typeof data.telemetry === "object"
+            )
+            ? data.telemetry
+            : {};
+
+        // Preserve Floor Live signal and gateway data while
+        // allowing the latest local values to overwrite matching
+        // sensor or battery fields.
+        mergedTelemetry = Object.assign(
+            {},
+            mergedTelemetry,
+            latestTelemetry
+        );
+
+        if(
+            data.alarm_active !== undefined
+        ){
+            mergedTelemetry.alarm_active =
+                data.alarm_active;
+        }
+
+        if(
+            data.alarm_message !== undefined
+        ){
+            mergedTelemetry.alarm_message =
+                data.alarm_message;
+        }
+
+        if(data.updated_at){
+            mergedTelemetry
+                .telemetry_updated_at =
+                data.updated_at;
+        }
+
+        device.telemetry =
+            mergedTelemetry;
+
+        renderPanel();
+    }
+    catch(error){
+        console.log(
+            "Telemetry loading error",
+            error
+        );
+
+        renderPanel(`
+            <p class="muted">
+                Telemetry refresh failed.
+                Showing the most recent Floor Live data.
+            </p>
+        `);
+    }
+}
+
+function closePanel(){
+    panel.classList.remove("open");
+}
+
+function refreshOpenPanel(){
+    if(!selectedDeviceId) return;
+
+    let foundDevice = null;
+    let foundRoom = null;
+
+    floorData.rooms.forEach(room => {
+        room.devices.forEach(device => {
+            if(device.device_id === selectedDeviceId){
+                foundDevice = device;
+                foundRoom = room;
+            }
+        });
+    });
+
+    (floorData.floor_devices || []).forEach(device => {
+        if(device.device_id === selectedDeviceId){
+            foundDevice = device;
+            foundRoom = null;
+        }
+    });
+
+    if(foundDevice){
+        openPanel(foundDevice, foundRoom);
+    }
+}
+
+function drawGateways(){
+    document.querySelectorAll(".gateway-live-marker").forEach(el => el.remove());
+
+    if(!floorData.gateways) return;
+
+    const floor = floorData.floor;
+
+    floorData.gateways.forEach(gw => {
+        if(gw.x === null || gw.y === null) return;
+
+        const marker = document.createElement("div");
+        const status = gw.status || "unknown";
+
+        marker.className = "gateway-live-marker " + status;
+        marker.innerHTML = "📡";
+        marker.title = gw.label || gw.name || gw.gateway_id;
+
+        marker.style.left = (gw.x * image.clientWidth / floor.image_width) + "px";
+        marker.style.top = (gw.y * image.clientHeight / floor.image_height) + "px";
+
+        marker.onclick = function(event){
+            event.stopPropagation();
+
+            alert(
+                "Gateway: " + (gw.label || gw.name || gw.gateway_id) + "\n" +
+                "Status: " + status + "\n" +
+                "Gateway ID: " + gw.gateway_id + "\n" +
+                "Last seen: " + (gw.last_seen || "--") + "\n" +
+                "Position: X " + gw.x + " / Y " + gw.y + "\n" +
+                "Note: " + (gw.location_note || "--")
+            );
+        };
+
+        document.querySelector(".viewer").appendChild(marker);
+    });
+}
+
+
+
+async function loadFloor(){
+    const floorId = document.getElementById("floorId").value;
+
+    if (!floorId) {
+        return;
+    }
+
+    const res = await fetch(`/floors/${floorId}/live`);
+    floorData = await res.json();
+
+    image.src = floorData.floor.image_path;
+
+    image.onload = function(){
+        overlay.setAttribute("width", image.clientWidth);
+        overlay.setAttribute("height", image.clientHeight);
+
+        drawRooms();
+        drawNodes();
+        drawGateways();
+        refreshOpenPanel();
+
+    };
+
+    if(image.complete){
+        drawRooms();
+        drawNodes();
+        refreshOpenPanel();
+    }
+}
+
+setInterval(() => {
+    if(document.getElementById("floorId").value){
+        loadFloor();
+    }
+}, 5000);
+
+async function loadFloorDropdown() {
+    const select = document.getElementById("floorId");
+
+    try {
+        const res = await fetch("/floors");
+        const floors = await res.json();
+
+        select.innerHTML = `<option value="">Select floor</option>`;
+
+        floors.forEach(floor => {
+            const label = `${floor.name || "Floor"} / Building ID ${floor.building_id} / ID ${floor.id}`;
+
+            select.innerHTML += `
+                <option value="${floor.id}">
+                    ${label}
+                </option>
+            `;
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        const requestedFloorId = params.get("floor_id");
+
+        if (
+            requestedFloorId &&
+            floors.some(floor => String(floor.id) === String(requestedFloorId))
+        ) {
+            select.value = requestedFloorId;
+            loadFloor();
+        }
+        else if (floors.length > 0) {
+            select.value = floors[0].id;
+            loadFloor();
+        }
+
+    } catch (err) {
+        alert("Could not load floors: " + err.message);
+    }
+}
+
+window.onload = loadFloorDropdown;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,43 @@
+services:
+  sbms-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Passes the managed-network CA through to the build. Without this,
+      # `docker compose up --build` cannot reach PyPI from behind a
+      # TLS-intercepting proxy. An empty file means "no corporate CA" and the
+      # build skips the certificate step.
+      secrets:
+        - sbms_local_ca
+    container_name: sbms-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - sbms-data:/app/data
+      - ./uploads:/app/uploads
+    environment:
+      - DB_FILE=/app/data/smarthome.db
+      - LOCAL_TEST_MODE=false
+      # The Windows host exposes the local Things Stack on port 1885.
+      # Host-side tools keep using http://localhost:1885 from .env.
+      - TTN_BASE_URL=http://host.docker.internal:1885
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  sbms-data:
+
+secrets:
+  sbms_local_ca:
+    # Defaults to a committed empty placeholder, so a fresh clone builds with
+    # no setup. The build treats an empty file as "no corporate CA".
+    # On a network that intercepts TLS, save the root certificate as
+    # .docker-local-ca.cer and set this in .env:
+    #   SBMS_LOCAL_CA_FILE=.docker-local-ca.cer
+    file: ${SBMS_LOCAL_CA_FILE:-.docker-local-ca.cer.example}

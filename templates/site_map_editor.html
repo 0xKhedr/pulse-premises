@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Map & Campus Editor</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/static/bright_theme.css">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --border: #334155;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text: #ffffff;
+            --text-muted: #cbd5e1;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: #111827;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: #ffffff;
+        }
+
+        .header p {
+            margin: 4px 0 0;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 9px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: white;
+            background: var(--accent);
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover { background: var(--accent-hover); }
+
+        .btn-secondary {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-secondary:hover { background: #334155; }
+
+        .btn-success { background: var(--success); }
+        .btn-success:hover { background: #059669; }
+
+        .toolbar {
+            padding: 16px 30px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 13px;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        select, input[type="file"], input, option {
+            padding: 8px 12px;
+            background: #1e293b;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #ffffff !important;
+            font-size: 14px;
+        }
+
+        option {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+        }
+
+        .main-container {
+            padding: 24px 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .map-container {
+            position: relative;
+            background: #020617;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            min-height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .map-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .map-wrapper img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            user-select: none;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+
+        .placeholder-box {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .placeholder-box h3 {
+            margin: 0 0 10px;
+            color: var(--text);
+            font-size: 20px;
+        }
+
+        .upload-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+            display: inline-block;
+        }
+
+        .status-badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Site Map & Campus Editor</h1>
+            <p>Upload site/campus maps and define building footprint polygons on the campus map.</p>
+        </div>
+        <div>
+            <a href="/admin/home" class="btn btn-secondary">← Back to Admin Home</a>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="control-group">
+            <label for="siteSelect">Select Site:</label>
+            <select id="siteSelect" onchange="loadSiteData()"></select>
+        </div>
+
+        <div class="control-group">
+            <label for="siteMapFile">Upload Map:</label>
+            <input type="file" id="siteMapFile" accept="image/jpeg,image/png,image/webp">
+            <button class="btn btn-secondary" onclick="uploadSiteMap()">Upload</button>
+        </div>
+
+        <div style="height: 24px; width: 1px; background: var(--border);"></div>
+
+        <div class="control-group">
+            <label for="buildingSelect">Select Building to Draw:</label>
+            <select id="buildingSelect" onchange="selectBuilding()"></select>
+        </div>
+
+        <button id="btnDraw" class="btn" onclick="startDrawing()">Start Drawing Footprint</button>
+        <button id="btnClear" class="btn btn-secondary" onclick="clearCurrentPolygon()">Clear Points</button>
+        <button id="btnSave" class="btn btn-success" onclick="savePolygon()">Save Building Footprint</button>
+    </div>
+
+    <div class="main-container">
+        <div id="mapContainer" class="map-container">
+            <div class="placeholder-box">
+                <h3>Select a Site</h3>
+                <p>Choose a site from the dropdown menu above to edit its campus map and building polygons.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSite = null;
+        let siteMapData = null;
+        let isDrawing = false;
+        let currentPoints = [];
+        let canvas = null;
+        let ctx = null;
+        let mapImg = null;
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
+
+        async function loadSites() {
+            try {
+                const res = await fetch('/sites');
+                const sites = await res.json();
+                const select = document.getElementById('siteSelect');
+
+                if (!sites || sites.length === 0) {
+                    select.innerHTML = '<option value="">No sites found</option>';
+                    return;
+                }
+
+                select.innerHTML = sites.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                loadSiteData();
+            } catch (err) {
+                console.error("Failed to load sites:", err);
+            }
+        }
+
+        async function loadSiteData() {
+            const siteId = document.getElementById('siteSelect').value;
+            if (!siteId) return;
+
+            const container = document.getElementById('mapContainer');
+            container.innerHTML = '<div class="placeholder-box"><p>Loading site map...</p></div>';
+
+            try {
+                const res = await fetch(`/sites/${siteId}/map`);
+                if (!res.ok) throw new Error("Site map data not found");
+                siteMapData = await res.json();
+                currentSite = siteMapData.site;
+
+                populateBuildingSelect();
+
+                if (!currentSite.campus_image_path) {
+                    container.innerHTML = `
+                        <div class="placeholder-box">
+                            <h3>No Campus Map Uploaded for ${currentSite.name}</h3>
+                            <p>Select an image file (JPG, PNG, WebP) in the toolbar above and click <strong>Upload</strong>.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                renderMap();
+            } catch (err) {
+                container.innerHTML = `<div class="placeholder-box" style="color: var(--text-muted);"><p>${err.message}</p></div>`;
+            }
+        }
+
+        function populateBuildingSelect() {
+            const select = document.getElementById('buildingSelect');
+            if (!siteMapData || !siteMapData.buildings || siteMapData.buildings.length === 0) {
+                select.innerHTML = '<option value="">No buildings in site</option>';
+                return;
+            }
+            select.innerHTML = siteMapData.buildings.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+            selectBuilding();
+        }
+
+        function selectBuilding() {
+            const buildingId = parseInt(document.getElementById('buildingSelect').value);
+            if (!siteMapData || !siteMapData.buildings) return;
+            const b = siteMapData.buildings.find(x => x.id === buildingId);
+            if (b && b.polygon_points && Array.isArray(b.polygon_points) && b.polygon_points.length >= 3) {
+                currentPoints = [...b.polygon_points];
+            } else {
+                currentPoints = [];
+            }
+            redrawCanvas();
+        }
+
+        function renderMap() {
+            const container = document.getElementById('mapContainer');
+            container.innerHTML = `
+                <div class="map-wrapper" id="mapWrapper">
+                    <img id="siteImg" src="${currentSite.campus_image_path}" alt="Site Map">
+                    <canvas id="mapCanvas"></canvas>
+                </div>
+            `;
+
+            mapImg = document.getElementById('siteImg');
+            canvas = document.getElementById('mapCanvas');
+            ctx = canvas.getContext('2d');
+
+            mapImg.onload = () => {
+                canvas.width = mapImg.clientWidth;
+                canvas.height = mapImg.clientHeight;
+                redrawCanvas();
+            };
+
+            canvas.onclick = (e) => {
+                if (!isDrawing) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = mapImg.naturalWidth / rect.width;
+                const scaleY = mapImg.naturalHeight / rect.height;
+
+                const x = Math.round((e.clientX - rect.left) * scaleX);
+                const y = Math.round((e.clientY - rect.top) * scaleY);
+
+                currentPoints.push({ x, y });
+                redrawCanvas();
+            };
+
+            window.onresize = () => {
+                if (mapImg && canvas) {
+                    canvas.width = mapImg.clientWidth;
+                    canvas.height = mapImg.clientHeight;
+                    redrawCanvas();
+                }
+            };
+        }
+
+        function startDrawing() {
+            isDrawing = true;
+            currentPoints = [];
+            document.getElementById('btnDraw').innerText = "Click on Map to Add Points";
+            document.getElementById('btnDraw').classList.add('btn-success');
+            redrawCanvas();
+        }
+
+        function clearCurrentPolygon() {
+            currentPoints = [];
+            isDrawing = false;
+            document.getElementById('btnDraw').innerText = "Start Drawing Footprint";
+            document.getElementById('btnDraw').classList.remove('btn-success');
+            redrawCanvas();
+        }
+
+        function redrawCanvas() {
+            if (!canvas || !ctx || !mapImg) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const scaleX = canvas.width / (mapImg.naturalWidth || canvas.width);
+            const scaleY = canvas.height / (mapImg.naturalHeight || canvas.height);
+
+            // Draw existing buildings
+            if (siteMapData && siteMapData.buildings) {
+                const activeBuildingId = parseInt(document.getElementById('buildingSelect').value);
+                siteMapData.buildings.forEach(b => {
+                    if (b.id === activeBuildingId && currentPoints.length > 0) return; // Will draw currentPoints
+                    if (b.polygon_points && b.polygon_points.length >= 3) {
+                        drawPolygon(b.polygon_points, scaleX, scaleY, "rgba(59, 130, 246, 0.3)", "#3b82f6", b.name);
+                    }
+                });
+            }
+
+            // Draw current active drawing polygon
+            if (currentPoints.length > 0) {
+                drawPolygon(currentPoints, scaleX, scaleY, "rgba(16, 185, 129, 0.4)", "#10b981", "Drawing...");
+            }
+        }
+
+        function drawPolygon(points, scaleX, scaleY, fillColor, strokeColor, label) {
+            if (points.length === 0) return;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x * scaleX, points[0].y * scaleY);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x * scaleX, points[i].y * scaleY);
+            }
+            if (points.length >= 3) ctx.closePath();
+
+            ctx.fillStyle = fillColor;
+            ctx.fill();
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw points
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x * scaleX, p.y * scaleY, 4, 0, 2 * Math.PI);
+                ctx.fillStyle = strokeColor;
+                ctx.fill();
+            });
+
+            // Draw Label
+            if (label && points.length >= 3) {
+                const avgX = points.reduce((sum, p) => sum + p.x, 0) / points.length * scaleX;
+                const avgY = points.reduce((sum, p) => sum + p.y, 0) / points.length * scaleY;
+                ctx.font = "bold 13px sans-serif";
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "center";
+                ctx.fillText(label, avgX, avgY);
+            }
+        }
+
+        async function savePolygon() {
+            const buildingId = document.getElementById('buildingSelect').value;
+            if (!buildingId) {
+                alert("Please select a building.");
+                return;
+            }
+            if (currentPoints.length < 3) {
+                alert("A polygon requires at least 3 points. Click on the map to add points.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/buildings/${buildingId}/polygon`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ polygon_points: currentPoints })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Failed to save polygon");
+                }
+
+                alert("Building footprint polygon saved successfully!");
+                isDrawing = false;
+                document.getElementById('btnDraw').innerText = "Start Drawing Footprint";
+                document.getElementById('btnDraw').classList.remove('btn-success');
+                loadSiteData();
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        }
+
+        async function uploadSiteMap() {
+            const siteId = document.getElementById('siteSelect').value;
+            const fileInput = document.getElementById('siteMapFile');
+            if (!siteId) {
+                alert("Select a site first.");
+                return;
+            }
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("Select an image file to upload.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+
+            try {
+                const res = await fetch(`/sites/${siteId}/upload-site-map`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Failed to upload image");
+                }
+
+                alert("Site map image uploaded successfully!");
+                fileInput.value = '';
+                loadSiteData();
+            } catch (err) {
+                alert("Upload failed: " + err.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSites);
+    </script>
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firmware Module Manager</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="stylesheet" href="/static/bright_theme.css">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --border: #334155;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text: #ffffff;
+            --text-muted: #cbd5e1;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        option {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .header {
+            padding: 24px 34px;
+            background: #111827;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            color: var(--text);
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .toolbar {
+            padding: 16px 34px;
+            background: var(--bg);
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: white;
+            background: var(--accent);
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #334155;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .container {
+            padding: 24px 34px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+            color: #f1f5f9;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-enabled {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .badge-disabled {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .meta-list {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .meta-value {
+            color: #e2e8f0;
+            font-weight: 500;
+            font-family: monospace;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 560px;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Firmware Driver & Module Manager</h1>
+            <p>Manage hardware driver modules, C++ code classes, and Arduino dependencies for IoT node firmware generation.</p>
+        </div>
+        <div>
+            <a href="/admin" class="btn btn-secondary">Back to Admin Home</a>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn" onclick="openCreateModal()">+ Add New Firmware Module</button>
+        <button class="btn btn-secondary" onclick="loadModules()">Refresh List</button>
+    </div>
+
+    <div class="container">
+        <div id="moduleGrid" class="grid">
+            <p style="color: var(--text-muted);">Loading firmware modules...</p>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="moduleModal" class="modal-overlay">
+        <div class="modal">
+            <h2 id="modalTitle">Add Firmware Module</h2>
+            <form id="moduleForm" onsubmit="saveModule(event)">
+                <input type="hidden" id="moduleId">
+                <div class="form-group">
+                    <label>Module Key (Identifier)</label>
+                    <input type="text" id="moduleKey" required placeholder="e.g. bme280_i2c">
+                </div>
+                <div class="form-group">
+                    <label>Display Name</label>
+                    <input type="text" id="displayName" required placeholder="e.g. BME280 Environmental Sensor">
+                </div>
+                <div class="form-group">
+                    <label>Driver Class</label>
+                    <input type="text" id="driverClass" required placeholder="e.g. BME280Driver">
+                </div>
+                <div class="form-group">
+                    <label>Protocol</label>
+                    <select id="protocol">
+                        <option value="I2C">I2C</option>
+                        <option value="SPI">SPI</option>
+                        <option value="UART">UART</option>
+                        <option value="ONEWIRE">1-Wire</option>
+                        <option value="ANALOG">Analog</option>
+                        <option value="DIGITAL">Digital</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Library Name</label>
+                    <input type="text" id="libraryName" placeholder="e.g. Adafruit BME280 Library">
+                </div>
+                <div class="form-group">
+                    <label>Library Version</label>
+                    <input type="text" id="libraryVersion" placeholder="e.g. ^2.2.2">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn">Save Module</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
+
+        async function loadModules() {
+            const container = document.getElementById('moduleGrid');
+            try {
+                const res = await fetch('/firmware-modules');
+                const data = await res.json();
+
+                if (!data.modules || data.modules.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No firmware modules registered yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = data.modules.map(mod => `
+                    <div class="card">
+                        <div>
+                            <div class="card-header">
+                                <h3 class="card-title">${mod.display_name}</h3>
+                                <span class="badge ${mod.enabled ? 'badge-enabled' : 'badge-disabled'}">
+                                    ${mod.enabled ? 'Enabled' : 'Disabled'}
+                                </span>
+                            </div>
+                            <div class="meta-list">
+                                <div class="meta-item"><span>Module Key:</span> <span class="meta-value">${mod.module_key}</span></div>
+                                <div class="meta-item"><span>Driver Class:</span> <span class="meta-value">${mod.driver_class}</span></div>
+                                <div class="meta-item"><span>Protocol:</span> <span class="meta-value">${mod.protocol || 'N/A'}</span></div>
+                                <div class="meta-item"><span>Library:</span> <span class="meta-value">${mod.library_name || 'Built-in'} ${mod.library_version || ''}</span></div>
+                                <div class="meta-item"><span>Profiles Using:</span> <span class="meta-value">${mod.profile_count}</span></div>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary" style="flex:1;" onclick="toggleModule(${mod.id}, ${!mod.enabled})">
+                                ${mod.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                            ${mod.can_delete ? `
+                                <button class="btn btn-danger" onclick="deleteModule(${mod.id})">Delete</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `<p style="color: var(--danger);">Failed to load modules: ${err.message}</p>`;
+            }
+        }
+
+        function openCreateModal() {
+            document.getElementById('modalTitle').innerText = 'Add Firmware Module';
+            document.getElementById('moduleId').value = '';
+            document.getElementById('moduleForm').reset();
+            document.getElementById('moduleModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('moduleModal').classList.remove('active');
+        }
+
+        async function saveModule(e) {
+            e.preventDefault();
+            const id = document.getElementById('moduleId').value;
+            const payload = {
+                module_key: document.getElementById('moduleKey').value,
+                display_name: document.getElementById('displayName').value,
+                driver_class: document.getElementById('driverClass').value,
+                protocol: document.getElementById('protocol').value,
+                library_name: document.getElementById('libraryName').value,
+                library_version: document.getElementById('libraryVersion').value,
+                enabled: true
+            };
+
+            const url = id ? `/firmware-modules/${id}` : '/firmware-modules';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to save module');
+                }
+                closeModal();
+                loadModules();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function toggleModule(id, enable) {
+            const endpoint = enable ? 'enable' : 'disable';
+            try {
+                await fetch(`/firmware-modules/${id}/${endpoint}`, { method: 'POST' });
+                loadModules();
+            } catch (err) {
+                alert('Action failed: ' + err.message);
+            }
+        }
+
+        async function deleteModule(id) {
+            if (!confirm('Are you sure you want to delete this firmware module?')) return;
+            try {
+                const res = await fetch(`/firmware-modules/${id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to delete');
+                }
+                loadModules();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadModules);
+    </script>
+</body>
+</html>

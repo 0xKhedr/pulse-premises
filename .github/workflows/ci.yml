@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m ruff check app tests tools/register_ttn_devices.py tools/hardware_acceptance.py tools/generate_lorawan_credentials.py tools/configure_local_ttn.py tools/reconcile_legacy_database.py tools/sync_ttn_credentials.py
+      - run: python -m compileall -q app tests tools
+      - run: python -m pytest -q
+      - run: docker build -t smart-building-management-system:test .

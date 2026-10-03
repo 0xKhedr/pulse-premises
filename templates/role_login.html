@@ -1,0 +1,197 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            width: 440px;
+            max-width: calc(100% - 32px);
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 20px 70px rgba(0,0,0,0.45);
+        }
+
+        .logo {
+            width: 58px;
+            height: 58px;
+            border-radius: 16px;
+            background: {{ accent }};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 18px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 999px;
+            background: #020617;
+            border: 1px solid #334155;
+            color: #93c5fd;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        p {
+            margin: 8px 0 22px 0;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 13px 14px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            background: #020617;
+            color: white;
+            font-size: 15px;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 13px 14px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .error {
+            display: none;
+            margin-top: 14px;
+            padding: 12px;
+            background: #7f1d1d;
+            color: #fecaca;
+            border: 1px solid #ef4444;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .footer {
+            margin-top: 18px;
+            color: #64748b;
+            font-size: 12px;
+            text-align: center;
+        }
+    </style>
+    <link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+<div class="login-card">
+    <div class="logo">SB</div>
+    <div class="badge">{{ badge }}</div>
+
+    <h1>{{ title }}</h1>
+    <p>{{ subtitle }}</p>
+
+    <label>Email</label>
+    <input id="email" type="email" placeholder="Enter login email">
+
+    <label>Password</label>
+    <input id="password" type="password" placeholder="Enter password">
+
+    <button id="loginButton" onclick="login()">Login</button>
+
+    <div id="errorBox" class="error"></div>
+
+    <div class="footer">
+        LoRa Smart Building Management System
+    </div>
+</div>
+
+<script>
+async function login() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const errorBox = document.getElementById("errorBox");
+    const loginButton = document.getElementById("loginButton");
+
+    errorBox.style.display = "none";
+
+    if (!email || !password) {
+        errorBox.innerText = "Email and password are required.";
+        errorBox.style.display = "block";
+        return;
+    }
+
+    loginButton.disabled = true;
+    loginButton.innerText = "Logging in...";
+
+    const nextUrl = new URLSearchParams(window.location.search).get("next") || "";
+
+    try {
+        const res = await fetch("/auth/login", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                email: email,
+                password: password,
+                expected_role: "{{ login_type }}",
+                next: nextUrl
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || "Login failed");
+        }
+
+        window.location.href = data.redirect_to;
+
+    } catch (err) {
+        errorBox.innerText = err.message;
+        errorBox.style.display = "block";
+        loginButton.disabled = false;
+        loginButton.innerText = "Login";
+    }
+}
+
+document.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        login();
+    }
+});
+</script>
+</body>
+</html>
+    

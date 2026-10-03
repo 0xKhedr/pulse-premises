@@ -1,0 +1,47 @@
+How to Add a New SensorSimple Guide for the Modular LILYGO Firmware
+Main idea: Keep one reusable source project. Compile only the sensor modules needed for each device. Do not include every sensor library in every firmware build.
+For every new sensor: add a driver, payload encoder, registry entries, build option, and Admin Portal profile.
+Step 1 - Add the Sensor Driver
+Create the files in src/sensors/.
+Example: NewSensorModule.h and NewSensorModule.cpp.
+The driver initializes the sensor, reads values, checks errors, and returns normal measurements.
+Do not encode LoRaWAN bytes inside the driver.
+Step 2 - Add the Payload Encoder
+Create the encoder in src/payloads/.
+Example: NewSensorV1Encoder.cpp.
+The encoder converts sensor readings into LoRaWAN bytes.
+Its byte order, scale, length, and signed values must match the profile and TTN decoder.
+Step 3 - Register the Sensor and Encoder
+In src/framework/SensorRegistry.cpp, register the module key and driver creation function.
+In src/framework/PayloadRegistry.cpp, register the encoder key and encoding function.
+These keys must exactly match the Admin Portal profile.
+Step 4 - Add a Build Option
+Open BuildConfig.h.
+Add an enable switch or a new build preset for the sensor.
+Example: ENABLE_NEW_SENSOR = 1.
+Only enabled sensors and libraries are compiled. This reduces flash use.
+Step 5 - Create the Admin Portal Records
+Add the sensor in Sensor Catalog Manager.
+Add its module in Firmware Module Manager.
+Create an Advanced Sensor Profile.
+Enter the module key, encoder key, hardware settings, telemetry fields, TTN decoder, and optional alarms.
+Validate the profile and confirm it appears in /provision-options on the deployment backend.
+Step 6 - Compile the Correct Small Firmware Build
+Choose the build preset containing the new sensor.
+Compile and check the flash percentage.
+Upload only after Arduino verification succeeds.
+Example: a BME688 build contains the standard core plus BME688 only.
+Step 7 - Provision and Test the Device
+Open the LILYGO provisioning page.
+Select the new profile, building, floor, room, and label.
+Provision the node.
+Check Serial Monitor, TTN, backend processing, ThingsBoard, and Floor Live View.
+Do Not Change These Core Parts
+Wi-Fi provisioning and backend communication
+Credential storage and room selection
+LoRaWAN join, transmission, and main scheduling
+Automatic TTN registration workflow
+Folder Structure
+SmartBuildingFirmware/├── SmartBuildingFirmware.ino├── BuildConfig.h├── src/core/├── src/sensors/│   ├── BME688SensorModule.cpp│   ├── SHT31SensorModule.cpp│   └── NewSensorModule.cpp├── src/payloads/│   ├── BME688V1Encoder.cpp│   └── NewSensorV1Encoder.cpp└── src/framework/    ├── SensorRegistry.cpp    └── PayloadRegistry.cpp
+Final Rule
+For a completely new sensor, add one driver, one payload encoder, registry entries, and one build option. The standard core stays unchanged. Then create the profile and provision the device through the Admin Portal.

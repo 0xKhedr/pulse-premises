@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup & Asset Management</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta charset="UTF-8">
+
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --panel-2: #020617;
+            --border: #334155;
+            --muted: #94a3b8;
+            --text: #e5e7eb;
+            --title: #f8fafc;
+            --blue: #2563eb;
+            --blue-2: #1d4ed8;
+            --green: #16a34a;
+            --green-2: #15803d;
+            --red: #dc2626;
+            --red-2: #b91c1c;
+            --orange: #f97316;
+            --orange-2: #ea580c;
+            --purple: #7c3aed;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .header {
+            padding: 28px 38px;
+            background:
+                radial-gradient(circle at top right, rgba(37,99,235,0.30), transparent 34%),
+                linear-gradient(135deg, #111827, #1e293b);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .eyebrow {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 999px;
+            background: rgba(37,99,235,0.18);
+            border: 1px solid rgba(96,165,250,0.35);
+            color: #bfdbfe;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            letter-spacing: 0.04em;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 34px;
+            color: var(--title);
+        }
+
+        .header p {
+            margin: 10px 0 0;
+            color: var(--muted);
+            line-height: 1.55;
+            max-width: 950px;
+            font-size: 15px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .container {
+            padding: 26px 38px 46px;
+        }
+
+        .btn, button, .link-btn {
+            display: inline-block;
+            padding: 10px 13px;
+            border: none;
+            border-radius: 9px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--blue);
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .btn:hover, button:hover, .link-btn:hover {
+            background: var(--blue-2);
+        }
+
+        .secondary {
+            background: #334155;
+            border: 1px solid #475569;
+        }
+
+        .secondary:hover {
+            background: #475569;
+        }
+
+        .success {
+            background: var(--green);
+        }
+
+        .success:hover {
+            background: var(--green-2);
+        }
+
+        .danger {
+            background: var(--red);
+        }
+
+        .danger:hover {
+            background: var(--red-2);
+        }
+
+        .warning {
+            background: var(--orange);
+        }
+
+        .warning:hover {
+            background: var(--orange-2);
+        }
+
+        .note-card {
+            background: linear-gradient(135deg, #451a03, #7c2d12);
+            border: 1px solid #f97316;
+            color: #fed7aa;
+            border-radius: 18px;
+            padding: 22px;
+            margin-bottom: 22px;
+            box-shadow: 0 16px 38px rgba(0,0,0,0.28);
+        }
+
+        .note-card h2 {
+            margin: 0 0 10px;
+            color: #ffedd5;
+            font-size: 22px;
+        }
+
+        .note-card ul {
+            margin: 10px 0 0;
+            padding-left: 22px;
+            line-height: 1.7;
+        }
+
+        .note-card strong {
+            color: #ffffff;
+        }
+
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .step {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 10px 26px rgba(0,0,0,0.22);
+        }
+
+        .step .num {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            color: white;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 9px;
+        }
+
+        .step h3 {
+            margin: 4px 0 6px;
+            color: var(--title);
+            font-size: 16px;
+        }
+
+        .step p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+            gap: 22px;
+            align-items: start;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 14px 34px rgba(0,0,0,0.30);
+        }
+
+        .card.full {
+            grid-column: 1 / -1;
+        }
+
+        .card h2 {
+            margin: 0 0 8px;
+            color: var(--title);
+            font-size: 21px;
+        }
+
+        .card-header-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: #020617;
+            border: 1px solid var(--border);
+            color: #93c5fd;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            color: white;
+            outline: none;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #60a5fa;
+        }
+
+        textarea {
+            min-height: 78px;
+            resize: vertical;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .row button, .row .link-btn, .row .btn {
+            width: auto;
+            margin-top: 12px;
+        }
+
+        .status {
+            display: none;
+            margin-top: 12px;
+            padding: 11px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .status.good {
+            display: block;
+            background: #14532d;
+            color: #bbf7d0;
+            border: 1px solid #22c55e;
+        }
+
+        .status.bad {
+            display: block;
+            background: #7f1d1d;
+            color: #fecaca;
+            border: 1px solid #ef4444;
+        }
+
+        .status.info {
+            display: block;
+            background: #172554;
+            color: #bfdbfe;
+            border: 1px solid #3b82f6;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: var(--panel-2);
+            color: #93c5fd;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #1e293b;
+        }
+
+        .table-wrap {
+            max-height: 460px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .quick-links a {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            color: white;
+            text-decoration: none;
+            border-radius: 14px;
+            padding: 15px;
+        }
+
+        .quick-links a:hover {
+            border-color: #60a5fa;
+            background: #1e293b;
+        }
+
+        .quick-links strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .quick-links span {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .readonly-box {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 13px;
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-top: 12px;
+        }
+
+        .danger-zone {
+            border-color: #7f1d1d;
+        }
+
+        .small-note {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 8px;
+            line-height: 1.45;
+        }
+
+        @media(max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header, .container {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+        }
+    </style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+<div class="header">
+    <div class="top-row">
+        <div>
+            <div class="eyebrow">ADMIN OPERATIONS WORKSPACE</div>
+            <h1>Setup & Asset Management</h1>
+            <p>
+                Configure the complete smart building structure from one professional workspace:
+                clients, sites, buildings, floors, maps, rooms, gateways, device assignment, and provisioning readiness.
+            </p>
+        </div>
+
+        <div class="header-actions">
+            <a class="btn secondary" href="/admin">← Back to Admin Home</a>
+            <button onclick="refreshAll()">Refresh Data</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="note-card">
+        <h2>Provisioning Readiness Notes</h2>
+        <ul>
+            <li><strong>No shared network needed:</strong> The node runs in pure LoRa mode (Wi-Fi and Bluetooth are switched off in firmware). It reaches the backend over LoRaWAN via the gateway and The Things Network, so the node and the server do not need to be on the same network &mdash; or even in the same country. What the <em>server</em> needs is to be reachable by TTN's webhook.</li>
+            <li><strong>Arduino firmware:</strong> There is no Wi-Fi SSID or password in the sketch. What must match is <code>firmware/lorawan_credentials.h</code>, generated from your <code>.env</code> with <code>python tools/generate_lorawan_credentials.py</code>. Every node is flashed with the identical sketch; only the sensor reads inside <code>do_send()</code> differ.</li>
+            <li><strong>Setup order:</strong> Devices self-register on their first uplink, so they can be powered on at any time &mdash; no hierarchy is required first. Recommended order: flash and power the node (it appears under Discovered Devices) → create client → site → building → floor → upload maps → optionally draw rooms → place the node from the discovery inbox.</li>
+            <li><strong>Rooms are optional:</strong> Placement is anchored to a <em>floor</em>, not a room. A device may be placed directly on a floor with no room assigned. The node receives nothing from the backend &mdash; it only transmits; the backend resolves the hierarchy when you place it.</li>
+            <li><strong>Swagger policy:</strong> Swagger remains only for developer testing. Normal setup should be completed from the Admin UI.</li>
+        </ul>
+    </div>
+
+    <div class="progress-grid">
+        <div class="step">
+            <div class="num">01</div>
+            <h3>Organization Setup</h3>
+            <p>Create the client and site that own the building structure.</p>
+        </div>
+
+        <div class="step">
+            <div class="num">02</div>
+            <h3>Building Setup</h3>
+            <p>Create buildings and floors under the selected site.</p>
+        </div>
+
+        <div class="step">
+            <div class="num">03</div>
+            <h3>Maps & Rooms</h3>
+            <p>Upload maps and draw rooms before device provisioning.</p>
+        </div>
+
+        <div class="step">
+            <div class="num">04</div>
+            <h3>Gateway Setup</h3>
+            <p>Create gateways, assign them to floors, and place them visually.</p>
+        </div>
+
+        <div class="step">
+            <div class="num">05</div>
+            <h3>Device Assignment</h3>
+            <p>Assign existing provisioned devices to the correct rooms if needed.</p>
+        </div>
+
+        <div class="step">
+            <div class="num">06</div>
+            <h3>Go Live Check</h3>
+            <p>Verify live floor view, gateway health, client access, alarms, and exports.</p>
+        </div>
+    </div>
+
+    <div class="grid">
+
+        <div class="card">
+            <div class="card-header-line">
+                <h2>Clients</h2>
+                <span class="pill">CREATE / UPDATE / DELETE</span>
+            </div>
+            <div class="muted">Manage the customer or organization that owns the smart building deployment.</div>
+
+            <label>New Client Name</label>
+            <input id="clientName" placeholder="Example: GIU Berlin Client">
+
+            <div class="row">
+                <button class="success" onclick="createClient()">Create Client</button>
+            </div>
+
+            <label>Edit Existing Client</label>
+            <select id="clientEditSelect"></select>
+
+            <label>Updated Client Name</label>
+            <input id="clientEditName" placeholder="Updated client name">
+
+            <div class="row">
+                <button onclick="updateClient()">Update Client</button>
+                <button class="danger" onclick="deleteClient()">Delete Client</button>
+            </div>
+
+            <div id="clientStatus" class="status"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-line">
+                <h2>Sites</h2>
+                <span class="pill">SITE MAP SUPPORTED</span>
+            </div>
+            <div class="muted">Create and manage sites/campuses under the selected client. Upload the site map used by the Site Map Editor.</div>
+
+            <label>Client</label>
+            <select id="siteClientSelect"></select>
+
+            <label>New Site Name</label>
+            <input id="siteName" placeholder="Example: GIU Campus">
+
+            <div class="row">
+                <button class="success" onclick="createSite()">Create Site</button>
+            </div>
+
+            <label>Edit Existing Site</label>
+            <select id="siteEditSelect"></select>
+
+            <label>Updated Site Name</label>
+            <input id="siteEditName" placeholder="Updated site name">
+
+            <div class="row">
+                <button onclick="updateSite()">Update Site</button>
+                <button class="danger" onclick="deleteSite()">Delete Site</button>
+            </div>
+
+            <label>Upload Site Map</label>
+            <select id="siteMapSelect"></select>
+            <input id="siteMapFile" type="file" accept="image/*">
+
+            <div class="row">
+                <button class="warning" onclick="uploadSiteMap()">Upload Site Map</button>
+                <button class="secondary" onclick="openSelectedSiteMapEditor()">Open Site Map Editor</button>
+            </div>
+
+            <div id="siteStatus" class="status"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-line">
+                <h2>Buildings</h2>
+                <span class="pill">MAP POLYGON READY</span>
+            </div>
+            <div class="muted">Create buildings under a site. Building polygons are drawn later using the Site Map Editor.</div>
+
+            <label>Site</label>
+            <select id="buildingSiteSelect"></select>
+
+            <label>New Building Name</label>
+            <input id="buildingName" placeholder="Example: Main Building">
+
+            <div class="row">
+                <button class="success" onclick="createBuilding()">Create Building</button>
+            </div>
+
+            <label>Edit Existing Building</label>
+            <select id="buildingEditSelect"></select>
+
+            <label>Updated Building Name</label>
+            <input id="buildingEditName" placeholder="Updated building name">
+
+            <div class="row">
+                <button onclick="updateBuilding()">Update Building</button>
+                <button class="danger" onclick="deleteBuilding()">Delete Building</button>
+                <button class="secondary" onclick="openSelectedSiteMapEditor()">Draw Building on Site Map</button>
+            </div>
+
+            <div id="buildingStatus" class="status"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-line">
+                <h2>Floors</h2>
+                <span class="pill">FLOOR PLAN REQUIRED</span>
+            </div>
+            <div class="muted">Create floors under buildings and upload floor plans. Rooms are drawn using the Floor Editor.</div>
+
+            <label>Building</label>
+            <select id="floorBuildingSelect"></select>
+
+            <label>New Floor Name</label>
+            <input id="floorName" placeholder="Example: Floor 1">
+
+            <label>Floor Number</label>
+            <input id="floorNumber" placeholder="Example: 1">
+
+            <div class="row">
+                <button class="success" onclick="createFloor()">Create Floor</button>
+            </div>
+
+            <label>Edit Existing Floor</label>
+            <select id="floorEditSelect"></select>
+
+            <label>Updated Floor Name</label>
+            <input id="floorEditName" placeholder="Updated floor name">
+
+            <label>Updated Floor Number</label>
+            <input id="floorEditNumber" placeholder="Updated floor number">
+
+            <div class="row">
+                <button onclick="updateFloor()">Update Floor</button>
+                <button class="danger" onclick="deleteFloor()">Delete Floor</button>
+            </div>
+
+            <label>Upload Floor Plan</label>
+            <select id="floorImageSelect"></select>
+            <input id="floorImageFile" type="file" accept="image/*">
+
+            <div class="row">
+                <button class="warning" onclick="uploadFloorImage()">Upload Floor Plan</button>
+                <button class="secondary" onclick="openSelectedFloorEditor()">Open Floor Editor</button>
+            </div>
+
+            <div id="floorStatus" class="status"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-line">
+                <h2>Gateways</h2>
+                <span class="pill">ASSIGN / PLACE / MONITOR</span>
+            </div>
+            <div class="muted">Create or update gateway records, assign them to a floor, and place them visually on the map.</div>
+
+            <label>Existing Gateway</label>
+            <select id="gatewayEditSelect" onchange="fillGatewayForm()"></select>
+
+            <label>Gateway ID</label>
+            <input id="gatewayId" placeholder="Example: GIU-BERLIN-GATEWAY">
+
+            <label>Name</label>
+            <input id="gatewayName" placeholder="Example: GIU Berlin Gateway">
+
+            <label>Client</label>
+            <select id="gatewayClientSelect"></select>
+
+            <label>Site</label>
+            <select id="gatewaySiteSelect"></select>
+
+            <label>Building</label>
+            <select id="gatewayBuildingSelect"></select>
+
+            <label>Floor</label>
+            <select id="gatewayFloorSelect"></select>
+
+            <label>Position X</label>
+            <input id="gatewayX" type="number" placeholder="Example: 200">
+
+            <label>Position Y</label>
+            <input id="gatewayY" type="number" placeholder="Example: 120">
+
+            <label>Map Label</label>
+            <input id="gatewayLabel" placeholder="Example: Main Corridor Gateway">
+
+            <label>Location Note</label>
+            <textarea id="gatewayNote" placeholder="Example: Mounted near the ceiling in the main corridor"></textarea>
+
+            <div class="row">
+                <button class="success" onclick="saveGateway()">Create / Update Gateway</button>
+                <button class="danger" onclick="deleteGateway()">Delete Gateway</button>
+                <button class="secondary" onclick="openSelectedGatewayPlacement()">Place Gateway</button>
+                <a class="link-btn secondary" href="/gateway-monitor">Monitor Gateway</a>
+            </div>
+
+            <div id="gatewayStatus" class="status"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-line">
+                <h2>Device Assignment</h2>
+                <span class="pill">AFTER PROVISIONING</span>
+            </div>
+            <div class="muted">
+                If a device was provisioned before the room was ready, assign it to the correct room here without using Swagger.
+            </div>
+
+            <label>Provisioned Device</label>
+            <select id="deviceAssignSelect"></select>
+
+            <label>Floor</label>
+            <select id="deviceFloorSelect" onchange="loadRoomsForSelectedFloor()"></select>
+
+            <label>Room</label>
+            <select id="deviceRoomSelect"></select>
+
+           <div class="row">
+               <button class="success" onclick="assignDeviceToRoom()">Assign Device to Room</button>
+               <button class="secondary" onclick="openSelectedFloorLiveViewFromDeviceAssignment()">Open Admin Live Floor View</button>
+               <button class="secondary" onclick="openSelectedNodePlacement()">Open Node Placement</button>
+               <button class="secondary" onclick="openSelectedDeviceCapabilities()">Device Capabilities</button>
+            </div>
+
+            <div class="readonly-box">
+                Recommended flow: provision after rooms exist. This section is mainly for correction or reassignment.
+            </div>
+
+            <div id="deviceAssignStatus" class="status"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-line">
+                <h2>Operational Links</h2>
+                <span class="pill">GO LIVE CHECK</span>
+            </div>
+            <div class="muted">Use these pages after structure setup to verify the system is ready for live operation.</div>
+
+            <div class="quick-links">
+                <a href="/site-map-editor">
+                    <strong>Site Map Editor</strong>
+                    <span>Upload/view the site map and draw building polygons.</span>
+                </a>
+
+                <a href="/floor-editor">
+                    <strong>Floor Editor</strong>
+                    <span>Draw, update, or delete rooms on the floor plan.</span>
+                </a>
+
+                <a href="/admin/provision-options">
+                    <strong>Provisioning Options</strong>
+                    <span>Check the room IDs and node types sent to the LILYGO provisioning flow.</span>
+                </a>
+
+                <a href="/device-capabilities-manager">
+                    <strong>Device Capabilities</strong>
+                    <span>Change node type/capabilities and sync TTN formatter.</span>
+                </a>
+
+                <a href="#" onclick="openClientAccessForSelectedScope(); return false;">
+                    <strong>Client Access Manager</strong>
+                    <span>Create client login credentials and assign access permissions for the selected scope.</span>
+                </a>
+
+                <a href="/floor-live-view">
+                    <strong>Admin Floor Live View</strong>
+                    <span>Verify devices, rooms, gateways, alarms, battery, signal, and telemetry.</span>
+                </a>
+
+                <a href="/admin/audit-log">
+                    <strong>Audit Log</strong>
+                    <span>Review admin actions, movements, alarm actions, and permission changes.</span>
+                </a>
+
+                <a href="/admin/alarms">
+                    <strong>Alarm History</strong>
+                    <span>Acknowledge, resolve, and export alarm records.</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="card full">
+            <div class="card-header-line">
+                <h2>Deployment Structure Summary</h2>
+                <span class="pill">LIVE DATABASE VIEW</span>
+            </div>
+            <div class="muted">
+                This table confirms the configured clients, sites, buildings, floors, gateways, and devices currently available in the system.
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Parent / Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+let clients = [];
+let sites = [];
+let buildings = [];
+let floors = [];
+let gateways = [];
+let devices = [];
+let currentRooms = [];
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) return "";
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function showStatus(id, message, type="good") {
+    const box = document.getElementById(id);
+    box.className = "status " + type;
+    box.innerText = message;
+}
+
+async function fetchJson(url, options={}) {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+        throw new Error(data.detail || "Request failed");
+    }
+
+    return data;
+}
+
+function fillSelect(id, items, emptyText, labelFn=null) {
+    const select = document.getElementById(id);
+    if (!select) return;
+
+    select.innerHTML = `<option value="">${escapeHtml(emptyText)}</option>`;
+
+    items.forEach(item => {
+        const label = labelFn ? labelFn(item) : (item.name || item.label || item.gateway_id || item.device_id || item.room_name || ("ID " + item.id));
+
+        select.innerHTML += `
+            <option value="${escapeHtml(item.id !== undefined ? item.id : item.device_id)}">
+                ${escapeHtml(label)}
+            </option>
+        `;
+    });
+}
+
+function getById(list, id) {
+    return list.find(item => String(item.id) === String(id));
+}
+
+function getGatewayByDbId(id) {
+    return gateways.find(item => String(item.id) === String(id));
+}
+
+function getDeviceById(deviceId) {
+    return devices.find(item => String(item.device_id) === String(deviceId));
+}
+
+async function refreshAll() {
+    try {
+        clients = await fetchJson("/clients");
+        sites = await fetchJson("/sites");
+        buildings = await fetchJson("/buildings");
+        floors = await fetchJson("/floors");
+        gateways = await fetchJson("/gateways");
+        devices = await fetchJson("/devices-status");
+
+        fillAllDropdowns();
+        renderSummary();
+
+        const selectedFloor = document.getElementById("deviceFloorSelect").value;
+        if (selectedFloor) {
+            await loadRoomsForSelectedFloor();
+        }
+
+    } catch (err) {
+        alert("Failed to load setup data: " + err.message);
+    }
+}
+
+function fillAllDropdowns() {
+    fillSelect("clientEditSelect", clients, "Select client");
+    fillSelect("siteClientSelect", clients, "Select client");
+    fillSelect("gatewayClientSelect", clients, "No client");
+
+    fillSelect("siteEditSelect", sites, "Select site", s => {
+        const client = getById(clients, s.client_id);
+        return `${s.name} / Client: ${client ? client.name : s.client_id}`;
+    });
+
+    fillSelect("siteMapSelect", sites, "Select site");
+    fillSelect("buildingSiteSelect", sites, "Select site");
+    fillSelect("gatewaySiteSelect", sites, "No site");
+
+    fillSelect("buildingEditSelect", buildings, "Select building", b => {
+        const site = getById(sites, b.site_id);
+        return `${b.name} / Site: ${site ? site.name : b.site_id}`;
+    });
+
+    fillSelect("floorBuildingSelect", buildings, "Select building");
+    fillSelect("gatewayBuildingSelect", buildings, "No building");
+
+    fillSelect("floorEditSelect", floors, "Select floor", f => {
+        const building = getById(buildings, f.building_id);
+        return `${f.name} / Building: ${building ? building.name : f.building_id}`;
+    });
+
+    fillSelect("floorImageSelect", floors, "Select floor");
+    fillSelect("gatewayFloorSelect", floors, "No floor");
+
+    fillSelect("gatewayEditSelect", gateways, "Create new gateway", g => {
+        return `${g.name || g.gateway_id} / ${g.gateway_id}`;
+    });
+
+    fillSelect("deviceAssignSelect", devices, "Select provisioned device", d => {
+        return `${d.label || d.device_id} / ${d.device_id}`;
+    });
+
+    fillSelect("deviceFloorSelect", floors, "Select floor", f => {
+        const building = getById(buildings, f.building_id);
+        return `${f.name} / ${building ? building.name : "Building " + f.building_id}`;
+    });
+}
+
+function renderSummary() {
+    const tbody = document.getElementById("summaryTable");
+    tbody.innerHTML = "";
+
+    if (!clients.length && !sites.length && !buildings.length && !floors.length && !gateways.length && !devices.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4">No structure records found yet. Start by creating a client.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    clients.forEach(c => {
+        tbody.innerHTML += `
+            <tr>
+                <td>Client</td>
+                <td>${escapeHtml(c.id)}</td>
+                <td>${escapeHtml(c.name)}</td>
+                <td>Created: ${escapeHtml(c.created_at || "--")}</td>
+            </tr>
+        `;
+    });
+
+    sites.forEach(s => {
+        const c = getById(clients, s.client_id);
+        tbody.innerHTML += `
+            <tr>
+                <td>Site</td>
+                <td>${escapeHtml(s.id)}</td>
+                <td>${escapeHtml(s.name)}</td>
+                <td>Client: ${escapeHtml(c ? c.name : s.client_id)} / Map: ${escapeHtml(s.campus_image_path || s.image_path || "--")}</td>
+            </tr>
+        `;
+    });
+
+    buildings.forEach(b => {
+        const s = getById(sites, b.site_id);
+        tbody.innerHTML += `
+            <tr>
+                <td>Building</td>
+                <td>${escapeHtml(b.id)}</td>
+                <td>${escapeHtml(b.name)}</td>
+                <td>Site: ${escapeHtml(s ? s.name : b.site_id)} / Polygon: ${b.polygon_points && b.polygon_points.length ? "Configured" : "Not configured"}</td>
+            </tr>
+        `;
+    });
+
+    floors.forEach(f => {
+        const b = getById(buildings, f.building_id);
+        tbody.innerHTML += `
+            <tr>
+                <td>Floor</td>
+                <td>${escapeHtml(f.id)}</td>
+                <td>${escapeHtml(f.name)}</td>
+                <td>Building: ${escapeHtml(b ? b.name : f.building_id)} / Floor No: ${escapeHtml(f.floor_number || "--")} / Image: ${escapeHtml(f.image_path || "--")}</td>
+            </tr>
+        `;
+    });
+
+    gateways.forEach(g => {
+        tbody.innerHTML += `
+            <tr>
+                <td>Gateway</td>
+                <td>${escapeHtml(g.id)}</td>
+                <td>${escapeHtml(g.name || g.gateway_id)}</td>
+                <td>Gateway ID: ${escapeHtml(g.gateway_id)} / Floor: ${escapeHtml(g.floor_id || "--")} / Position: ${escapeHtml(g.x || "--")}, ${escapeHtml(g.y || "--")}</td>
+            </tr>
+        `;
+    });
+
+    devices.forEach(d => {
+        tbody.innerHTML += `
+            <tr>
+                <td>Device</td>
+                <td>${escapeHtml(d.device_id)}</td>
+                <td>${escapeHtml(d.label || d.device_id)}</td>
+                <td>Type: ${escapeHtml(d.node_type)} / Room ID: ${escapeHtml(d.room_id || "--")} / Floor ID: ${escapeHtml(d.floor_id || "--")}</td>
+                <td>
+                    <button class="btn" style="background:#10b981; padding:4px 8px; font-size:12px;" onclick="openTelemetryGraph('${escapeHtml(d.device_id)}', '${escapeHtml(d.label || d.device_id)}')">
+                        📉 Graphs
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+async function createClient() {
+    const name = document.getElementById("clientName").value.trim();
+
+    if (!name) {
+        showStatus("clientStatus", "Client name is required.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson("/clients", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({name})
+        });
+
+        document.getElementById("clientName").value = "";
+        showStatus("clientStatus", "Client created successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("clientStatus", err.message, "bad");
+    }
+}
+
+async function updateClient() {
+    const id = document.getElementById("clientEditSelect").value;
+    const name = document.getElementById("clientEditName").value.trim();
+
+    if (!id || !name) {
+        showStatus("clientStatus", "Select a client and enter the updated name.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson(`/clients/${id}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({name})
+        });
+
+        document.getElementById("clientEditName").value = "";
+        showStatus("clientStatus", "Client updated successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("clientStatus", err.message, "bad");
+    }
+}
+
+async function deleteClient() {
+    const id = document.getElementById("clientEditSelect").value;
+
+    if (!id) {
+        showStatus("clientStatus", "Select a client first.", "bad");
+        return;
+    }
+
+    if (!confirm("Delete this client? Related sites/buildings may become orphaned if they are not deleted first.")) {
+        return;
+    }
+
+    try {
+        await fetchJson(`/clients/${id}`, {method: "DELETE"});
+        showStatus("clientStatus", "Client deleted.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("clientStatus", err.message, "bad");
+    }
+}
+
+async function createSite() {
+    const client_id = Number(document.getElementById("siteClientSelect").value);
+    const name = document.getElementById("siteName").value.trim();
+
+    if (!client_id || !name) {
+        showStatus("siteStatus", "Select a client and enter the site name.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson("/sites", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({client_id, name})
+        });
+
+        document.getElementById("siteName").value = "";
+        showStatus("siteStatus", "Site created successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("siteStatus", err.message, "bad");
+    }
+}
+
+async function updateSite() {
+    const id = document.getElementById("siteEditSelect").value;
+    const name = document.getElementById("siteEditName").value.trim();
+
+    if (!id || !name) {
+        showStatus("siteStatus", "Select a site and enter the updated name.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson(`/sites/${id}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({name})
+        });
+
+        document.getElementById("siteEditName").value = "";
+        showStatus("siteStatus", "Site updated successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("siteStatus", err.message, "bad");
+    }
+}
+
+async function deleteSite() {
+    const id = document.getElementById("siteEditSelect").value;
+
+    if (!id) {
+        showStatus("siteStatus", "Select a site first.", "bad");
+        return;
+    }
+
+    if (!confirm("Delete this site? Delete or reassign buildings first if needed.")) {
+        return;
+    }
+
+    try {
+        await fetchJson(`/sites/${id}`, {method: "DELETE"});
+        showStatus("siteStatus", "Site deleted.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("siteStatus", err.message, "bad");
+    }
+}
+
+async function uploadSiteMap() {
+    const siteId = document.getElementById("siteMapSelect").value;
+    const file = document.getElementById("siteMapFile").files[0];
+
+    if (!siteId || !file) {
+        showStatus("siteStatus", "Select a site and choose a site map image.", "bad");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+        const res = await fetch(`/sites/${siteId}/upload-site-map`, {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || "Site map upload failed");
+        }
+
+        document.getElementById("siteMapFile").value = "";
+        showStatus("siteStatus", "Site map uploaded successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("siteStatus", err.message, "bad");
+    }
+}
+
+async function createBuilding() {
+    const site_id = Number(document.getElementById("buildingSiteSelect").value);
+    const name = document.getElementById("buildingName").value.trim();
+
+    if (!site_id || !name) {
+        showStatus("buildingStatus", "Select a site and enter the building name.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson("/buildings", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({site_id, name})
+        });
+
+        document.getElementById("buildingName").value = "";
+        showStatus("buildingStatus", "Building created successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("buildingStatus", err.message, "bad");
+    }
+}
+
+async function updateBuilding() {
+    const id = document.getElementById("buildingEditSelect").value;
+    const name = document.getElementById("buildingEditName").value.trim();
+
+    if (!id || !name) {
+        showStatus("buildingStatus", "Select a building and enter the updated name.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson(`/buildings/${id}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({name})
+        });
+
+        document.getElementById("buildingEditName").value = "";
+        showStatus("buildingStatus", "Building updated successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("buildingStatus", err.message, "bad");
+    }
+}
+
+async function deleteBuilding() {
+    const id = document.getElementById("buildingEditSelect").value;
+
+    if (!id) {
+        showStatus("buildingStatus", "Select a building first.", "bad");
+        return;
+    }
+
+    if (!confirm("Delete this building? Delete or reassign floors first if needed.")) {
+        return;
+    }
+
+    try {
+        await fetchJson(`/buildings/${id}`, {method: "DELETE"});
+        showStatus("buildingStatus", "Building deleted.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("buildingStatus", err.message, "bad");
+    }
+}
+
+async function createFloor() {
+    const building_id = Number(document.getElementById("floorBuildingSelect").value);
+    const name = document.getElementById("floorName").value.trim();
+    const floor_number = document.getElementById("floorNumber").value.trim();
+
+    if (!building_id || !name) {
+        showStatus("floorStatus", "Select a building and enter the floor name.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson("/floors", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({building_id, name, floor_number})
+        });
+
+        document.getElementById("floorName").value = "";
+        document.getElementById("floorNumber").value = "";
+        showStatus("floorStatus", "Floor created successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("floorStatus", err.message, "bad");
+    }
+}
+
+async function updateFloor() {
+    const id = document.getElementById("floorEditSelect").value;
+    const name = document.getElementById("floorEditName").value.trim();
+    const floor_number = document.getElementById("floorEditNumber").value.trim();
+
+    if (!id || !name) {
+        showStatus("floorStatus", "Select a floor and enter the updated name.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson(`/floors/${id}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({name, floor_number})
+        });
+
+        document.getElementById("floorEditName").value = "";
+        document.getElementById("floorEditNumber").value = "";
+        showStatus("floorStatus", "Floor updated successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("floorStatus", err.message, "bad");
+    }
+}
+
+async function deleteFloor() {
+    const id = document.getElementById("floorEditSelect").value;
+
+    if (!id) {
+        showStatus("floorStatus", "Select a floor first.", "bad");
+        return;
+    }
+
+    if (!confirm("Delete this floor? Delete or reassign rooms/devices first if needed.")) {
+        return;
+    }
+
+    try {
+        await fetchJson(`/floors/${id}`, {method: "DELETE"});
+        showStatus("floorStatus", "Floor deleted.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("floorStatus", err.message, "bad");
+    }
+}
+
+async function uploadFloorImage() {
+    const floorId = document.getElementById("floorImageSelect").value;
+    const file = document.getElementById("floorImageFile").files[0];
+
+    if (!floorId || !file) {
+        showStatus("floorStatus", "Select a floor and choose a floor plan image.", "bad");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+        const res = await fetch(`/floors/${floorId}/upload-image`, {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || "Floor image upload failed");
+        }
+
+        document.getElementById("floorImageFile").value = "";
+        showStatus("floorStatus", "Floor plan uploaded successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("floorStatus", err.message, "bad");
+    }
+}
+
+function fillGatewayForm() {
+    const id = document.getElementById("gatewayEditSelect").value;
+
+    if (!id) {
+        document.getElementById("gatewayId").value = "";
+        document.getElementById("gatewayName").value = "";
+        document.getElementById("gatewayClientSelect").value = "";
+        document.getElementById("gatewaySiteSelect").value = "";
+        document.getElementById("gatewayBuildingSelect").value = "";
+        document.getElementById("gatewayFloorSelect").value = "";
+        document.getElementById("gatewayX").value = "";
+        document.getElementById("gatewayY").value = "";
+        document.getElementById("gatewayLabel").value = "";
+        document.getElementById("gatewayNote").value = "";
+        return;
+    }
+
+    const gw = getGatewayByDbId(id);
+
+    if (!gw) return;
+
+    document.getElementById("gatewayId").value = gw.gateway_id || "";
+    document.getElementById("gatewayName").value = gw.name || "";
+    document.getElementById("gatewayClientSelect").value = gw.client_id || "";
+    document.getElementById("gatewaySiteSelect").value = gw.site_id || "";
+    document.getElementById("gatewayBuildingSelect").value = gw.building_id || "";
+    document.getElementById("gatewayFloorSelect").value = gw.floor_id || "";
+    document.getElementById("gatewayX").value = gw.x || "";
+    document.getElementById("gatewayY").value = gw.y || "";
+    document.getElementById("gatewayLabel").value = gw.label || "";
+    document.getElementById("gatewayNote").value = gw.location_note || "";
+}
+
+async function saveGateway() {
+    const gateway_id = document.getElementById("gatewayId").value.trim();
+    const name = document.getElementById("gatewayName").value.trim();
+
+    if (!gateway_id) {
+        showStatus("gatewayStatus", "Gateway ID is required.", "bad");
+        return;
+    }
+
+    const payload = {
+        gateway_id,
+        name: name || gateway_id,
+        client_id: document.getElementById("gatewayClientSelect").value ? Number(document.getElementById("gatewayClientSelect").value) : null,
+        site_id: document.getElementById("gatewaySiteSelect").value ? Number(document.getElementById("gatewaySiteSelect").value) : null,
+        building_id: document.getElementById("gatewayBuildingSelect").value ? Number(document.getElementById("gatewayBuildingSelect").value) : null,
+        floor_id: document.getElementById("gatewayFloorSelect").value ? Number(document.getElementById("gatewayFloorSelect").value) : null,
+        x: document.getElementById("gatewayX").value ? Number(document.getElementById("gatewayX").value) : null,
+        y: document.getElementById("gatewayY").value ? Number(document.getElementById("gatewayY").value) : null,
+        label: document.getElementById("gatewayLabel").value.trim(),
+        location_note: document.getElementById("gatewayNote").value.trim()
+    };
+
+    try {
+        await fetchJson("/gateways", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        });
+
+        showStatus("gatewayStatus", "Gateway saved successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("gatewayStatus", err.message, "bad");
+    }
+}
+
+async function deleteGateway() {
+    const dbId = document.getElementById("gatewayEditSelect").value;
+
+    if (!dbId) {
+        showStatus("gatewayStatus", "Select an existing gateway first.", "bad");
+        return;
+    }
+
+    const gw = getGatewayByDbId(dbId);
+
+    if (!gw) {
+        showStatus("gatewayStatus", "Gateway not found in loaded data.", "bad");
+        return;
+    }
+
+    if (!confirm("Delete gateway: " + gw.gateway_id + "?")) {
+        return;
+    }
+
+    try {
+        await fetchJson(`/gateways/${encodeURIComponent(gw.gateway_id)}`, {
+            method: "DELETE"
+        });
+
+        showStatus("gatewayStatus", "Gateway deleted.", "good");
+        await refreshAll();
+        fillGatewayForm();
+
+    } catch (err) {
+        showStatus("gatewayStatus", err.message, "bad");
+    }
+}
+
+async function loadRoomsForSelectedFloor() {
+    const floorId = document.getElementById("deviceFloorSelect").value;
+
+    currentRooms = [];
+    fillSelect("deviceRoomSelect", [], "Select room");
+
+    if (!floorId) {
+        showStatus("deviceAssignStatus", "Select a floor to load rooms.", "info");
+        return;
+    }
+
+    try {
+        currentRooms = await fetchJson(`/floors/${floorId}/rooms`);
+
+        fillSelect("deviceRoomSelect", currentRooms, "Select room", r => {
+            return `${r.room_name} / Room ID ${r.id}`;
+        });
+
+        if (!currentRooms.length) {
+            showStatus("deviceAssignStatus", "No rooms found on this floor. Open Floor Editor and draw rooms first.", "info");
+        } else {
+            showStatus("deviceAssignStatus", `${currentRooms.length} room(s) loaded for selected floor.`, "good");
+        }
+
+    } catch (err) {
+        showStatus("deviceAssignStatus", err.message, "bad");
+    }
+}
+
+async function assignDeviceToRoom() {
+    const deviceId = document.getElementById("deviceAssignSelect").value;
+    const roomId = document.getElementById("deviceRoomSelect").value;
+
+    if (!deviceId || !roomId) {
+        showStatus("deviceAssignStatus", "Select a device and a room first.", "bad");
+        return;
+    }
+
+    try {
+        await fetchJson(`/rooms/${roomId}/devices`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({device_id: deviceId})
+        });
+
+        showStatus("deviceAssignStatus", "Device assigned to room successfully.", "good");
+        await refreshAll();
+
+    } catch (err) {
+        showStatus("deviceAssignStatus", err.message, "bad");
+    }
+}
+
+function openSelectedFloorEditor() {
+    const floorId =
+        document.getElementById("floorImageSelect").value ||
+        document.getElementById("floorEditSelect").value ||
+        document.getElementById("deviceFloorSelect").value;
+
+    if (!floorId) {
+        showStatus("floorStatus", "Select a floor first, then open Floor Editor.", "bad");
+        return;
+    }
+
+    window.location.href = `/floor-editor?floor_id=${encodeURIComponent(floorId)}`;
+}
+function openSelectedSiteMapEditor() {
+    const siteId =
+        document.getElementById("siteMapSelect").value ||
+        document.getElementById("siteEditSelect").value ||
+        document.getElementById("buildingSiteSelect").value ||
+        document.getElementById("gatewaySiteSelect").value;
+
+    if (!siteId) {
+        showStatus("siteStatus", "Select a site first, then open Site Map Editor.", "bad");
+        return;
+    }
+
+    window.location.href = `/site-map-editor?site_id=${encodeURIComponent(siteId)}`;
+}
+function openSelectedGatewayPlacement() {
+    const floorId =
+        document.getElementById("gatewayFloorSelect").value ||
+        document.getElementById("floorImageSelect").value ||
+        document.getElementById("floorEditSelect").value ||
+        document.getElementById("deviceFloorSelect").value;
+
+    if (!floorId) {
+        showStatus("gatewayStatus", "Select a floor first, then open Gateway Placement.", "bad");
+        return;
+    }
+
+    window.location.href = `/admin/gateway-placement?floor_id=${encodeURIComponent(floorId)}`;
+}
+function openSelectedNodePlacement() {
+    const floorId =
+        document.getElementById("deviceFloorSelect").value ||
+        document.getElementById("floorImageSelect").value ||
+        document.getElementById("floorEditSelect").value ||
+        document.getElementById("gatewayFloorSelect").value;
+
+    if (!floorId) {
+        showStatus("deviceAssignStatus", "Select a floor first, then open Node Placement.", "bad");
+        return;
+    }
+
+    window.location.href = `/node-placement-editor?floor_id=${encodeURIComponent(floorId)}`;
+}
+function openSelectedFloorLiveViewFromDeviceAssignment() {
+    const floorId = document.getElementById("deviceFloorSelect").value;
+
+    if (!floorId) {
+        showStatus("deviceAssignStatus", "Select a floor first, then open Admin Live Floor View.", "bad");
+        return;
+    }
+
+    window.location.href = `/floor-live-view?floor_id=${encodeURIComponent(floorId)}`;
+}
+function openSelectedDeviceCapabilities() {
+    const deviceId = document.getElementById("deviceAssignSelect").value;
+
+    if (!deviceId) {
+        showStatus("deviceAssignStatus", "Select a device first, then open Device Capabilities.", "bad");
+        return;
+    }
+
+    window.location.href = `/device-capabilities-manager?device_id=${encodeURIComponent(deviceId)}`;
+}
+
+function openClientAccessForSelectedScope() {
+    let clientId =
+        document.getElementById("gatewayClientSelect").value ||
+        document.getElementById("siteClientSelect").value ||
+        document.getElementById("clientEditSelect").value;
+
+    let siteId =
+        document.getElementById("gatewaySiteSelect").value ||
+        document.getElementById("buildingSiteSelect").value ||
+        document.getElementById("siteMapSelect").value ||
+        document.getElementById("siteEditSelect").value;
+
+    let buildingId =
+        document.getElementById("gatewayBuildingSelect").value ||
+        document.getElementById("floorBuildingSelect").value ||
+        document.getElementById("buildingEditSelect").value;
+
+    let floorId =
+        document.getElementById("deviceFloorSelect").value ||
+        document.getElementById("gatewayFloorSelect").value ||
+        document.getElementById("floorImageSelect").value ||
+        document.getElementById("floorEditSelect").value;
+
+    // If floor selected, derive building/site/client automatically.
+    if (floorId) {
+        const floor = getById(floors, floorId);
+
+        if (floor) {
+            buildingId = floor.building_id || buildingId;
+
+            const building = getById(buildings, buildingId);
+
+            if (building) {
+                siteId = building.site_id || siteId;
+
+                const site = getById(sites, siteId);
+
+                if (site) {
+                    clientId = site.client_id || clientId;
+                }
+            }
+        }
+    }
+
+    // If building selected, derive site/client automatically.
+    else if (buildingId) {
+        const building = getById(buildings, buildingId);
+
+        if (building) {
+            siteId = building.site_id || siteId;
+
+            const site = getById(sites, siteId);
+
+            if (site) {
+                clientId = site.client_id || clientId;
+            }
+        }
+    }
+
+    // If site selected, derive client automatically.
+    else if (siteId) {
+        const site = getById(sites, siteId);
+
+        if (site) {
+            clientId = site.client_id || clientId;
+        }
+    }
+
+    const query = new URLSearchParams();
+
+    if (clientId) query.set("client_id", clientId);
+    if (siteId) query.set("site_id", siteId);
+    if (buildingId) query.set("building_id", buildingId);
+    if (floorId) query.set("floor_id", floorId);
+
+    window.location.href = "/admin/client-access" + (query.toString() ? "?" + query.toString() : "");
+}
+
+document.addEventListener("DOMContentLoaded", refreshAll);
+</script>
+
+<script src="/static/help_system.js"></script>
+
+<!-- UX Systems -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<script src="/static/onboarding_tour.js"></script>
+<script src="/static/search_system.js"></script>
+<script src="/static/realtime_toasts.js"></script>
+
+<!-- Chart.js & Graphs System -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/graphs.js?v=3"></script>
+<script src="/static/generate_firmware.js?v=3"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>
+<script src="/static/analytics_widget.js"></script>
+</body>
+
+
+</html>

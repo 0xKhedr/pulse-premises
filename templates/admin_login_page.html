@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gateway Monitor</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: #111827;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            color: #94a3b8;
+        }
+
+        .filters {
+            margin-top: 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .filters label {
+            color: #e5e7eb;
+            font-weight: bold;
+        }
+
+        .filters select {
+            background: #1e293b;
+            color: white;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 15px;
+        }
+
+        .container {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 14px;
+            padding: 22px;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        }
+
+        .card.online {
+            border-left: 6px solid #22c55e;
+        }
+
+        .card.offline {
+            border-left: 6px solid #ef4444;
+        }
+
+        .card.error {
+            border-left: 6px solid #f97316;
+        }
+
+        .card.unknown {
+            border-left: 6px solid #94a3b8;
+        }
+
+        .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .gateway-name {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .status.online {
+            background: #14532d;
+            color: #86efac;
+        }
+
+        .status.offline {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .status.error {
+            background: #7c2d12;
+            color: #fed7aa;
+        }
+
+        .status.unknown {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .info {
+            margin-top: 18px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+
+        .label {
+            color: #94a3b8;
+        }
+
+        .value {
+            color: #e5e7eb;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .loading {
+            padding: 30px;
+            color: #94a3b8;
+        }
+
+        .error-box {
+            padding: 30px;
+            color: #fecaca;
+        }
+        .admin-home-btn {
+            display: inline-block;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+.admin-home-btn:hover {
+    background: #475569;
+}
+    </style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Gateway Monitor</h1>
+        <p>Live TTN gateway health, uplinks, downlinks, protocol, IP, and last-seen status.</p>
+
+        <div class="filters">
+            <button class="admin-home-btn" onclick="window.location.href='/admin'">
+                ← Admin Home
+            </button>
+
+            <label>Select Site:</label>
+            <select id="siteSelect">
+                <option value="">All Sites</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="content" class="loading">
+        Loading gateways...
+    </div>
+
+    <script>
+        async function loadSites() {
+            const siteSelect = document.getElementById("siteSelect");
+
+            try {
+                const res = await fetch("/sites");
+
+                if (!res.ok) {
+                    throw new Error("Failed to load sites");
+                }
+
+                const sites = await res.json();
+
+                sites.forEach(site => {
+                    const option = document.createElement("option");
+                    option.value = site.id;
+                    option.textContent = site.name;
+                    siteSelect.appendChild(option);
+                });
+
+            } catch (err) {
+                console.error("Failed to load sites:", err);
+            }
+        }
+
+        async function loadGateways() {
+            const content = document.getElementById("content");
+            const siteSelect = document.getElementById("siteSelect");
+            const siteId = siteSelect.value;
+
+            const apiUrl = siteId
+                ? `/gateways/health?site_id=${siteId}`
+                : "/gateways/health";
+
+            try {
+                const res = await fetch(apiUrl);
+
+                if (!res.ok) {
+                    throw new Error("Failed to load gateway health");
+                }
+
+                const gateways = await res.json();
+
+                if (!gateways.length) {
+                    content.className = "loading";
+                    content.innerHTML = "No gateways found for this site.";
+                    return;
+                }
+
+                content.className = "container";
+                content.innerHTML = "";
+
+                gateways.forEach(gw => {
+                    const status = gw.connection_status || "unknown";
+
+                    const card = document.createElement("div");
+                    card.className = "card " + status;
+
+                    card.innerHTML = `
+                        <div class="top-row">
+                            <div class="gateway-name">${gw.name}</div>
+                            <div class="status ${status}">${status}</div>
+                        </div>
+
+                        <div class="info">
+                            <div class="row">
+                                <span class="label">Gateway ID</span>
+                                <span class="value">${gw.gateway_id}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">Protocol</span>
+                                <span class="value">${gw.protocol || "--"}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">IP Address</span>
+                                <span class="value">${gw.ip || "--"}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">Uplink Count</span>
+                                <span class="value">${gw.uplink_count || 0}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">Downlink Count</span>
+                                <span class="value">${gw.downlink_count || 0}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">Last Seen</span>
+                                <span class="value">${gw.last_seen || "--"}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">Last Status</span>
+                                <span class="value">${gw.last_status_received_at || "--"}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">Last Uplink</span>
+                                <span class="value">${gw.last_uplink_received_at || "--"}</span>
+                            </div>
+
+                            <div class="row">
+                                <span class="label">Last Downlink</span>
+                                <span class="value">${gw.last_downlink_received_at || "--"}</span>
+                            </div>
+
+                            ${
+                                gw.error_message
+                                ? `
+                                    <div class="row">
+                                        <span class="label">Error</span>
+                                        <span class="value">${gw.error_message}</span>
+                                    </div>
+                                  `
+                                : ""
+                            }
+                        </div>
+                    `;
+
+                    content.appendChild(card);
+                });
+
+            } catch (err) {
+                content.className = "error-box";
+                content.innerHTML = "Error loading gateway health: " + err.message;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            await loadSites();
+            await loadGateways();
+
+            document.getElementById("siteSelect").addEventListener("change", loadGateways);
+
+            setInterval(loadGateways, 5000);
+        });
+    </script>
+
+<script src="/static/help_system.js"></script>
+
+<!-- UX Systems -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<script src="/static/onboarding_tour.js"></script>
+<script src="/static/search_system.js"></script>
+<script src="/static/realtime_toasts.js"></script>
+
+<!-- Chart.js & Graphs System -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/graphs.js?v=3"></script>
+<script src="/static/generate_firmware.js?v=3"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>
+<script src="/static/analytics_widget.js"></script>
+</body>
+
+
+</html>

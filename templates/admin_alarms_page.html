@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Alarm History</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+
+        .header {
+            padding: 24px 34px;
+            background: #111827;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 30px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #94a3b8;
+        }
+
+        .toolbar {
+            padding: 20px 34px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select, button {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            font-size: 14px;
+        }
+
+        select {
+            background: #1e293b;
+            color: white;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button.export {
+            background: #7c3aed;
+        }
+
+        button.export:hover {
+            background: #6d28d9;
+        }
+
+        button.resolve {
+            background: #16a34a;
+        }
+
+        button.resolve:hover {
+            background: #15803d;
+        }
+
+        button.ack {
+            background: #f59e0b;
+        }
+
+        button.ack:hover {
+            background: #d97706;
+        }
+
+        .no-action {
+            display: inline-block;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #334155;
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .content {
+            padding: 0 34px 34px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e293b;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 13px;
+            border-bottom: 1px solid #334155;
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+
+        th {
+            background: #111827;
+            color: #cbd5e1;
+        }
+
+        tr:hover {
+            background: #273449;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .active {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .acknowledged {
+            background: #78350f;
+            color: #fde68a;
+        }
+
+        .resolved {
+            background: #14532d;
+            color: #86efac;
+        }
+
+        .muted {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .error {
+            color: #fecaca;
+            padding: 20px;
+            background: #7f1d1d;
+            border-radius: 10px;
+        }
+
+        .empty {
+            color: #94a3b8;
+            padding: 24px;
+            background: #1e293b;
+            border-radius: 12px;
+        }
+
+        .telemetry {
+            font-family: monospace;
+            font-size: 12px;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+        }
+    </style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Alarm History</h1>
+        <p>View active, acknowledged, and resolved alarms from smart building nodes.</p>
+    </div>
+
+    <div class="toolbar">
+        <label>Status:</label>
+
+        <select id="statusFilter">
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="resolved">Resolved</option>
+        </select>
+
+        <button onclick="loadAlarms()">Refresh</button>
+        <button class="export" onclick="exportAlarmCsv()">Export CSV</button>
+        <button onclick="window.open('/admin', '_self')">Back to Admin Home</button>
+    </div>
+
+    <div class="content" id="content">
+        Loading alarms.
+    </div>
+
+<script>
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function alarmStatus(alarm) {
+    if (alarm.resolved === 1 || alarm.resolved === true) {
+        return "resolved";
+    }
+
+    if (alarm.acknowledged === 1 || alarm.acknowledged === true) {
+        return "acknowledged";
+    }
+
+    return "active";
+}
+
+function statusBadge(alarm) {
+    const status = alarmStatus(alarm);
+
+    return `<span class="badge ${status}">${status.toUpperCase()}</span>`;
+}
+
+function buildAlarmExportQuery() {
+    const status = document.getElementById("statusFilter").value;
+    const query = new URLSearchParams();
+
+    query.set("limit", "5000");
+
+    if (status === "active") {
+        query.set("acknowledged", "0");
+        query.set("resolved", "0");
+    }
+
+    if (status === "acknowledged") {
+        query.set("acknowledged", "1");
+        query.set("resolved", "0");
+    }
+
+    if (status === "resolved") {
+        query.set("resolved", "1");
+    }
+
+    return query.toString();
+}
+
+function exportAlarmCsv() {
+    const query = buildAlarmExportQuery();
+    window.location.href = "/alarms/export.csv?" + query;
+}
+
+async function loadAlarms() {
+    const content = document.getElementById("content");
+    const status = document.getElementById("statusFilter").value;
+
+    content.innerHTML = "Loading alarms.";
+
+    let url = "/alarms";
+
+    if (status) {
+        url += "?status=" + encodeURIComponent(status);
+    }
+
+    try {
+        const res = await fetch(url);
+        const alarms = await res.json();
+
+        if (!res.ok) {
+            throw new Error(alarms.detail || "Failed to load alarms");
+        }
+
+        if (!alarms.length) {
+            content.innerHTML = `<div class="empty">No alarms found for this filter.</div>`;
+            return;
+        }
+
+        let html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Alarm</th>
+                        <th>Location</th>
+                        <th>Device</th>
+                        <th>Time</th>
+                        <th>Telemetry</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        alarms.forEach(alarm => {
+            const status = alarmStatus(alarm);
+            const isAck = alarm.acknowledged === 1 || alarm.acknowledged === true;
+            const isResolved = alarm.resolved === 1 || alarm.resolved === true;
+
+            let actionButtons = "";
+
+            if (isResolved) {
+                actionButtons = `<span class="no-action">No actions needed</span>`;
+            } else {
+                if (!isAck) {
+                    actionButtons += `
+                        <button class="ack" onclick="ackAlarm(${alarm.id})">
+                            Acknowledge
+                        </button>
+                        <br><br>
+                    `;
+                }
+
+                actionButtons += `
+                    <button class="resolve" onclick="resolveAlarm(${alarm.id})">
+                        Resolve
+                    </button>
+                `;
+            }
+
+            html += `
+                <tr>
+                    <td>${statusBadge(alarm)}</td>
+
+                    <td>
+                        <b>${escapeHtml(alarm.alarm_message)}</b>
+                        <div class="muted">${escapeHtml(alarm.alarm_type || "")}</div>
+                    </td>
+
+                    <td>
+                        ${escapeHtml(alarm.building)}<br>
+                        <span class="muted">
+                            Floor ${escapeHtml(alarm.floor)} / ${escapeHtml(alarm.room)}
+                        </span>
+                    </td>
+
+                    <td>
+                        ${escapeHtml(alarm.device_id)}<br>
+                        <span class="muted">${escapeHtml(alarm.node_type)}</span>
+                    </td>
+
+                    <td>
+                        Triggered:<br>
+                        <span class="muted">${escapeHtml(alarm.triggered_at)}</span><br><br>
+
+                        ${isAck ? `
+                            Ack by: ${escapeHtml(alarm.acknowledged_by)}<br>
+                            <span class="muted">${escapeHtml(alarm.acknowledged_at)}</span><br><br>
+                        ` : ""}
+
+                        ${isResolved ? `
+                            Resolved by: ${escapeHtml(alarm.resolved_by)}<br>
+                            <span class="muted">${escapeHtml(alarm.resolved_at)}</span>
+                        ` : ""}
+                    </td>
+
+                    <td>
+                        <div class="telemetry">${escapeHtml(JSON.stringify(alarm.telemetry || {}, null, 2))}</div>
+                    </td>
+
+                    <td>
+                        ${actionButtons}
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                </tbody>
+            </table>
+        `;
+
+        content.innerHTML = html;
+
+    } catch (err) {
+        content.innerHTML = `<div class="error">Error: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+async function ackAlarm(id) {
+    const name = prompt("Acknowledged by:", "admin");
+
+    if (!name) {
+        return;
+    }
+
+    const res = await fetch(`/alarms/${id}/acknowledge`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            acknowledged_by: name
+        })
+    });
+
+    if (!res.ok) {
+        const data = await res.json();
+        alert(data.detail || "Failed to acknowledge alarm");
+        return;
+    }
+
+    await loadAlarms();
+}
+
+async function resolveAlarm(id) {
+    const name = prompt("Resolved by:", "admin");
+
+    if (!name) {
+        return;
+    }
+
+    const res = await fetch(`/alarms/${id}/resolve`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            resolved_by: name
+        })
+    });
+
+    if (!res.ok) {
+        const data = await res.json();
+        alert(data.detail || "Failed to resolve alarm");
+        return;
+    }
+
+    await loadAlarms();
+}
+
+document.getElementById("statusFilter").addEventListener("change", loadAlarms);
+document.addEventListener("DOMContentLoaded", loadAlarms);
+</script>
+
+<script src="/static/help_system.js"></script>
+
+<!-- UX Systems -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<script src="/static/onboarding_tour.js"></script>
+<script src="/static/search_system.js"></script>
+<script src="/static/realtime_toasts.js"></script>
+
+<!-- Chart.js & Graphs System -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/graphs.js?v=3"></script>
+<script src="/static/generate_firmware.js?v=3"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>
+<script src="/static/analytics_widget.js"></script>
+</body>
+
+
+</html>

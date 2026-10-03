@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Building Login</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            width: 480px;
+            max-width: calc(100% - 32px);
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 20px 70px rgba(0,0,0,0.45);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #2563eb, #16a34a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        p {
+            margin: 8px 0 24px 0;
+            color: #94a3b8;
+        }
+
+        a {
+            display: block;
+            text-decoration: none;
+            padding: 18px;
+            border-radius: 14px;
+            background: #020617;
+            border: 1px solid #334155;
+            color: white;
+            margin-top: 14px;
+        }
+
+        a:hover {
+            background: #1e293b;
+            border-color: #60a5fa;
+        }
+
+        strong {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 6px;
+        }
+
+        span {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .footer {
+            margin-top: 20px;
+            color: #64748b;
+            font-size: 12px;
+            text-align: center;
+        }
+    </style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+<div class="card">
+    <div class="logo">SB</div>
+
+    <h1>Smart Building Login</h1>
+    <p>Select which portal you want to access.</p>
+
+    <a href="/admin-login">
+        <strong>Admin Portal</strong>
+        <span>Manage clients, devices, gateways, alarms, reports, exports, and permissions.</span>
+    </a>
+
+    <a href="/client-login">
+        <strong>Client Portal</strong>
+        <span>View assigned buildings, floors, devices, alarms, activity logs, and reports.</span>
+    </a>
+
+    <div class="footer">
+        LoRa Smart Building Management System
+    </div>
+</div>
+<script src="/static/help_system.js"></script>
+
+<!-- UX Systems -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<script src="/static/onboarding_tour.js"></script>
+<script src="/static/search_system.js"></script>
+<script src="/static/realtime_toasts.js"></script>
+
+<!-- Chart.js & Graphs System -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/graphs.js?v=3"></script>
+<script src="/static/generate_firmware.js?v=3"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>
+<script src="/static/bulk_import.js"></script>
+<script src="/static/analytics_widget.js"></script>
+</body>
+
+
+</html>

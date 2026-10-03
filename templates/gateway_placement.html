@@ -1,0 +1,605 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gateway Placement Editor</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#08111f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+
+        .header {
+            padding: 22px 30px;
+            background: #111827;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .header p {
+            color: #94a3b8;
+            margin: 8px 0 0;
+        }
+
+        .toolbar {
+            padding: 18px 30px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select, button, input {
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            font-size: 14px;
+        }
+
+        select, input {
+            background: #1e293b;
+            color: white;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 20px;
+            padding: 0 30px 30px;
+        }
+
+        .map-wrap {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 14px;
+            overflow: auto;
+        }
+
+        .map {
+            position: relative;
+            display: inline-block;
+            background: #0f172a;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .map img {
+            max-width: 1000px;
+            display: block;
+        }
+
+        .gateway-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f97316;
+            border: 3px solid white;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+            font-size: 18px;
+            z-index: 20;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        .gateway-marker.online {
+            background: #22c55e;
+        }
+
+        .gateway-marker.offline {
+            background: #ef4444;
+        }
+
+        .gateway-marker.error {
+            background: #f97316;
+        }
+
+        .gateway-marker.unknown {
+            background: #64748b;
+        }
+
+        .side {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        .side h2 {
+            margin-top: 0;
+        }
+
+        .field {
+            margin-bottom: 12px;
+        }
+
+        .field label {
+            display: block;
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .field input, .field select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .details {
+            margin-top: 18px;
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 14px;
+        }
+
+        .muted {
+            color: #94a3b8;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status.online {
+            background: #14532d;
+            color: #86efac;
+        }
+
+        .status.offline {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .status.error {
+            background: #7c2d12;
+            color: #fed7aa;
+        }
+
+        .status.unknown {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .admin-home-btn {
+            display: inline-block;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .admin-home-btn:hover {
+            background: #475569;
+        }
+    </style>
+<link rel="stylesheet" href="/static/bright_theme.css">
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Gateway Placement Editor</h1>
+    <p>Select a floor, choose a gateway, then click on the floor plan to place it.</p>
+</div>
+
+<div class="toolbar">
+    <label>Floor:</label>
+    <select id="floorSelect"></select>
+
+    <label>Gateway:</label>
+    <select id="gatewaySelect"></select>
+
+    <button onclick="loadFloor()">Refresh</button>
+    <button class="admin-home-btn" onclick="window.location.href='/admin'">
+        ← Admin Home
+    </button>
+</div>
+
+<div class="main">
+    <div class="map-wrap">
+        <div id="map" class="map">
+            <span class="muted">Loading floor...</span>
+        </div>
+    </div>
+
+    <div class="side">
+        <h2>Gateway Info</h2>
+
+        <div class="field">
+            <label>Name</label>
+            <input id="nameInput">
+        </div>
+
+        <div class="field">
+            <label>Label</label>
+            <input id="labelInput">
+        </div>
+
+        <div class="field">
+            <label>Location Note</label>
+            <input id="noteInput">
+        </div>
+
+        <div class="field">
+            <label>X</label>
+            <input id="xInput" type="number">
+        </div>
+
+        <div class="field">
+            <label>Y</label>
+            <input id="yInput" type="number">
+        </div>
+
+        <button onclick="saveSelectedGateway()">Save Gateway Info / Placement</button>
+
+        <div id="gatewayDetails" class="details">
+            Select a gateway marker to view details.
+        </div>
+    </div>
+</div>
+
+<script>
+let floors = [];
+let floorLive = null;
+let selectedGateway = null;
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) return "";
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+}
+
+async function loadFloors() {
+    const res = await fetch("/floors");
+    floors = await res.json();
+
+    const floorSelect = document.getElementById("floorSelect");
+    floorSelect.innerHTML = "";
+
+    floors.forEach(floor => {
+        const option = document.createElement("option");
+        option.value = floor.id;
+        option.textContent = `${floor.name || "Floor"} - ID ${floor.id}`;
+        floorSelect.appendChild(option);
+    });
+
+        const params = new URLSearchParams(window.location.search);
+    const requestedFloorId = params.get("floor_id");
+
+    if (
+        requestedFloorId &&
+        floors.some(floor => String(floor.id) === String(requestedFloorId))
+    ) {
+        floorSelect.value = requestedFloorId;
+        await loadFloor();
+    }
+
+    else if (floors.length > 0) {
+        await loadFloor();
+    }
+}
+
+async function loadFloor() {
+    const floorId = document.getElementById("floorSelect").value;
+
+    if (!floorId) return;
+
+    const res = await fetch(`/floors/${floorId}/live`);
+    floorLive = await res.json();
+
+    const gatewaySelect = document.getElementById("gatewaySelect");
+    gatewaySelect.innerHTML = "";
+
+    floorLive.gateways.forEach(gw => {
+        const option = document.createElement("option");
+        option.value = gw.id;
+        option.textContent = gw.label || gw.name || gw.gateway_id;
+        gatewaySelect.appendChild(option);
+    });
+
+    drawMap();
+}
+
+function drawMap() {
+    const map = document.getElementById("map");
+    const floor = floorLive.floor;
+
+    map.innerHTML = "";
+
+    const img = document.createElement("img");
+    img.src = floor.image_path;
+    img.id = "floorImage";
+
+    img.onload = () => {
+        drawGateways();
+    };
+
+    img.onerror = () => {
+        map.innerHTML = `<div style="padding:20px;">Could not load floor image: ${escapeHtml(floor.image_path)}</div>`;
+    };
+
+    img.addEventListener("click", async function(e) {
+        const gatewayId = document.getElementById("gatewaySelect").value;
+
+        if (!gatewayId) {
+            alert("Select a gateway first.");
+            return;
+        }
+
+        const rect = img.getBoundingClientRect();
+
+        const displayX = e.clientX - rect.left;
+        const displayY = e.clientY - rect.top;
+
+        const originalX = Math.round(displayX * floor.image_width / img.clientWidth);
+        const originalY = Math.round(displayY * floor.image_height / img.clientHeight);
+
+        document.getElementById("xInput").value = originalX;
+        document.getElementById("yInput").value = originalY;
+
+        const gateway = floorLive.gateways.find(g => String(g.id) === String(gatewayId));
+        if (gateway) {
+            selectedGateway = gateway;
+            fillForm(gateway);
+        }
+
+        await saveSelectedGateway();
+    });
+
+    map.appendChild(img);
+}
+
+function drawGateways() {
+    const map = document.getElementById("map");
+    const img = document.getElementById("floorImage");
+    const floor = floorLive.floor;
+
+    floorLive.gateways.forEach(gw => {
+        if (gw.x === null || gw.y === null) return;
+
+        const marker = document.createElement("div");
+        const status = gw.status || "unknown";
+
+        marker.className = "gateway-marker " + status;
+        marker.innerHTML = "📡";
+        marker.title = gw.label || gw.name || gw.gateway_id;
+
+        marker.style.left = (gw.x * img.clientWidth / floor.image_width) + "px";
+        marker.style.top = (gw.y * img.clientHeight / floor.image_height) + "px";
+
+        let startX = 0;
+        let startY = 0;
+        let moved = false;
+        let dragging = false;
+
+        marker.addEventListener("pointerdown", function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            startX = event.clientX;
+            startY = event.clientY;
+            moved = false;
+            dragging = true;
+
+            marker.setPointerCapture(event.pointerId);
+            marker.style.cursor = "grabbing";
+
+            selectedGateway = gw;
+            document.getElementById("gatewaySelect").value = gw.id;
+            fillForm(gw);
+            showDetails(gw);
+        });
+
+        marker.addEventListener("pointermove", function(event) {
+            if (!dragging) return;
+
+            const dx = Math.abs(event.clientX - startX);
+            const dy = Math.abs(event.clientY - startY);
+
+            if (dx > 3 || dy > 3) {
+                moved = true;
+            }
+
+            if (!moved) return;
+
+            const rect = img.getBoundingClientRect();
+
+            let displayX = event.clientX - rect.left;
+            let displayY = event.clientY - rect.top;
+
+            displayX = Math.max(0, Math.min(displayX, img.clientWidth));
+            displayY = Math.max(0, Math.min(displayY, img.clientHeight));
+
+            marker.style.left = displayX + "px";
+            marker.style.top = displayY + "px";
+
+            const originalX = Math.round(displayX * floor.image_width / img.clientWidth);
+            const originalY = Math.round(displayY * floor.image_height / img.clientHeight);
+
+            document.getElementById("xInput").value = originalX;
+            document.getElementById("yInput").value = originalY;
+        });
+
+        marker.addEventListener("pointerup", async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            dragging = false;
+            marker.style.cursor = "grab";
+
+            selectedGateway = gw;
+            document.getElementById("gatewaySelect").value = gw.id;
+
+            const latestX = Number(document.getElementById("xInput").value);
+            const latestY = Number(document.getElementById("yInput").value);
+
+            gw.x = latestX;
+            gw.y = latestY;
+
+            fillForm(gw);
+            showDetails(gw);
+
+            if (moved) {
+                await saveSelectedGateway();
+            }
+        });
+
+        marker.addEventListener("pointercancel", function(event) {
+            dragging = false;
+            marker.style.cursor = "grab";
+        });
+
+        map.appendChild(marker);
+    });
+}
+
+function fillForm(gw) {
+    document.getElementById("nameInput").value = gw.name || "";
+    document.getElementById("labelInput").value = gw.label || "";
+    document.getElementById("noteInput").value = gw.location_note || "";
+    document.getElementById("xInput").value = gw.x || "";
+    document.getElementById("yInput").value = gw.y || "";
+}
+
+function showDetails(gw) {
+    const status = gw.status || "unknown";
+
+    document.getElementById("gatewayDetails").innerHTML = `
+        <b>${escapeHtml(gw.label || gw.name || gw.gateway_id)}</b><br><br>
+        <span class="status ${status}">${status}</span><br><br>
+
+        <span class="muted">Gateway ID:</span><br>
+        ${escapeHtml(gw.gateway_id)}<br><br>
+
+        <span class="muted">Last Seen:</span><br>
+        ${escapeHtml(gw.last_seen || "--")}<br><br>
+
+        <span class="muted">Position:</span><br>
+        X: ${escapeHtml(gw.x)} / Y: ${escapeHtml(gw.y)}<br><br>
+
+        <span class="muted">Note:</span><br>
+        ${escapeHtml(gw.location_note || "--")}
+    `;
+}
+
+async function saveSelectedGateway() {
+    const gatewayId = document.getElementById("gatewaySelect").value;
+
+    if (!gatewayId) {
+        alert("Select a gateway first.");
+        return;
+    }
+
+    const payload = {
+        name: document.getElementById("nameInput").value,
+        label: document.getElementById("labelInput").value,
+        location_note: document.getElementById("noteInput").value,
+        floor_id: Number(document.getElementById("floorSelect").value),
+        x: Number(document.getElementById("xInput").value),
+        y: Number(document.getElementById("yInput").value)
+    };
+
+    const res = await fetch(`/gateways/${gatewayId}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        alert(data.detail || "Failed to save gateway");
+        return;
+    }
+
+    await loadFloor();
+
+    const updated = floorLive.gateways.find(g => String(g.id) === String(gatewayId));
+    if (updated) {
+        selectedGateway = updated;
+        fillForm(updated);
+        showDetails(updated);
+    }
+}
+
+document.getElementById("floorSelect").addEventListener("change", loadFloor);
+document.getElementById("gatewaySelect").addEventListener("change", function() {
+    const id = this.value;
+    const gw = floorLive.gateways.find(g => String(g.id) === String(id));
+
+    if (gw) {
+        selectedGateway = gw;
+        fillForm(gw);
+        showDetails(gw);
+    }
+});
+
+document.addEventListener("DOMContentLoaded", loadFloors);
+</script>
+
+<script src="/static/help_system.js"></script>
+
+<!-- UX Systems -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<script src="/static/onboarding_tour.js"></script>
+<script src="/static/search_system.js"></script>
+<script src="/static/realtime_toasts.js"></script>
+
+<!-- Chart.js & Graphs System -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/graphs.js?v=3"></script>
+<script src="/static/generate_firmware.js?v=3"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>
+<script src="/static/analytics_widget.js"></script>
+</body>
+
+
+</html>
