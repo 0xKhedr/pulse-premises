@@ -114,10 +114,12 @@ document.addEventListener("DOMContentLoaded", function () {
         { title: "Admin Dashboard", desc: "Main control panel", url: "/admin" },
         { title: "Gateway Monitor", desc: "View and manage gateways", url: "/gateway-monitor" },
         { title: "Sensor Profiles", desc: "Create or edit sensor payload decoders", url: "/sensor-catalog-manager" },
-        { title: "Alarm Settings", desc: "Manage alarm templates and thresholds", url: "/admin-alarms" },
-        { title: "Asset Setup", desc: "Hierarchy, floors, and building maps", url: "/admin-setup-asset-management" },
-        { title: "Client Management", desc: "Manage users and roles", url: "/admin-client-management" },
-        { title: "Network Status", desc: "TTN Webhook configuration", url: "/network-settings" }
+        { title: "Alarm Center", desc: "Review and resolve active alarms", url: "/admin/alarms" },
+        { title: "Alarm Settings", desc: "Manage alarm recipients and templates", url: "/alarm-settings-page" },
+        { title: "Asset Setup", desc: "Hierarchy, floors, and building maps", url: "/admin/setup" },
+        { title: "Client Access", desc: "Manage users, roles, and scopes", url: "/admin/client-access" },
+        { title: "Device Capabilities", desc: "Configure device features", url: "/device-capabilities-manager" },
+        { title: "Audit Log", desc: "Review administrative activity", url: "/admin/audit-log" }
     ];
 
     const input = backdrop.querySelector('.sb-search-input');
@@ -204,5 +206,9 @@ document.addEventListener("DOMContentLoaded", function () {
             e.preventDefault();
             items[activeIndex].click();
         }
+    });
+
+    document.querySelectorAll('[data-search-trigger]').forEach((trigger) => {
+        trigger.addEventListener('click', toggleSearch);
     });
 });

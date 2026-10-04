@@ -1,465 +1,350 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Smart Building Admin</title>
-    <link rel="manifest" href="/static/manifest.json">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#08111f">
     <meta name="apple-mobile-web-app-capable" content="yes">
-
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: white;
-        }
-
-        .header {
-            padding: 28px 36px;
-            background: #111827;
-            border-bottom: 1px solid #334155;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 32px;
-        }
-
-        .header p {
-            margin: 10px 0 0;
-            color: #cbd5e1;
-            font-size: 16px;
-        }
-
-        .section {
-            padding: 30px 36px 10px;
-        }
-
-        .section h2 {
-            margin: 0 0 18px;
-            font-size: 22px;
-            color: #f8fafc;
-        }
-        .summary-grid {
-           display: grid;
-           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-           gap: 16px;
-           padding: 28px 36px 5px;
-}
-
-.summary-card {
-    background: #1e293b;
-    border: 1px solid #475569;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-}
-
-        .summary-title {
-    color: #cbd5e1;
-    font-size: 14px;
-    margin-bottom: 8px;
-}
-
-        .summary-value {
-    font-size: 30px;
-    font-weight: bold;
-    color: #ffffff;
-}
-
-        .summary-sub {
-    margin-top: 6px;
-    font-size: 12px;
-    color: #cbd5e1;
-}
-
-        .good {
-    color: #86efac;
-}
-
-        .bad {
-    color: #fecaca;
-}
-
-        .warn {
-    color: #fde68a;
-}
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 18px;
-        }
-
-        .card {
-            background: #1e293b;
-            border: 1px solid #475569;
-            border-radius: 16px;
-            padding: 22px;
-            text-decoration: none;
-            color: white;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.25);
-            transition: 0.15s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-3px);
-            border-color: #38bdf8;
-            background: #243247;
-        }
-
-        .card h3 {
-            margin: 0 0 10px;
-            font-size: 21px;
-            color: #ffffff;
-        }
-
-        .card p {
-            margin: 0;
-            color: #cbd5e1;
-            line-height: 1.45;
-        }
-
-        .badge {
-            display: inline-block;
-            margin-bottom: 12px;
-            padding: 5px 10px;
-            border-radius: 20px;
-            background: #0f172a;
-            color: #93c5fd;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .tools {
-            padding: 10px 36px 36px;
-        }
-
-        .quick-box {
-            background: #111827;
-            border: 1px solid #334155;
-            border-radius: 16px;
-            padding: 22px;
-            margin-top: 18px;
-        }
-
-        .quick-box h3 {
-            margin: 0 0 14px;
-        }
-
-        .row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-
-        input {
-            background: #0f172a;
-            color: white;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 10px 12px;
-            min-width: 180px;
-        }
-
-        button {
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 14px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        button:hover {
-            background: #1d4ed8;
-        }
-
-        .logout-btn {
-            display: inline-block;
-            margin-top: 16px;
-            padding: 10px 15px;
-            border-radius: 8px;
-            background: #dc2626;
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .logout-btn:hover {
-            background: #b91c1c;
-        }
-    </style>
-<link rel="stylesheet" href="/static/bright_theme.css">
+    <title>Control Center | Smart Building</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="stylesheet" href="/static/bright_theme.css">
+    <link rel="stylesheet" href="/static/admin_dashboard.css?v=2">
 </head>
-
 <body>
+    <div class="mobile-scrim" id="mobileScrim" aria-hidden="true"></div>
 
-    <div class="header">
-        <h1>Smart Building Management Admin</h1>
-        <p>Central control page for provisioning, monitoring, maps, gateways, devices, and alarms.</p>
-        <a class="logout-btn" href="/logout">Logout</a>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+            <div class="brand">
+                <div class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14M8 21v-4h8v4M8 9h2m4 0h2m-8 4h2m4 0h2"/></svg>
+                </div>
+                <div>
+                    <strong>Smart Building</strong>
+                    <span>Operations console</span>
+                </div>
+            </div>
+
+            <nav class="side-nav">
+                <span class="nav-label">Workspace</span>
+                <a class="nav-item active" href="/admin" aria-current="page">
+                    <svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+                    Overview
+                </a>
+                <a class="nav-item" href="/floor-live-view">
+                    <svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
+                    Live floor
+                    <span class="live-dot" aria-label="Live"></span>
+                </a>
+                <a class="nav-item" href="/gateway-monitor">
+                    <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M12 20h.01M2 9a16 16 0 0 1 20 0"/></svg>
+                    Gateways
+                </a>
+                <a class="nav-item" href="/admin/alarms">
+                    <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                    Alarms
+                    <span class="nav-count" id="navAlarmCount">--</span>
+                </a>
+
+                <span class="nav-label">Manage</span>
+                <a class="nav-item" href="/admin/setup">
+                    <svg viewBox="0 0 24 24"><path d="M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
+                    Buildings & assets
+                </a>
+                <a class="nav-item" href="/device-capabilities-manager">
+                    <svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6m-6 4h6m-6 4h3"/></svg>
+                    Devices
+                </a>
+                <a class="nav-item" href="/admin/client-access">
+                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7-3h6m-3-3v6"/></svg>
+                    Client access
+                </a>
+
+                <span class="nav-label">System</span>
+                <a class="nav-item" href="/sensor-profile-manager">
+                    <svg viewBox="0 0 24 24"><path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66 4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66 4.24-4.24"/><circle cx="12" cy="12" r="4"/></svg>
+                    Sensor profiles
+                </a>
+                <a class="nav-item" href="/admin/audit-log">
+                    <svg viewBox="0 0 24 24"><path d="M9 11h6M9 15h6M9 7h3m-5-5h10a2 2 0 0 1 2 2v18l-3-2-4 2-4-2-3 2V4a2 2 0 0 1 2-2Z"/></svg>
+                    Audit log
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-avatar" aria-hidden="true">SA</div>
+                <div class="admin-meta">
+                    <strong>System Admin</strong>
+                    <span>Administrator</span>
+                </div>
+                <a class="icon-button logout-icon" href="/logout" aria-label="Log out" title="Log out">
+                    <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5m5 5H3m11-9h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-button menu-button" id="menuButton" type="button" aria-label="Open navigation" aria-expanded="false">
+                        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                    <div class="breadcrumb"><span>Control center</span><b>/</b><strong>Overview</strong></div>
+                </div>
+                <div class="topbar-actions">
+                    <button class="search-button" type="button" data-search-trigger>
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                        <span>Search tools</span>
+                        <kbd>Ctrl K</kbd>
+                    </button>
+                    <div class="system-state" id="systemState"><span></span> System live</div>
+                </div>
+            </header>
+
+            <div class="content">
+                <section class="page-heading" aria-labelledby="pageTitle">
+                    <div>
+                        <p class="eyebrow">Operations overview</p>
+                        <h1 id="pageTitle">Good <span id="dayPeriod">day</span>, Administrator</h1>
+                        <p>Monitor building health and reach everyday controls from one place.</p>
+                    </div>
+                    <div class="heading-actions">
+                        <button class="secondary-button" id="refreshSummary" type="button">
+                            <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
+                            Refresh
+                        </button>
+                        <a class="primary-button" href="/floor-live-view">
+                            Open live view
+                            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                        </a>
+                    </div>
+                </section>
+
+                <section class="summary-grid" aria-label="Building status summary">
+                    <article class="metric-card metric-primary">
+                        <div class="metric-top">
+                            <span class="metric-icon blue"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6m-6 4h6"/></svg></span>
+                            <span class="trend good" id="deviceHealth">Checking</span>
+                        </div>
+                        <p>Devices online</p>
+                        <div class="metric-value-row"><strong id="sumDevicesOnline">--</strong><span id="sumDevicesTotal">of -- devices</span></div>
+                        <div class="progress-track"><span id="deviceProgress"></span></div>
+                    </article>
+
+                    <article class="metric-card">
+                        <div class="metric-top">
+                            <span class="metric-icon green"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M12 20h.01"/></svg></span>
+                            <span class="metric-status"><i class="status-dot green-dot"></i>Network</span>
+                        </div>
+                        <p>Gateways online</p>
+                        <div class="metric-value-row"><strong id="sumGatewaysOnline">--</strong><span id="sumGatewaysTotal">of -- gateways</span></div>
+                    </article>
+
+                    <article class="metric-card alarm-card">
+                        <div class="metric-top">
+                            <span class="metric-icon amber"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span>
+                            <a href="/admin/alarms">Review</a>
+                        </div>
+                        <p>Active alarms</p>
+                        <div class="metric-value-row"><strong id="sumAlarms">--</strong><span>need attention</span></div>
+                    </article>
+
+                    <article class="metric-card">
+                        <div class="metric-top">
+                            <span class="metric-icon red"><svg viewBox="0 0 24 24"><path d="M8.5 8.5a5 5 0 0 1 7 7M5 5a10 10 0 0 1 14 14M12 20h.01M3 3l18 18"/></svg></span>
+                            <a href="/floor-live-view">Locate</a>
+                        </div>
+                        <p>Devices offline</p>
+                        <div class="metric-value-row"><strong id="sumDevicesOffline">--</strong><span>currently unreachable</span></div>
+                    </article>
+                </section>
+
+                <div class="dashboard-grid">
+                    <section class="panel quick-panel" aria-labelledby="quickTitle">
+                        <div class="panel-heading">
+                            <div><h2 id="quickTitle">Quick operations</h2><p>Your most-used monitoring and management tools.</p></div>
+                        </div>
+                        <div class="operation-grid">
+                            <a class="operation-card" href="/floor-live-view">
+                                <span class="operation-icon blue"><svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg></span>
+                                <span><strong>Floor live view</strong><small>Rooms, sensors and live telemetry</small></span>
+                                <svg class="arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                            </a>
+                            <a class="operation-card" href="/admin/alarms">
+                                <span class="operation-icon amber"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span>
+                                <span><strong>Alarm center</strong><small>Acknowledge and resolve events</small></span>
+                                <svg class="arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                            </a>
+                            <a class="operation-card" href="/gateway-monitor">
+                                <span class="operation-icon green"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M12 20h.01"/></svg></span>
+                                <span><strong>Gateway monitor</strong><small>Connectivity and last uplinks</small></span>
+                                <svg class="arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                            </a>
+                            <a class="operation-card" href="/admin/setup">
+                                <span class="operation-icon violet"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg></span>
+                                <span><strong>Add building assets</strong><small>Clients, sites, floors and rooms</small></span>
+                                <svg class="arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                            </a>
+                        </div>
+                    </section>
+
+                    <section class="panel footprint-panel" aria-labelledby="footprintTitle">
+                        <div class="panel-heading"><div><h2 id="footprintTitle">Portfolio</h2><p>Managed estate footprint</p></div><a href="/admin/setup">Manage</a></div>
+                        <div class="portfolio-list">
+                            <div><span><i class="portfolio-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></i>Clients</span><strong id="sumClients">--</strong></div>
+                            <div><span><i class="portfolio-icon"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8M5 10v11h14V10M9 21v-6h6v6"/></svg></i>Sites</span><strong id="sumSites">--</strong></div>
+                            <div><span><i class="portfolio-icon"><svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14M8 9h2m4 0h2m-8 4h2m4 0h2"/></svg></i>Buildings</span><strong id="sumBuildings">--</strong></div>
+                            <div><span><i class="portfolio-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></i>Rooms</span><strong id="sumRooms">--</strong></div>
+                        </div>
+                        <p class="refresh-note">Updated <span id="lastUpdated">just now</span></p>
+                    </section>
+                </div>
+
+                <section class="tools-section" id="management" aria-labelledby="toolsTitle">
+                    <div class="section-heading">
+                        <div><p class="eyebrow">Administration</p><h2 id="toolsTitle">Management tools</h2></div>
+                        <p>Configure your spaces, hardware and access.</p>
+                    </div>
+                    <div class="tool-groups">
+                        <article class="tool-group">
+                            <div class="group-title"><span class="group-icon blue"><svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/></svg></span><div><h3>Maps & placement</h3><p>Organize physical spaces</p></div></div>
+                            <a href="/site-map-editor"><span>Site map editor<small>Draw building footprints</small></span><b>›</b></a>
+                            <a href="/floor-editor"><span>Floor editor<small>Create rooms on floor plans</small></span><b>›</b></a>
+                            <a href="/node-placement-editor"><span>Node placement<small>Position devices on maps</small></span><b>›</b></a>
+                            <a href="/admin/gateway-placement"><span>Gateway placement<small>Map network hardware</small></span><b>›</b></a>
+                        </article>
+
+                        <article class="tool-group">
+                            <div class="group-title"><span class="group-icon violet"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6m-6 4h6"/></svg></span><div><h3>Devices & firmware</h3><p>Configure connected hardware</p></div></div>
+                            <a href="/device-capabilities-manager"><span>Device capabilities<small>Assign supported features</small></span><b>›</b></a>
+                            <a href="/sensor-profile-manager"><span>Sensor profiles<small>Manage decoding profiles</small></span><b>›</b></a>
+                            <a href="/sensor-catalog-manager"><span>Sensor catalog<small>Register sensor models</small></span><b>›</b></a>
+                            <a href="/firmware-module-manager"><span>Firmware modules<small>Manage compiled drivers</small></span><b>›</b></a>
+                        </article>
+
+                        <article class="tool-group">
+                            <div class="group-title"><span class="group-icon green"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span><div><h3>Access & system</h3><p>Govern and audit the platform</p></div></div>
+                            <a href="/admin/client-access"><span>Client access<small>Users, roles and scopes</small></span><b>›</b></a>
+                            <a href="/alarm-settings-page"><span>Alarm settings<small>Recipients and templates</small></span><b>›</b></a>
+                            <a href="/admin/audit-log"><span>Audit log<small>Review administrative activity</small></span><b>›</b></a>
+                            <a href="/admin/provision-options"><span>Provisioning options<small>Inspect node setup data</small></span><b>›</b></a>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="panel reports-panel" aria-labelledby="reportsTitle">
+                    <div class="reports-copy">
+                        <span class="reports-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8m-8 4h5"/></svg></span>
+                        <div><h2 id="reportsTitle">Exports & reports</h2><p>Download operational data as CSV for analysis or record keeping.</p></div>
+                    </div>
+                    <div class="report-links">
+                        <a href="/admin/export/full-structure.csv">Structure <span>CSV ↓</span></a>
+                        <a href="/admin/export/device-inventory.csv">Device inventory <span>CSV ↓</span></a>
+                        <a href="/alarms/export.csv?limit=5000">Alarm history <span>CSV ↓</span></a>
+                        <a href="/audit-log/export.csv?limit=5000">Audit log <span>CSV ↓</span></a>
+                    </div>
+                </section>
+
+                <footer class="page-footer"><span>Smart Building Management System</span><a href="/docs">API documentation</a></footer>
+            </div>
+        </main>
     </div>
-    <div class="summary-grid">
-    <div class="summary-card">
-        <div class="summary-title">Clients</div>
-        <div class="summary-value" id="sumClients">--</div>
-    </div>
-
-    <div class="summary-card">
-        <div class="summary-title">Sites</div>
-        <div class="summary-value" id="sumSites">--</div>
-    </div>
-
-    <div class="summary-card">
-        <div class="summary-title">Buildings</div>
-        <div class="summary-value" id="sumBuildings">--</div>
-    </div>
-
-    <div class="summary-card">
-        <div class="summary-title">Rooms</div>
-        <div class="summary-value" id="sumRooms">--</div>
-    </div>
-
-    <div class="summary-card">
-        <div class="summary-title">Devices Online</div>
-        <div class="summary-value good" id="sumDevicesOnline">--</div>
-        <div class="summary-sub" id="sumDevicesTotal">Total: --</div>
-    </div>
-
-    <div class="summary-card">
-        <div class="summary-title">Devices Offline</div>
-        <div class="summary-value bad" id="sumDevicesOffline">--</div>
-    </div>
-
-    <div class="summary-card">
-        <div class="summary-title">Active Alarms</div>
-        <div class="summary-value warn" id="sumAlarms">--</div>
-    </div>
-
-    <div class="summary-card">
-        <div class="summary-title">Gateways Online</div>
-        <div class="summary-value good" id="sumGatewaysOnline">--</div>
-        <div class="summary-sub" id="sumGatewaysTotal">Total: --</div>
-    </div>
-</div>
-
-    <div class="section">
-        <h2>Live Monitoring</h2>
-
-        <div class="grid">
-            <a class="card" href="/floor-live-view">
-                <span class="badge">LIVE</span>
-                <h3>Floor Live View</h3>
-                <p>View rooms, devices, live telemetry, alarms, and online/offline status.</p>
-            </a>
-
-            <a class="card" href="/gateway-monitor">
-                <span class="badge">LIVE</span>
-                <h3>Gateway Monitor</h3>
-                <p>Monitor TTN gateway connection status, last uplink, protocol, and IP.</p>
-            </a>
-
-            <a class="card" href="/admin/setup">
-                <span class="badge">SETUP</span>
-                <h3>Admin Setup Manager</h3>
-                <p>Create clients, sites, buildings, floors, upload maps, create gateways, and prepare the system before provisioning LILYGO nodes.</p>
-            </a>
-
-            <a class="card" href="/admin/gateway-placement">
-                <span class="badge">GATEWAYS</span>
-                <h3>Gateway Placement</h3>
-                <p>Place gateways on floor maps, edit their location, and view online/offline status.</p>
-            </a>
-
-            <a class="card" href="/admin/alarms">
-
-                <span class="badge">ALARMS</span>
-                <h3>Alarm History</h3>
-                <p>View active, acknowledged, and resolved alarms with timestamps and telemetry.</p>
-            </a>
-
-            <a class="card" href="/admin/client-access">
-                <span class="badge">ACCESS</span>
-                <h3>Client Access Manager</h3>
-                <p>Create client users and control which client, site, building, or floor they can view.</p>
-            </a>
-
-            <a class="card" href="/device-capabilities-manager">
-                <span class="badge">DEVICES</span>
-                <h3>Device Capabilities</h3>
-                <p>Set environment, energy, safety, and occupancy capabilities for each node.</p>
-            </a>
-
-            <a class="card" href="/admin/audit-log">
-                <div class="card-icon">📜</div>
-                <h3>Audit Log</h3>
-                <p>View admin actions, alarm actions, gateway/device movements, access changes, and system activity.</p>
-                <span class="card-link">Open Audit Log →</span>
-            </a>
-        </div>
-    </div>
-
-        <div class="section">
-        <h2>Exports & Reports</h2>
-
-        <div class="grid">
-            <a class="card" href="/admin/export/full-structure.csv">
-                <span class="badge">CSV</span>
-                <h3>Full Structure Export</h3>
-                <p>Export all clients, sites, buildings, floors, rooms, devices, and gateways in one organized hierarchy CSV.</p>
-            </a>
-
-            <a class="card" href="/admin/export/device-inventory.csv">
-                <span class="badge">CSV</span>
-                <h3>Device Inventory Export</h3>
-                <p>Export all nodes with DevEUI, type, location, battery, signal, alarm state, telemetry source, and latest telemetry.</p>
-            </a>
-
-            <a class="card" href="/alarms/export.csv?limit=5000">
-                <span class="badge">CSV</span>
-                <h3>Alarm History Export</h3>
-                <p>Export alarm history including active, acknowledged, resolved alarms, timestamps, and telemetry.</p>
-            </a>
-
-            <a class="card" href="/audit-log/export.csv?limit=5000">
-                <span class="badge">CSV</span>
-                <h3>Audit Log Export</h3>
-                <p>Export admin actions, alarm actions, device/gateway movement logs, and access permission changes.</p>
-            </a>
-        </div>
-    </div>
-
-    <div class="section">
-        <h2>Map & Layout Tools</h2>
-
-        <div class="grid">
-            <a class="card" href="/site-map-editor">
-                <span class="badge">SITE</span>
-                <h3>Site Map Editor</h3>
-                <p>Upload site/campus map and draw building polygons.</p>
-            </a>
-
-            <a class="card" href="/floor-editor">
-                <span class="badge">FLOOR</span>
-                <h3>Floor Editor</h3>
-                <p>Upload floor images and draw room polygons.</p>
-            </a>
-
-            <a class="card" href="/node-placement-editor">
-                <span class="badge">NODES</span>
-                <h3>Node Placement</h3>
-                <p>Drag and position devices on the floor map.</p>
-            </a>
-        </div>
-    </div>
-
-    <div class="section">
-        <h2>System & Configuration</h2>
-
-        <div class="grid">
-            <a class="card" href="/sensor-profile-manager">
-                <span class="badge">SENSORS</span>
-                <h3>Sensor Profiles</h3>
-                <p>Create, clone, enable, disable, and manage supported sensor profiles.</p>
-            </a>
-
-            <a class="card" href="/sensor-catalog-manager">
-                <span class="badge">CATALOG</span>
-                <h3>Sensor Catalog</h3>
-                <p>Register and manage physical sensor models available to firmware profiles.</p>
-            </a>
-
-            <a class="card" href="/firmware-module-manager">
-                <span class="badge">FIRMWARE</span>
-                <h3>Firmware Modules</h3>
-                <p>Register and manage sensor drivers already compiled into LILYGO firmware.</p>
-            </a>
-
-            <a class="card" href="/alarm-settings-page">
-                <span class="badge">ALARMS</span>
-                <h3>Alarm Settings</h3>
-                <p>Manage alert email recipients and alarm email templates.</p>
-            </a>
-
-            <a class="card" href="/docs">
-                <span class="badge">API</span>
-                <h3>Swagger API</h3>
-                <p>Open backend API documentation and test endpoints.</p>
-            </a>
-
-            <a class="card" href="/admin/provision-options">
-                <span class="badge">PROVISION</span>
-                <h3>Node Provisioning Options</h3>
-                <p>Check node types, buildings, floors, rooms, and room IDs sent to LILYGO.</p>
-            </a>
-        </div>
-    </div>
-
-   
 
     <script>
-    
-    async function loadAdminSummary() {
-    try {
-        const res = await fetch("/admin/summary");
+        const summaryElements = {
+            clients: document.getElementById('sumClients'),
+            sites: document.getElementById('sumSites'),
+            buildings: document.getElementById('sumBuildings'),
+            rooms: document.getElementById('sumRooms')
+        };
+        let lastRefreshTime = null;
 
-        if (!res.ok) {
-            throw new Error("Failed to load summary");
+        function setSummaryLoading(isLoading) {
+            document.getElementById('refreshSummary').classList.toggle('is-loading', isLoading);
+            document.getElementById('refreshSummary').disabled = isLoading;
         }
 
-        const data = await res.json();
+        function updateRelativeTime() {
+            if (!lastRefreshTime) return;
+            const seconds = Math.floor((Date.now() - lastRefreshTime) / 1000);
+            document.getElementById('lastUpdated').textContent = seconds < 10 ? 'just now' : `${seconds} seconds ago`;
+        }
 
-        document.getElementById("sumClients").innerText = data.clients;
-        document.getElementById("sumSites").innerText = data.sites;
-        document.getElementById("sumBuildings").innerText = data.buildings;
-        document.getElementById("sumRooms").innerText = data.rooms;
+        async function loadAdminSummary() {
+            setSummaryLoading(true);
+            try {
+                const response = await fetch('/admin/summary', { headers: { 'Accept': 'application/json' } });
+                if (!response.ok) throw new Error(`Summary request failed (${response.status})`);
+                const data = await response.json();
 
-        document.getElementById("sumDevicesOnline").innerText = data.devices.online;
-        document.getElementById("sumDevicesOffline").innerText = data.devices.offline;
-        document.getElementById("sumDevicesTotal").innerText = "Total: " + data.devices.total;
+                Object.entries(summaryElements).forEach(([key, element]) => {
+                    element.textContent = data[key] ?? 0;
+                });
 
-        document.getElementById("sumAlarms").innerText = data.devices.active_alarms;
+                const devices = data.devices || {};
+                const gateways = data.gateways || {};
+                const online = Number(devices.online || 0);
+                const total = Number(devices.total || 0);
+                const alarms = Number(devices.active_alarms || 0);
+                const percentage = total ? Math.round((online / total) * 100) : 0;
 
-        document.getElementById("sumGatewaysOnline").innerText = data.gateways.online;
-        document.getElementById("sumGatewaysTotal").innerText = "Total: " + data.gateways.total;
+                document.getElementById('sumDevicesOnline').textContent = online;
+                document.getElementById('sumDevicesOffline').textContent = Number(devices.offline || 0);
+                document.getElementById('sumDevicesTotal').textContent = `of ${total} devices`;
+                document.getElementById('deviceHealth').textContent = total ? `${percentage}% healthy` : 'No devices';
+                document.getElementById('deviceProgress').style.width = `${percentage}%`;
+                document.getElementById('sumAlarms').textContent = alarms;
+                document.getElementById('navAlarmCount').textContent = alarms;
+                document.getElementById('sumGatewaysOnline').textContent = Number(gateways.online || 0);
+                document.getElementById('sumGatewaysTotal').textContent = `of ${Number(gateways.total || 0)} gateways`;
 
-    } catch (err) {
-        console.error("Admin summary error:", err);
-    }
-}
-    
-        
-        
+                const systemState = document.getElementById('systemState');
+                systemState.classList.remove('is-error');
+                systemState.lastChild.textContent = ' System live';
+                lastRefreshTime = Date.now();
+                updateRelativeTime();
+            } catch (error) {
+                console.error('Admin summary error:', error);
+                const systemState = document.getElementById('systemState');
+                systemState.classList.add('is-error');
+                systemState.lastChild.textContent = ' Data unavailable';
+            } finally {
+                setSummaryLoading(false);
+            }
+        }
+
+        const hour = new Date().getHours();
+        document.getElementById('dayPeriod').textContent = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+        document.getElementById('refreshSummary').addEventListener('click', loadAdminSummary);
+
+        const menuButton = document.getElementById('menuButton');
+        const sidebar = document.getElementById('sidebar');
+        const scrim = document.getElementById('mobileScrim');
+        function toggleMenu(open) {
+            sidebar.classList.toggle('is-open', open);
+            scrim.classList.toggle('is-visible', open);
+            menuButton.setAttribute('aria-expanded', String(open));
+            document.body.classList.toggle('menu-open', open);
+        }
+        menuButton.addEventListener('click', () => toggleMenu(!sidebar.classList.contains('is-open')));
+        scrim.addEventListener('click', () => toggleMenu(false));
+        document.addEventListener('keydown', event => { if (event.key === 'Escape') toggleMenu(false); });
+
         loadAdminSummary();
-        setInterval(loadAdminSummary, 10000);
+        setInterval(loadAdminSummary, 30000);
+        setInterval(updateRelativeTime, 10000);
     </script>
-    
 
-<script src="/static/help_system.js"></script>
-
-<!-- UX Systems -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
-<script src="/static/onboarding_tour.js"></script>
-<script src="/static/search_system.js"></script>
-<script src="/static/realtime_toasts.js"></script>
-
-<!-- Chart.js & Graphs System -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/graphs.js?v=3"></script>
-<script src="/static/generate_firmware.js?v=3"></script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js');
-  });
-}
-</script>
-<script src="/static/analytics_widget.js"></script>
+    <script src="/static/help_system.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+    <script src="/static/onboarding_tour.js"></script>
+    <script src="/static/search_system.js"></script>
+    <script src="/static/realtime_toasts.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
+        }
+    </script>
 </body>
-
-
 </html>
