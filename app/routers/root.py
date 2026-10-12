@@ -1,6 +1,7 @@
 import os
+from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 
@@ -8,6 +9,13 @@ from app.db.connection import get_db_connection
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PREVIEW_ASSETS = {
+    "campus-map": ("guc map.webp", "image/webp"),
+    "floor-plan": ("floor3.PNG", "image/png"),
+    "floor-plan-alt": ("ecdeb5ed7606868313b5c653c23b92b5.jpg", "image/jpeg"),
+}
 
 
 @router.get("/")
@@ -43,6 +51,20 @@ def healthz():
     finally:
         conn.close()
     return {"status": "ok", "database": "ok"}
+
+
+@router.get("/preview-assets/{asset_name}", include_in_schema=False)
+def serve_preview_asset(asset_name: str):
+    """Serve only the repository images used by the local preview dataset."""
+    asset = PREVIEW_ASSETS.get(asset_name)
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Preview asset not found")
+
+    filename, media_type = asset
+    path = PROJECT_ROOT / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Preview asset is missing")
+    return FileResponse(path, media_type=media_type)
 
 
 @router.get("/service-worker.js", include_in_schema=False)

@@ -2140,6 +2140,14 @@ async def auth_middleware(request: Request, call_next):
     for prefix in public_prefixes:
         if path == prefix or path.startswith((prefix + '/', prefix + '?')):
             return await call_next(request)
+    # Preview maps are repository assets, not a public directory listing. Any
+    # signed-in role may render them, while anonymous requests still follow the
+    # normal login flow.
+    if path == '/preview-assets' or path.startswith('/preview-assets/'):
+        current_user = get_current_user_from_request(request)
+        if not current_user:
+            return login_redirect_for_request(request, '/login')
+        return await call_next(request)
     if path == '/client-portal' or path.startswith('/client-portal/'):
         current_user = get_current_user_from_request(request)
         if not current_user:

@@ -51,6 +51,16 @@ echo NOTE: If Windows Firewall asks for permission, click "Allow Access"
 echo so other devices on your network can reach the server.
 echo.
 
+if /I not "%SBMS_SKIP_PREVIEW_SEED%"=="1" (
+    echo Refreshing local preview data...
+    "%PYTHON_CMD%" tools\seed_preview_data.py
+    if !errorlevel! neq 0 (
+        echo [ERROR] Could not prepare preview data.
+        exit /b 1
+    )
+    echo.
+)
+
 if /I "%SBMS_RELOAD%"=="1" (
     "%PYTHON_CMD%" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ) else (

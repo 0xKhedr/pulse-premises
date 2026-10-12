@@ -27,8 +27,27 @@ bash linux/run.sh
 Direct entry point:
 
 ```bash
+python tools/seed_preview_data.py
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+The Windows and Linux run scripts seed the local preview dataset automatically
+before starting the server. The seed is idempotent: it refreshes only records
+with `preview-*` identifiers and leaves data created in the application alone.
+It includes clients, sites, mapped buildings and floors, rooms, live and
+historical device telemetry, gateways, alarms, users, audit events, and alarm
+recipients. Floor and campus views use image files already committed to this
+repository.
+
+Preview client login:
+
+```text
+maya.hassan@example.com
+Preview123!
+```
+
+Set `SBMS_SKIP_PREVIEW_SEED=1` before using a run script if you want to start
+without refreshing the preview records.
 
 ## Configuration
 
