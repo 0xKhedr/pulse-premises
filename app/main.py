@@ -90,7 +90,12 @@ async def lifespan(app: FastAPI):
     MAIN_EVENT_LOOP = asyncio.get_running_loop()
     from app.db.connection import run_migrations
     run_migrations()
-    task = asyncio.create_task(offline_watchdog())
+    if settings.PREVIEW_MODE:
+        from app.services.preview import preview_heartbeat, verify_preview_database
+        verify_preview_database()
+        task = asyncio.create_task(preview_heartbeat())
+    else:
+        task = asyncio.create_task(offline_watchdog())
     yield
     task.cancel()
     try:
@@ -3266,6 +3271,12 @@ def read_tb_latest_telemetry(device_id: str, profile: (dict | None)=None):
     Passing profile is optional to preserve compatibility with
     existing callers.
     """
+    if settings.PREVIEW_MODE:
+        conn = db()
+        try:
+            return get_local_latest_telemetry(conn, device_id) or {}
+        finally:
+            conn.close()
     clean_device_id = str(device_id or '').strip()
     telemetry = {'alarm_active': False, 'alarm_message': 'OK',
         'last_seen_ts': None, 'last_seen_iso': None,

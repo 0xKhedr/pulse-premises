@@ -1,0 +1,11 @@
+@import url('/static/admin_dashboard.css?v=4');
+body { background: radial-gradient(ellipse at top left, #dbeafe, transparent 55%), #f4f7fb !important; min-height: 100vh; }
+.login-card, body > .card { padding: 34px; background: #fff !important; border: 1px solid #e4eaf1 !important; box-shadow: 0 20px 70px #18375912 !important; }
+h1 { color: #142033 !important; font-family: Manrope, 'Segoe UI', sans-serif; }
+p, span, label { color: var(--muted) !important; }
+input { background: #fff !important; color: #142033 !important; border-color: #d8e1ed !important; }
+.badge { background: #eff6ff !important; color: #2563eb !important; border-color: #dbeafe !important; }
+body > .card a { background: #f8fafc !important; color: #142033 !important; border-color: #e4eaf1 !important; }
+body > .card a:hover { background: #eff6ff !important; border-color: #93b9ff !important; }
+.logo { color: #fff; background: #2563eb !important; }
+.error { background: #fff1f2 !important; color: #be123c !important; border-color: #fecdd3 !important; }

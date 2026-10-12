@@ -34,6 +34,8 @@ class TTNClient:
         }
 
     def _request(self, method: str, path: str, **kwargs) -> requests.Response:
+        if settings.PREVIEW_MODE:
+            raise RuntimeError("TTN changes are unavailable in the preview workspace")
         url = f"{self.base_url}{path}"
         try:
             r = requests.request(
@@ -226,12 +228,17 @@ function decodeUplink(input) {
         ).json()
 
     def get_gateway_info(self, gateway_id: str) -> dict[str, Any]:
+        if settings.PREVIEW_MODE:
+            return {"ids": {"gateway_id": gateway_id}, "name": "Preview gateway"}
         return self._request(
             "GET",
             f"/api/v3/gateways/{gateway_id}",
         ).json()
 
     def get_gateway_stats(self, gateway_id: str) -> dict[str, Any]:
+        if settings.PREVIEW_MODE:
+            from app.services.preview import gateway_stats
+            return gateway_stats(gateway_id)
         return self._request(
             "GET",
             f"/api/v3/gs/gateways/{gateway_id}/connection/stats",

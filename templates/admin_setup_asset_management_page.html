@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Setup & Asset Management</title>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="/static/bright_theme.css">
@@ -426,9 +427,13 @@
         }
     </style>
     <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Buildings & assets' %}
+{% set workspace_nav = '/admin/setup' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 
 <div class="header">
     <div class="top-row">
@@ -1953,5 +1958,6 @@ function openClientAccessForSelectedScope() {
 document.addEventListener("DOMContentLoaded", refreshAll);
 </script>
 
+{% include 'workspace_end.html' %}
 </body>
 </html>

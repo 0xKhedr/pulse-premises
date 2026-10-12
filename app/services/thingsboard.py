@@ -18,6 +18,8 @@ class ThingsBoardClient:
         self._token_expiry: float = 0
 
     def login(self, force_refresh: bool = False) -> str:
+        if settings.PREVIEW_MODE:
+            raise RuntimeError("ThingsBoard is unavailable in the preview workspace")
         if self._token and not force_refresh and time.time() < self._token_expiry:
             return self._token
 

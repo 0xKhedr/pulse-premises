@@ -1,7 +1,7 @@
 
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
     <style>
         body {
@@ -113,7 +113,7 @@
         }
     </style>
     <link rel="stylesheet" href="/static/bright_theme.css">
-</head>
+<link rel="stylesheet" href="/static/signin.css?v=2"></head>
 
 <body>
 <div class="login-card">
@@ -123,11 +123,11 @@
     <h1>{{ title }}</h1>
     <p>{{ subtitle }}</p>
 
-    <label>Email</label>
-    <input id="email" type="email" placeholder="Enter login email">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" placeholder="Enter login email">
 
-    <label>Password</label>
-    <input id="password" type="password" placeholder="Enter password">
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" placeholder="Enter password">
 
     <button id="loginButton" onclick="login()">Login</button>
 

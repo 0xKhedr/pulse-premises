@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="UTF-8">
 <title>Node Placement Editor</title>
     <link rel="manifest" href="/static/manifest.json">
@@ -410,9 +411,13 @@ hr{
 }
 </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Node placement' %}
+{% set workspace_nav = '/device-capabilities-manager' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 
 <div class="header">
     <h1>Node Placement Editor</h1>
@@ -1171,6 +1176,7 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/static/analytics_widget.js"></script>
+{% include 'workspace_end.html' %}
 </body>
 
 

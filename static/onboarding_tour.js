@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Wait a moment for UI to settle
     setTimeout(() => {
+        if (typeof introJs !== 'function') return;
         const intro = introJs();
         
         // Define standard steps assuming standard navigation exists

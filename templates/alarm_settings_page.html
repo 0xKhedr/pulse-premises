@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Alarm Settings</title>
 
     <style>
@@ -422,9 +423,13 @@
         }
     </style>
     <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Alarm settings' %}
+{% set workspace_nav = '/admin/alarms' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 
 <div class="header">
     <h1>Alarm Settings</h1>
@@ -1255,5 +1260,6 @@ document.addEventListener("keydown", function(event) {
 });
 </script>
 
+{% include 'workspace_end.html' %}
 </body>
 </html>

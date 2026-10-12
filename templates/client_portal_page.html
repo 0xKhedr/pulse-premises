@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Client Portal</title>
     <link rel="stylesheet" href="/static/bright_theme.css">
     <style>
@@ -360,9 +361,13 @@
             }
         }
     </style>
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Client portal' %}
+{% set workspace_nav = '/client-portal' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 <header>
     <h1>Client Portal</h1>
     <p id="clientSubtitle">Loading allowed sites, buildings, floors, devices, and gateways...</p>
@@ -433,6 +438,7 @@
                 </button>
             </div>
 
+        </div>
         <div id="clientActivityLog" style="margin-top:16px;">
             Loading activity...
         </div>
@@ -440,5 +446,6 @@
 </div>
 
 <script src="/static/client_portal.js"></script>
+{% include 'workspace_end.html' %}
 </body>
 </html>

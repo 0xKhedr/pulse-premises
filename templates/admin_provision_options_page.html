@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Node Provisioning Options</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#08111f">
@@ -314,9 +315,13 @@
         }
     </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Provisioning options' %}
+{% set workspace_nav = '/sensor-profile-manager' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 
 <div class="header">
     <h1>Node Provisioning Options</h1>
@@ -334,9 +339,7 @@
         Refresh
     </button>
 
-    <button class="json-btn" onclick="toggleRawJson()">
-        Show / Hide Raw JSON
-    </button>
+
     
     <button class="admin-btn" style="background:#10b981;" onclick="openBulkImport()">
         Bulk Import CSV
@@ -627,6 +630,8 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/static/analytics_widget.js"></script>
+<script src="/static/bulk_import.js"></script>
+{% include 'workspace_end.html' %}
 </body>
 
 

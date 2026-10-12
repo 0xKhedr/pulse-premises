@@ -247,8 +247,12 @@
             margin-top: 20px;
         }
     </style>
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
-<body>
+{% set workspace_title = 'Firmware modules' %}
+{% set workspace_nav = '/sensor-profile-manager' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
     <div class="header">
         <div>
             <h1>Firmware Driver & Module Manager</h1>
@@ -433,5 +437,6 @@
 
         document.addEventListener('DOMContentLoaded', loadModules);
     </script>
+{% include 'workspace_end.html' %}
 </body>
 </html>

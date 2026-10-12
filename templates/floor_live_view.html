@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="UTF-8">
 <title>Floor Live View</title>
 
@@ -294,9 +295,14 @@ hr{
 }
 </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Live floor' %}
+{% set workspace_nav = '/floor-live-view' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
+<div class="header"><p class="eyebrow">Live monitoring</p><h1>Live floor</h1><p>Explore rooms, device readings and gateway connectivity on your floor plan.</p></div>
 
 <div class="toolbar">
     <button class="adminHomeBtn" onclick="window.location.href='/admin'">
@@ -305,8 +311,7 @@ hr{
 
     <label>Floor:</label>
     <select id="floorId" onchange="loadFloor()"></select>
-        Load Floor
-    </button>
+    <button type="button" onclick="loadFloor()">Refresh floor</button>
 </div>
 
 <div class="viewer" id="viewer">
@@ -322,6 +327,7 @@ hr{
 </div>
 
 <script>
+let selectedDeviceId = null;
 let floorData = null;
 
 const image = document.getElementById("floorImage");
@@ -1249,6 +1255,7 @@ async function openPanel(
 }
 
 function closePanel(){
+    selectedDeviceId = null;
     panel.classList.remove("open");
 }
 
@@ -1396,5 +1403,6 @@ async function loadFloorDropdown() {
 window.onload = loadFloorDropdown;
 </script>
 
+{% include 'workspace_end.html' %}
 </body>
 </html>

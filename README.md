@@ -32,6 +32,24 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## Configuration
 
+### Dashboard preview
+
+Run `python tools/preview_dashboard.py` (or `windows\preview.bat`) and open
+`http://localhost:8001/admin`. Sign in with `admin@preview.local` and
+`Preview123!`. The two client accounts are `client1@preview.local` and
+`client2@preview.local`, with the same preview password.
+
+The launcher creates `build/dashboard-preview.db`, separate from the configured
+database. It includes two clients, sites, buildings, floors, rooms, devices,
+gateways, sensor profiles, sensors, firmware modules, client access records,
+maps, alarm recipients, alarms and audit events, plus sample telemetry history.
+One device and gateway are online and the other pair is offline. Preview mode
+simulates gateway health and refreshes local readings; TTN and ThingsBoard
+connections and alert emails are disabled. Authentication and client scope
+checks still apply. Re-running preserves changes made in the preview workspace.
+Use `--seed-only` to prepare the sample database without starting a server,
+or `--port 8002` to choose another local port.
+
 Copy `.env.example` to `.env` and edit it for your environment.
 
 The active names include `DB_FILE`, TTN settings, `TB_USERNAME`, `TB_PASSWORD`,

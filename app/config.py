@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False
 
     LOCAL_TEST_MODE: bool = False
+    PREVIEW_MODE: bool = False
     CORS_ORIGINS: str = ""
     DEVICE_STALE_AFTER_SECONDS: int = 300
     DEVICE_OFFLINE_AFTER_SECONDS: int = 86400

@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", function () {
             
             if (result.status === 'success') {
                 status.style.color = "#10b981";
-                status.innerText = \`Successfully imported \${result.imported} devices.\`;
+                status.innerText = 'Successfully imported ' + result.imported + ' devices.';
                 setTimeout(() => {
                     closeBulkImport();
                     location.reload();
@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 // calling the whole upload a failure.
                 status.style.color = "#f59e0b";
                 status.innerText =
-                    \`Imported \${result.imported} devices, \${result.errors.length} row(s) failed: \` +
+                    `Imported ${result.imported} devices, ${result.errors.length} row(s) failed: ` +
                     result.errors.slice(0, 3).join("; ");
                 setTimeout(() => {
                     closeBulkImport();
@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
                 status.style.color = "#ef4444";
                 status.innerText = (result.errors && result.errors.length)
-                    ? \`Import failed: \${result.errors.slice(0, 3).join("; ")}\`
+                    ? `Import failed: ${result.errors.slice(0, 3).join("; ")}`
                     : (result.message || result.detail || "Upload failed.");
             }
         } catch (e) {

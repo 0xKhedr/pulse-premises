@@ -1,0 +1,85 @@
+{% set workspace_user = get_workspace_user(request) %}
+{% set client_workspace = workspace_user and workspace_user.role == 'client' %}
+<div class="mobile-scrim" id="workspaceScrim" aria-hidden="true"></div>
+<div class="app-shell">
+        <aside class="sidebar" id="workspaceSidebar" aria-label="Primary navigation">
+            <div class="brand">
+                <div class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14M8 21v-4h8v4M8 9h2m4 0h2m-8 4h2m4 0h2"/></svg>
+                </div>
+                <div>
+                    <strong>Smart Building</strong>
+                    <span>Operations console</span>
+                </div>
+            </div>
+
+            <nav class="side-nav">
+                {% if client_workspace %}
+                <span class="nav-label">Workspace</span>
+                <a class="nav-item active" href="/client-portal" aria-current="page">My buildings</a>
+                {% else %}
+                <span class="nav-label">Workspace</span>
+                <a class="nav-item{% if workspace_nav == '/admin' %} active{% endif %}" href="/admin">
+                    <svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+                    Overview
+                </a>
+                <a class="nav-item{% if workspace_nav == '/floor-live-view' %} active{% endif %}" href="/floor-live-view">
+                    <svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
+                    Live floor
+                    <span class="live-dot" aria-label="Live"></span>
+                </a>
+                <a class="nav-item{% if workspace_nav == '/gateway-monitor' %} active{% endif %}" href="/gateway-monitor">
+                    <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M12 20h.01M2 9a16 16 0 0 1 20 0"/></svg>
+                    Gateways
+                </a>
+                <a class="nav-item{% if workspace_nav == '/admin/alarms' %} active{% endif %}" href="/admin/alarms">
+                    <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                    Alarms
+                </a>
+
+                <span class="nav-label">Manage</span>
+                <a class="nav-item{% if workspace_nav == '/admin/setup' %} active{% endif %}" href="/admin/setup">
+                    <svg viewBox="0 0 24 24"><path d="M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
+                    Buildings & assets
+                </a>
+                <a class="nav-item{% if workspace_nav == '/device-capabilities-manager' %} active{% endif %}" href="/device-capabilities-manager">
+                    <svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6m-6 4h6m-6 4h3"/></svg>
+                    Devices
+                </a>
+                <a class="nav-item{% if workspace_nav == '/admin/client-access' %} active{% endif %}" href="/admin/client-access">
+                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7-3h6m-3-3v6"/></svg>
+                    Client access
+                </a>
+
+                <a class="nav-item{% if workspace_nav == '/client-portal' %} active{% endif %}" href="/client-portal">Client portal</a>
+                <span class="nav-label">System</span>
+                <a class="nav-item{% if workspace_nav == '/sensor-profile-manager' %} active{% endif %}" href="/sensor-profile-manager">
+                    <svg viewBox="0 0 24 24"><path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66 4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66 4.24-4.24"/><circle cx="12" cy="12" r="4"/></svg>
+                    Sensor profiles
+                </a>
+                <a class="nav-item{% if workspace_nav == '/admin/audit-log' %} active{% endif %}" href="/admin/audit-log">
+                    <svg viewBox="0 0 24 24"><path d="M9 11h6M9 15h6M9 7h3m-5-5h10a2 2 0 0 1 2 2v18l-3-2-4 2-4-2-3 2V4a2 2 0 0 1 2-2Z"/></svg>
+                    Audit log
+                </a>
+                {% endif %}
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-avatar" aria-hidden="true">{{ (workspace_user.name if workspace_user else 'SB')[:2]|upper }}</div>
+                <div class="admin-meta">
+                    <strong>{{ workspace_user.name if workspace_user else 'Smart Building' }}</strong>
+                    <span>{{ 'Client' if client_workspace else 'Administrator' }}</span>
+                </div>
+                <a class="icon-button logout-icon" href="/logout" aria-label="Log out" title="Log out">
+                    <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5m5 5H3m11-9h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>
+                </a>
+            </div>
+        </aside>
+
+<main class="main-panel">
+<header class="topbar"><div class="topbar-left">
+<button class="icon-button menu-button" id="workspaceMenu" type="button" aria-label="Open navigation" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+<div class="breadcrumb"><span>Control center</span><b>/</b><strong>{{ workspace_title }}</strong></div>
+</div><div class="topbar-actions"><a class="secondary-button" href="{{ '/client-portal' if client_workspace else '/admin' }}">{{ 'My buildings' if client_workspace else 'Overview' }}</a></div></header>
+{% if preview_mode %}<div class="preview-banner">Preview workspace &middot; Sample buildings and simulated readings</div>{% endif %}
+<div class="workspace-content">

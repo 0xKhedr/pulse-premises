@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Gateway Monitor</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#08111f">
@@ -174,9 +175,13 @@
 }
     </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Gateway monitor' %}
+{% set workspace_nav = '/gateway-monitor' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 
     <div class="header">
         <h1>Gateway Monitor</h1>
@@ -374,6 +379,7 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/static/analytics_widget.js"></script>
+{% include 'workspace_end.html' %}
 </body>
 
 

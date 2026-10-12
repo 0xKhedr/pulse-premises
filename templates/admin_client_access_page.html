@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Client Access Manager</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#08111f">
@@ -194,9 +195,13 @@
         }
     </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Client access' %}
+{% set workspace_nav = '/admin/client-access' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 <header>
     <h1>Client Access Manager</h1>
     <p>Create client users, set login credentials, and control what client/site/building/floor they can view.</p>
@@ -911,6 +916,7 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/static/analytics_widget.js"></script>
+{% include 'workspace_end.html' %}
 </body>
 
 

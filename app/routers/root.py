@@ -4,10 +4,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 
+from app.config import settings
 from app.db.connection import get_db_connection
+from app.routers.pages import get_workspace_user
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["preview_mode"] = settings.PREVIEW_MODE
+templates.env.globals["get_workspace_user"] = get_workspace_user
 
 
 @router.get("/")

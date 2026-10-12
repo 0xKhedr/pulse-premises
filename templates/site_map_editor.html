@@ -184,8 +184,12 @@
             border: 1px solid rgba(59, 130, 246, 0.4);
         }
     </style>
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
-<body>
+{% set workspace_title = 'Site map editor' %}
+{% set workspace_nav = '/admin/setup' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
     <div class="header">
         <div>
             <h1>Site Map & Campus Editor</h1>
@@ -497,5 +501,6 @@
 
         document.addEventListener('DOMContentLoaded', loadSites);
     </script>
+{% include 'workspace_end.html' %}
 </body>
 </html>

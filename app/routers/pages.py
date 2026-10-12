@@ -2,8 +2,17 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.config import settings
+
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["preview_mode"] = settings.PREVIEW_MODE
+
+def get_workspace_user(request):
+    from app.main import get_current_user_from_request
+    return get_current_user_from_request(request)
+
+templates.env.globals["get_workspace_user"] = get_workspace_user
 
 
 @router.get("/login", response_class=HTMLResponse)

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Alarm History</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#08111f">
@@ -175,9 +176,13 @@
         }
     </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
+<link rel="stylesheet" href="/static/workspace.css?v=2">
 </head>
 
-<body>
+{% set workspace_title = 'Alarm center' %}
+{% set workspace_nav = '/admin/alarms' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
 
     <div class="header">
         <h1>Alarm History</h1>
@@ -466,6 +471,7 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/static/analytics_widget.js"></script>
+{% include 'workspace_end.html' %}
 </body>
 
 
