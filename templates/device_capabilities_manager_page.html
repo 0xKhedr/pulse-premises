@@ -113,6 +113,13 @@
             width: 100%;
         }
 
+        .profile-controls { display: grid; gap: 10px; margin: 16px 0; }
+        .profile-controls select { width: 100%; min-width: 0; padding: 10px; }
+        .profile-help { margin: 0; font-size: 13px; color: #94a3b8; }
+        .profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .workspace-content .profile-message.success { background: transparent !important; color: #047857 !important; }
+        button:disabled { opacity: .6; cursor: default; }
+
         .badge {
             display: inline-block;
             padding: 4px 9px;
@@ -167,7 +174,7 @@
         }
     </style>
     <link rel="stylesheet" href="/static/bright_theme.css">
-<link rel="stylesheet" href="/static/workspace.css?v=2">
+<link rel="stylesheet" href="/static/workspace.css?v=3">
 </head>
 
 {% set workspace_title = 'Device capabilities' %}
@@ -177,10 +184,11 @@
 
     <div class="header">
         <h1>Device Capabilities Manager</h1>
-        <p>Select what each node can measure or control. More than one capability automatically makes the node multi.</p>
+        <p>Change a device's sensor profile to match its firmware. The profile defines its readings, capabilities and alarm rules.</p>
     </div>
 
     <div class="container">
+        {% include 'device_enrollment_panel.html' %}
         <div class="toolbar">
             <button class="admin-home-btn" onclick="window.location.href='/admin'">
                 ← Admin Home
@@ -246,6 +254,7 @@
                             data-device-id="${escapeHtml(device.device_id)}"
                             value="${cap.key}"
                             ${checked}
+                            ${device.profile_assigned ? "disabled" : ""}
                         >
                         <span>${cap.label}</span>
                     </label>
@@ -263,19 +272,126 @@
             return `<span class="badge single">SINGLE</span>`;
         }
 
+        function apiError(data, fallback) {
+            const detail = data.detail;
+            if (typeof detail === "string") return detail;
+            return detail?.message || fallback;
+        }
+
+        function renderProfileControls(card, device, profiles) {
+            const host = card.querySelector(".profile-controls");
+            host.replaceChildren();
+            const current = document.createElement("div");
+            current.textContent = "Current profile: " +
+                (device.profile?.profile_name || device.profile_name || device.profile_code || "None");
+            const label = document.createElement("label");
+            label.textContent = "Sensor profile";
+            const select = document.createElement("select");
+            select.setAttribute("aria-label", "Sensor profile for " + (device.label || device.device_id));
+            const available = profiles.filter(profile => profile.enabled && profile.status.toLowerCase() === "active");
+            if (!available.some(profile => Number(profile.id) === Number(device.profile_id))) {
+                const option = new Option(device.profile_code || "Choose a profile", "", true, true);
+                option.disabled = true;
+                select.add(option);
+            }
+            available.forEach(profile => select.add(new Option(
+                `${profile.profile_name} (${profile.profile_code})`, String(profile.id),
+                false, Number(profile.id) === Number(device.profile_id)
+            )));
+            label.append(select);
+            const help = document.createElement("p");
+            help.className = "profile-help";
+            help.textContent = "Choose the profile that matches the firmware running on this device. Capabilities follow the assigned profile.";
+            const actions = document.createElement("div");
+            actions.className = "profile-actions";
+            const apply = document.createElement("button");
+            apply.type = "button";
+            apply.textContent = "Change profile";
+            apply.disabled = !select.value;
+            select.addEventListener("change", () => { apply.disabled = !select.value; });
+            const retry = document.createElement("button");
+            retry.type = "button";
+            retry.textContent = device.configuration_status === "formatter_pending" ? "Retry decoder sync" : "Sync decoder";
+            retry.disabled = !device.profile_id;
+            const message = document.createElement("div");
+            message.className = "message profile-message";
+            message.setAttribute("role", "status");
+            if (device.configuration_status === "formatter_pending") {
+                message.classList.add("error");
+                message.textContent = "Profile saved. Its TTN decoder still needs synchronization.";
+            }
+            actions.append(apply, retry);
+            host.append(current, label, help, actions, message);
+
+            const busy = value => {
+                select.disabled = value;
+                apply.disabled = value || !select.value;
+                retry.disabled = value || !device.profile_id;
+            };
+            apply.addEventListener("click", async () => {
+                busy(true);
+                message.className = "message profile-message loading";
+                message.textContent = "Saving profile and syncing decoder...";
+                try {
+                    const res = await fetch(`/devices/${encodeURIComponent(device.device_id)}/profile`, {
+                        method: "PUT", headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({profile_id: Number(select.value)})
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(apiError(data, "Could not change profile"));
+                    Object.assign(device, data, {profile_assigned: true, profile: {profile_name: data.profile_name}});
+                    current.textContent = "Current profile: " + data.profile_name;
+                    card.querySelector("[data-node-type]").textContent = data.node_type;
+                    card.querySelector("h3").innerHTML = `${escapeHtml(device.label || device.device_id)} ${nodeTypeBadge(device)}`;
+                    card.querySelector(".capabilities").innerHTML = buildCapabilityCheckboxes(device);
+                    card.querySelector(".cap-save").hidden = true;
+                    retry.textContent = data.formatter_synced ? "Sync decoder" : "Retry decoder sync";
+                    message.className = "message profile-message " + (data.formatter_synced ? "success" : "error");
+                    message.textContent = data.formatter_synced
+                        ? "Profile changed and decoder synced. Waiting for the next device reading."
+                        : "Profile saved, but the TTN decoder could not be synced. Use Retry decoder sync.";
+                    if (!data.thingsboard_synced) message.textContent += " ThingsBoard attributes could not be updated.";
+                } catch (error) {
+                    message.className = "message profile-message error";
+                    message.textContent = error.message;
+                } finally { busy(false); }
+            });
+            retry.addEventListener("click", async () => {
+                busy(true);
+                message.className = "message profile-message loading";
+                message.textContent = "Syncing the current profile's decoder...";
+                try {
+                    const res = await fetch(`/devices/${encodeURIComponent(device.device_id)}/sync-formatter`, {method: "POST"});
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(apiError(data, "Decoder sync failed. Try again."));
+                    retry.textContent = "Sync decoder";
+                    message.className = "message profile-message success";
+                    message.textContent = "Decoder synced. Waiting for the next device reading.";
+                } catch (error) {
+                    retry.textContent = "Retry decoder sync";
+                    message.className = "message profile-message error";
+                    message.textContent = error.message;
+                } finally { busy(false); }
+            });
+        }
+
         async function loadDevices() {
             const area = document.getElementById("devicesArea");
             area.className = "loading";
             area.innerHTML = "Loading devices...";
 
             try {
-                const res = await fetch("/devices-status");
+                const [res, profileRes] = await Promise.all([
+                    fetch("/devices-status"), fetch("/sensor-profiles?include_disabled=false")
+                ]);
 
                 if(!res.ok) {
                     throw new Error("Failed to load devices");
                 }
 
                 const devices = await res.json();
+                if (!profileRes.ok) throw new Error("Failed to load sensor profiles");
+                const profiles = (await profileRes.json()).profiles;
 
                 if(!devices.length) {
                     area.innerHTML = "No devices found.";
@@ -302,7 +418,7 @@
 
                         <div class="meta">
                             Device ID: ${escapeHtml(device.device_id)}<br>
-                            Current Type: ${escapeHtml(device.node_type || "--")}<br>
+                            Current Type: <span data-node-type>${escapeHtml(device.node_type || "--")}</span><br>
                             Room: ${escapeHtml(device.room || "--")}<br>
                             Floor: ${escapeHtml(device.floor || "--")}
                         </div>
@@ -311,16 +427,21 @@
                             Live Status: <b>${escapeHtml(status)}</b>
                         </div>
 
+                        <div class="profile-controls"></div>
+
                         <div class="capabilities">
                             ${buildCapabilityCheckboxes(device)}
                         </div>
 
-                        <button class="save-btn" onclick="saveCapabilities('${escapeHtml(device.device_id)}')">
+                        <button class="save-btn cap-save" ${device.profile_assigned ? "hidden" : ""}>
                             Save Capabilities & Sync Formatter
                         </button>
 
                         <div id="msg-${escapeHtml(device.device_id)}" class="message"></div>
                     `;
+
+                    renderProfileControls(card, device, profiles);
+                    card.querySelector(".cap-save").addEventListener("click", () => saveCapabilities(device.device_id));
 
                     area.appendChild(card);
                     if (requestedDeviceId && String(device.device_id) === String(requestedDeviceId)) {
@@ -332,7 +453,7 @@
 
             } catch(err) {
                 area.className = "error";
-                area.innerHTML = "Error loading devices: " + err.message;
+                area.textContent = "Error loading devices: " + err.message;
             }
         }
 
@@ -405,4 +526,3 @@
 {% include 'workspace_end.html' %}
 </body>
 </html>
-    

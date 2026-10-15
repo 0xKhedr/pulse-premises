@@ -1,0 +1,25 @@
+<section class="card full provisioning-panel" id="deviceProvisioning" data-provisioning-panel aria-labelledby="provisioningTitle">
+    <div class="card-header-line">
+        <h2 id="provisioningTitle">Device provisioning</h2>
+        <span class="pill" data-provisioning-state aria-live="polite">Checking status</span>
+    </div>
+    <p class="muted">Open a window to automatically register new nodes using this deployment's firmware credentials. Their first uplink adds them to Discovered Devices.</p>
+    <div class="provisioning-details">
+        <div><span>Time remaining</span><strong data-provisioning-remaining>—</strong></div>
+        <div><span>Nodes registered</span><strong data-provisioning-count>—</strong></div>
+    </div>
+    <div class="provisioning-controls">
+        <label for="provisioningDuration">Provisioning window
+            <select id="provisioningDuration" data-provisioning-duration>
+                <option value="300">5 minutes</option>
+                <option value="600" selected>10 minutes</option>
+                <option value="1800">30 minutes</option>
+                <option value="3600">1 hour</option>
+            </select>
+        </label>
+        <button type="button" data-provisioning-open disabled>Open provisioning</button>
+        <button type="button" class="secondary" data-provisioning-close disabled>Close provisioning</button>
+        <button type="button" class="secondary" data-provisioning-refresh>Refresh status</button>
+    </div>
+    <p class="provisioning-message" data-provisioning-message role="status">Checking provisioning availability…</p>
+</section>

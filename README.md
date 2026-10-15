@@ -85,6 +85,15 @@ Device placement is floor-based: every device must be assigned to a valid
 floor (and may optionally be assigned to a room). Site-only and building-only
 device placement is rejected.
 
+To change the sensor profile of an existing device, open **Devices**
+(`/device-capabilities-manager`), choose its **Sensor profile**, and click
+**Change profile**. Select a profile matching the device's firmware; for the
+ESP32-CAM meter-reader node use `ESPCAM_METER_V1`. This updates the device's
+profile versions, capabilities, and TTN decoder while preserving its identity,
+credentials, placement, and flashed firmware. Only enabled, active profiles
+are offered. If TTN synchronization fails, the assignment remains saved and
+**Retry decoder sync** completes it once the network server is available.
+
 ## LoRaWAN discovery and commissioning
 
 Every board uses the configured `JOIN_EUI` and `LORAWAN_APP_KEY`. Its unique

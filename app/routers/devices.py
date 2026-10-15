@@ -7,7 +7,7 @@ import json
 import math
 import secrets
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.config import settings
@@ -28,13 +28,21 @@ from app.main import (
     merge_profile_live_telemetry_sources,
     profile_unique_string_list,
     read_tb_latest_telemetry,
+    sensor_profile_actor_from_request,
     set_device_formatter,
     set_device_formatter_from_profile,
 )
+from app.schemas.core import DeviceProfileAssignment
+from app.services.device_profiles import assign_device_profile, mark_formatter_synced
 from app.services.device_state import build_device_state
 from app.services.export_safety import redact_secrets
 
 router = APIRouter()
+
+
+@router.put("/devices/{device_id}/profile")
+def change_device_profile(device_id: str, data: DeviceProfileAssignment, request: Request):
+    return assign_device_profile(device_id, data.profile_id, sensor_profile_actor_from_request(request))
 
 @router.get("/device-status/{device_id}")
 def device_status(device_id: str):
@@ -1791,13 +1799,12 @@ def sync_device_formatter(device_id: str):
             device_id=device_id,
             profile=profile,
         )
+        formatter_applied = mark_formatter_synced(device_id, profile)
 
         return {
             **result,
             "node_type": device["node_type"],
-            "configuration_status": device[
-                "configuration_status"
-            ],
+            "configuration_status": "applied" if formatter_applied else device["configuration_status"],
             "configuration_checksum": device[
                 "configuration_checksum"
             ],

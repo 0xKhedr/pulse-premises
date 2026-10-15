@@ -68,7 +68,11 @@ def main() -> int:
         # Arduino sketch folders are self-contained, so every sketch that joins
         # the network needs its own copy of the header rather than a shared one.
         # Each is gitignored.
-        for sketch in ("lilygo_cayenne_lpp_node", "espcam_lorawan_node"):
+        for sketch in (
+            "lilygo_cayenne_lpp_node",
+            "lilygo_environment_lpp_node",
+            "espcam_lorawan_node",
+        ):
             target = (
                 PROJECT_ROOT / "firmware" / sketch / "lorawan_credentials.h"
             )

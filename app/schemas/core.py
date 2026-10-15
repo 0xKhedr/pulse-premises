@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class DeviceProfileAssignment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile_id: int = Field(gt=0, strict=True)
 
 
 class Device(BaseModel):

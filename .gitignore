@@ -19,6 +19,10 @@ Thumbs.db
 .env
 firmware/lorawan_credentials.h
 firmware/lilygo_cayenne_lpp_node/lorawan_credentials.h
+firmware/lilygo_environment_lpp_node/lorawan_credentials.h
+# Local provisioning template embeds the live LoRaWAN credentials.
+firmware/lilygo_provisioning_template/lilygo_provisioning_template.ino
+firmware/lilygo_dht11_debug/lilygo_dht11_debug.ino
 firmware/espcam_lorawan_node/lorawan_credentials.h
 .docker-local-ca.cer
 

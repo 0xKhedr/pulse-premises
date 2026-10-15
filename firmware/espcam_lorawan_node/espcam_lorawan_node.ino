@@ -34,6 +34,10 @@
  *    board will not join, so it never appears in the cloud as an anonymous
  *    device and never consumes an enrollment slot: naming it is what
  *    commissions it.
+ *    To rename after deployment, press RST on the LilyGO sender, wait for
+ *    "Press RST again", then press it again within four seconds. The Wi-Fi
+ *    calibration/naming page reopens. BOOT held for two seconds during the
+ *    prompt returns to calibration while keeping the saved name.
  *
  * 5. Uplinks are rate-limited, and this is the big behavioural change.
  *    The old firmware radioed a packet on every captured frame. That is fine
@@ -77,6 +81,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <esp_mac.h>
+#include <esp_system.h>
 
 // ==============================================================================
 // 1. LORAWAN IDENTITY
@@ -154,6 +159,9 @@ static osjob_t sendjob;
 
 #define NICKNAME_MAX_LENGTH 48
 #define PROVISION_PASSWORD_LENGTH 8
+#define PIN_BOOT_NICKNAME 0
+#define RENAME_HOLD_MS 2000
+#define RENAME_WINDOW_MS 4000
 
 Preferences preferences;
 static char nickname[NICKNAME_MAX_LENGTH + 1] = "";
@@ -382,6 +390,109 @@ void saveNickname(const String& value) {
     Serial.println(strlen(nickname) ? nickname : "(cleared)");
 }
 
+// EN/RST stops the processor, so its hold time cannot be measured. NVS
+// remembers the startup prompt across a reset; pressing RST a second time
+// while that prompt is visible requests a new name. BOOT retains its existing
+// calibration-only behavior. Camera frames keep being drained during the wait.
+static bool calibrationRequested(bool& forgetNickname) {
+    forgetNickname = false;
+    bool resetWindowArmed = false;
+    const bool storageReady = preferences.begin("sbms", /*readOnly=*/false);
+    if (storageReady) {
+        resetWindowArmed = preferences.getBool("renameArmed", false);
+        if (resetWindowArmed && !preferences.remove("renameArmed")) {
+            Serial.println(F("[WARN] Could not clear rename marker; skipping reset gesture."));
+            preferences.end();
+            return false;
+        }
+    }
+
+    // Calibration/unnamed boots must clean stale markers without opening a
+    // new reset window. Their access point is already available normally.
+    if (!wasDeployed) {
+        if (storageReady) preferences.end();
+        return false;
+    }
+
+    // ESP32 reports EN/RST as POWERON. A crash, watchdog, software restart,
+    // deep-sleep wakeup or brownout must not request a new name.
+    if (resetWindowArmed && esp_reset_reason() == ESP_RST_POWERON) {
+        preferences.end();
+        forgetNickname = true;
+        Serial.println(F("[RENAME] Second reset detected. Opening camera naming/setup."));
+        return true;
+    }
+
+    const bool resetGestureReady = storageReady && preferences.putBool("renameArmed", true) != 0;
+    if (storageReady) preferences.end();
+    Serial.println(resetGestureReady
+        ? F("[SETUP] Press RST again within the next 4s to rename; hold BOOT 2s to calibrate.")
+        : F("[WARN] Reset gesture unavailable (NVS write failed). Hold BOOT 2s to calibrate."));
+
+    if (oledReady) {
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, 0);
+        display.println(F("ESP32-CAM Node"));
+        display.drawFastHLine(0, 10, 128, SSD1306_WHITE);
+        display.setCursor(0, 16);
+        if (resetGestureReady) {
+            display.println(F("Press RST again"));
+            display.println(F("within 4s to rename"));
+        }
+        display.setCursor(0, 44);
+        display.println(F("BOOT 2s: calibrate"));
+        display.display();
+    }
+
+    pinMode(PIN_BOOT_NICKNAME, INPUT_PULLUP);
+    const unsigned long start = millis();
+    unsigned long heldSince = 0;
+    bool bootHeld = false;
+    bool requested = false;
+    while (millis() - start < RENAME_WINDOW_MS) {
+        receiveFrame();
+        if (digitalRead(PIN_BOOT_NICKNAME) == LOW) {
+            if (!bootHeld) {
+                heldSince = millis();
+                bootHeld = true;
+            }
+            if (millis() - heldSince >= RENAME_HOLD_MS) {
+                requested = true;
+                break;
+            }
+        } else {
+            bootHeld = false;
+        }
+        delay(20);
+    }
+
+    // Expire the marker before normal operation or Wi-Fi startup. An ordinary
+    // reset later must keep both the nickname and the deployed state.
+    if (resetGestureReady) {
+        if (preferences.begin("sbms", /*readOnly=*/false)) {
+            if (!preferences.remove("renameArmed")) {
+                Serial.println(F("[WARN] Rename marker cleanup failed."));
+            }
+            preferences.end();
+        } else {
+            Serial.println(F("[WARN] Could not reopen NVS to expire rename marker."));
+        }
+    }
+    if (requested) Serial.println(F("[SETUP] BOOT held: returning to calibration with the saved name."));
+    return requested;
+}
+
+static void applyStartupRequest() {
+    bool forgetNickname = false;
+    if (!calibrationRequested(forgetNickname)) return;
+    // Clear deployment first: an interrupted rename must resume in setup.
+    saveDeployedFlag(false);
+    if (forgetNickname) saveNickname("-");
+    wasDeployed = false;
+}
+
 static void buildAccessPointCredentials() {
     snprintf(apSsid, sizeof(apSsid), "SBMS-CAM-%02X%02X", DEVEUI[1], DEVEUI[0]);
     const size_t alphabet = sizeof(PROVISION_PASSWORD_ALPHABET) - 1;
@@ -401,7 +512,7 @@ void showCalibrationScreen() {
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
-    display.println(F("CAM CALIBRATION"));
+    display.println(strlen(nickname) ? F("CAM CALIBRATION") : F("SETUP - NAME ME"));
     display.drawFastHLine(0, 10, 128, SSD1306_WHITE);
     display.setCursor(0, 14);
     display.print(F("WiFi "));
@@ -807,8 +918,8 @@ void setup() {
     // Sequence deliberately mirrors sender_lilygo_wifi.ino, which is known
     // good on this hardware. My earlier ordering crashed inside the WiFi PHY
     // before the access point ever came up, so the differences are gone:
-    // btStop() and the GPIO 0 rename button are no longer touched at all,
-    // and the radio bus is brought up before WiFi exactly as it was.
+    // Bluetooth is left alone, and the radio bus is brought up before WiFi
+    // exactly as it was. The reset/calibration prompt runs before WiFi starts.
     Serial.begin(115200);
 
     // A full frame is ~9.6 kB, about 830 ms of solid data at this baud. The
@@ -836,41 +947,15 @@ void setup() {
     loadNickname();
     wasDeployed = loadDeployedFlag() && strlen(nickname);
 
-    // A board that was already commissioned goes straight back to reporting.
-    // Holding BOOT for two seconds now is the way back to calibration, and the
-    // only way -- otherwise a deployed camera on a wall could never be
-    // re-aimed without a cable.
+    // A deployed board resumes reporting after a short recovery window.
+    // A second RST requests naming; BOOT held for two seconds requests only
+    // calibration. Both gestures reopen the existing camera setup page.
     if (wasDeployed) {
         Serial.print(F("[SETUP] Previously deployed as '"));
         Serial.print(nickname);
-        Serial.println(F("'. Hold BOOT 2s to re-calibrate."));
-        if (oledReady) {
-            display.clearDisplay();
-            display.setCursor(0, 0);
-            display.println(nickname);
-            display.drawFastHLine(0, 10, 128, SSD1306_WHITE);
-            display.setCursor(0, 20);
-            display.println(F("Deployed."));
-            display.setCursor(0, 36);
-            display.println(F("Hold BOOT 2s to"));
-            display.println(F("re-calibrate."));
-            display.display();
-        }
-        pinMode(0, INPUT_PULLUP);
-        unsigned long start = millis(), held = 0;
-        while (millis() - start < 3000) {
-            if (digitalRead(0) == LOW) {
-                if (!held) held = millis();
-                if (millis() - held >= 2000) {
-                    Serial.println(F("[SETUP] BOOT held: returning to calibration."));
-                    saveDeployedFlag(false);
-                    wasDeployed = false;
-                    break;
-                }
-            } else held = 0;
-            delay(20);
-        }
+        Serial.println(F("'."));
     }
+    applyStartupRequest();
 
     if (wasDeployed) {
         enterDeploymentMode();

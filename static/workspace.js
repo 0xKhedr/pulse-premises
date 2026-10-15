@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {label: 'Organization', nodes: matching(['Clients', 'Sites'])},
             {label: 'Buildings & floors', nodes: matching(['Buildings', 'Floors'])},
             {label: 'Gateways', nodes: matching(['Gateways'])},
-            {label: 'Devices', nodes: matching(['Device Assignment', 'Devices & Building Placement'])},
+            {label: 'Devices', nodes: matching(['Device provisioning', 'Device Assignment', 'Devices & Building Placement'])},
             {label: 'Structure & tools', nodes: matching(['Operational Links', 'Deployment Structure Summary'])}
         ]);
         // Separate creation, updates and map uploads inside each asset card.

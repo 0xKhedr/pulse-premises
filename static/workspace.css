@@ -45,6 +45,25 @@ body.workspace { margin: 0 !important; padding: 0 !important; height: auto; }
 .workspace-content .grid > *, .workspace-content .layout > *, .workspace-content .main > *, .workspace-content .tab-panel, .workspace-content .card, .workspace-content .container { min-width: 0; max-width: 100%; }
 .workspace-content .table-wrap { max-width: 100%; }
 .workspace-content .cap-row, .workspace-content .deviceItem, .workspace-content .discoveredInboxSection, .workspace-content .unplacedItem, .workspace-content .modalCard, .workspace-content .activity-item, .workspace-content .activity-empty { background: #f8fafc !important; color: #43536a !important; border-color: var(--line) !important; }
+.workspace-content .cap-row > span { color: #243247 !important; font-size: 14px; font-weight: 600; }
+.workspace-content .card-header-line { background: transparent !important; }
+.workspace-content .card-header-line h2, .workspace-content .quick-links strong { color: #1d4ed8 !important; }
+.workspace-content .quick-links a { background: #eff6ff !important; }
+.workspace-content .provisioning-panel { margin-bottom: 22px; }
+.workspace-content .provisioning-panel .card-header-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.workspace-content .provisioning-panel .card-header-line h2 { margin: 0; }
+.workspace-content .provisioning-panel .pill { padding: 4px 10px; border: 1px solid; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.workspace-content .provisioning-panel > p.muted { margin: 10px 0 0; font-size: 14px; }
+.workspace-content .provisioning-details { display: flex; flex-wrap: wrap; gap: 32px; margin: 18px 0; }
+.workspace-content .provisioning-details > div { display: grid; gap: 4px; }
+.workspace-content .provisioning-details span { color: #475569; font-size: 12px; }
+.workspace-content .provisioning-details strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.workspace-content .provisioning-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.workspace-content .provisioning-controls label { display: grid; gap: 6px; margin: 0; }
+.workspace-content .provisioning-controls select { min-width: 150px; }
+.workspace-content .provisioning-message { margin: 14px 0 0; color: #475569 !important; font-size: 13px; }
+.workspace-content .provisioning-message[data-tone=error] { color: #be123c !important; }
+.workspace-content .provisioning-panel [data-provisioning-state][data-state=open] { background: #ecfdf5 !important; color: #047857 !important; border-color: #a7f3d0 !important; }
 .workspace-content .deviceItem.active { background: #eff6ff !important; border-color: #93b9ff !important; }
 .workspace-content .status-line, .workspace-content .activity-message, .workspace-content .infoRow { color: #43536a !important; border-color: var(--line); }
 .workspace-content .inboxHeader { color: #2563eb !important; }
@@ -106,6 +125,12 @@ body.workspace { margin: 0 !important; padding: 0 !important; height: auto; }
 /* Restore legacy map SVG defaults after the dashboard's icon rule. */
 .workspace-content svg { width: auto; height: auto; fill: black; stroke: none; stroke-width: 1; }
 .workspace-content #sidePanel { background: #fff !important; color: var(--ink) !important; border-left: 1px solid var(--line); box-shadow: var(--shadow); }
+.workspace-content #sidePanel { max-width: 100vw; }
+.workspace-content #sidePanel .infoRow { background: #f8fafc !important; color: #243247 !important; border-color: #e4eaf1 !important; overflow-wrap: anywhere; }
+.workspace-content #sidePanel .infoRow b { color: #142033 !important; }
+.workspace-content #sidePanel h3 { color: #1d4ed8 !important; }
+.workspace-content #sidePanel hr { border-color: #e4eaf1; }
+.workspace-content #sidePanel .alarmText { color: #b91c1c !important; }
 .workspace-content .section-tabs { display: flex; gap: 6px; padding: 6px; margin: 0 0 22px; border: 1px solid var(--line); border-radius: 12px; background: #eaf0f7; overflow-x: auto; }
 .workspace-content .section-tabs button { flex: 0 0 auto; background: transparent !important; color: var(--muted) !important; border: 0 !important; white-space: nowrap; }
 .workspace-content .section-tabs button[aria-selected=true] { background: #fff !important; color: #2563eb !important; box-shadow: 0 2px 6px #162b4a0d; }
