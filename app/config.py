@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # network_server_address_mismatch unless this names what the stack expects.
     TTN_CLUSTER_ADDRESS: str = ""
 
+    THINGSBOARD_ENABLED: bool = True
     THINGSBOARD_URL: str = "http://localhost:8080"
     TB_USERNAME: str = "tenant@thingsboard.org"
     TB_PASSWORD: str = "tenant"

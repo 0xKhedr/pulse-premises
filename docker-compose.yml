@@ -1,5 +1,6 @@
 services:
   sbms-app:
+    image: ${SBMS_IMAGE:-pulse-premises:local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,7 +13,7 @@ services:
     container_name: sbms-app
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${SBMS_BIND_ADDRESS:-0.0.0.0}:${SBMS_HTTP_PORT:-8000}:8000"
     env_file:
       - .env
     volumes:
@@ -21,14 +22,24 @@ services:
     environment:
       - DB_FILE=/app/data/smarthome.db
       - LOCAL_TEST_MODE=false
-      # The Windows host exposes the local Things Stack on port 1885.
-      # Host-side tools keep using http://localhost:1885 from .env.
-      - TTN_BASE_URL=http://host.docker.internal:1885
+      - PORT=8000
+      # Container endpoints can differ from URLs used by host-side tools.
+      - TTN_BASE_URL=${SBMS_TTN_BASE_URL:-http://host.docker.internal:1885}
+      - THINGSBOARD_URL=${SBMS_THINGSBOARD_URL:-http://host.docker.internal:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 60s
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   sbms-data:

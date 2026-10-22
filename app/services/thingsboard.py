@@ -18,6 +18,8 @@ class ThingsBoardClient:
         self._token_expiry: float = 0
 
     def login(self, force_refresh: bool = False) -> str:
+        if not settings.THINGSBOARD_ENABLED:
+            raise RuntimeError("ThingsBoard integration is disabled")
         if settings.PREVIEW_MODE:
             raise RuntimeError("ThingsBoard is unavailable in the preview workspace")
         if self._token and not force_refresh and time.time() < self._token_expiry:
@@ -55,6 +57,8 @@ class ThingsBoardClient:
         }
 
     def request(self, method: str, path: str, **kwargs) -> requests.Response:
+        if not settings.THINGSBOARD_ENABLED:
+            raise RuntimeError("ThingsBoard integration is disabled")
         url = f"{self.base_url}{path}"
         try:
             r = requests.request(
@@ -82,6 +86,8 @@ class ThingsBoardClient:
             raise
 
     def get_device_by_name(self, device_name: str) -> dict[str, Any] | None:
+        if not settings.THINGSBOARD_ENABLED:
+            return None
         try:
             r = self.request(
                 "GET",

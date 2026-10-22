@@ -60,7 +60,9 @@ Two settings gate real security behaviour:
 
 - **The development TTN is local.** Host-side tools use
   `http://localhost:1885`; Docker Compose routes the application container to
-  the same stack through `http://host.docker.internal:1885`.
+  the same stack through `SBMS_TTN_BASE_URL` (default
+  `http://host.docker.internal:1885`). The building deployment installs its own
+  stack and uses `http://stack:1885` on the Compose network.
 - **`TTN_WEBHOOK_SECRET` is required.** `/ttn-webhook` returns 503 to every
   request while it is empty. Set the same value in the TTN webhook's
   `X-Webhook-Secret` header.
@@ -108,6 +110,15 @@ Generate the shared firmware credential header after configuring `.env`:
 ```powershell
 python tools/generate_lorawan_credentials.py
 ```
+
+For the u-blox NEO-6M GPS node, see
+[`firmware/lilygo_gps_lpp_node`](firmware/lilygo_gps_lpp_node/README.md)
+for breadboard wiring, Arduino IDE setup and GPS telemetry details. It uses
+the same naming and OTAA commissioning procedure as the temperature node.
+
+For the AJ-SR04M ultrasonic distance node, see
+[`firmware/lilygo_sr04_lpp_node`](firmware/lilygo_sr04_lpp_node/README.md)
+for LilyGO wiring, the ECHO voltage divider and Cayenne LPP distance telemetry.
 
 Register a batch in TTN before field deployment without creating backend rows:
 
@@ -161,6 +172,18 @@ relational joins and migration tests pass against a copy of real data.
 
 ## Deployment (Docker)
 
+For the building's Linux server, follow **[the building deployment guide](deploy/README.md)**.
+`docker-compose.building.yml` installs SBMS, The Things Stack Open Source,
+PostgreSQL, and Redis using prebuilt images and persistent named volumes.
+ThingsBoard is optional: `THINGSBOARD_ENABLED=false` disables its requests while
+local readings, telemetry history, alarms, and email alerts continue to work.
+The deployment generator creates separate `.env.building` and stack configuration
+files without changing the developer's `.env`. The image workflow publishes to
+`ghcr.io/0xkhedr/pulse-premises` after tests and a fresh-stack startup check pass.
+
+The commands below are for building SBMS from source with separately managed
+TTN/ThingsBoard services:
+
 ```bash
 cp .env.example .env   # then edit .env for your environment
 docker compose up --build
@@ -187,7 +210,7 @@ Edits then appear on the next request -- no rebuild, no restart (Jinja2
 auto-reloads templates, and StaticFiles reads from disk per request). Hard-refresh
 the browser (Ctrl+Shift+R) if a page looks stale; a service worker is registered.
 
-Deploy **without** the override so the image stays self-contained:
+Run the source-built app **without** the development override:
 
 ```bash
 docker compose -f docker-compose.yml up -d --build
@@ -216,8 +239,9 @@ automatically (Docker copies it from the image on first mount). The
 `./uploads` bind mount is different: its permissions come from the *host*
 directory, not the image. On a Linux host, if the container ever fails to
 write to `/app/uploads` with a permission error, run
-`sudo chown -R 1000:1000 uploads` (or `chmod 777 uploads`) on the host once;
-Docker Desktop on Windows/macOS does not need this.
+`sudo chown -R 1000:1000 uploads` on the host once;
+Docker Desktop on Windows/macOS does not need this. The building deployment
+uses a named uploads volume instead, with ownership initialized by the image.
 
 Required environment variables (set in `.env`, loaded via `env_file` in
 `docker-compose.yml`):

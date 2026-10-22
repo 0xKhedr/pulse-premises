@@ -71,6 +71,8 @@ def main() -> int:
         for sketch in (
             "lilygo_cayenne_lpp_node",
             "lilygo_environment_lpp_node",
+            "lilygo_gps_lpp_node",
+            "lilygo_sr04_lpp_node",
             "espcam_lorawan_node",
         ):
             target = (

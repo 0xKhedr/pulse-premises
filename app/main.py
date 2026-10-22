@@ -2826,6 +2826,8 @@ def sync_tb_attributes_from_profile(device_row, profile: dict, tb_device: (
     Create or find the ThingsBoard device and synchronize its
     profile-driven server attributes.
     """
+    if not settings.THINGSBOARD_ENABLED:
+        return {'status': 'disabled', 'attribute_count': 0}
     device = dict(device_row) if not isinstance(device_row, dict
         ) else device_row
     device_name = str(device.get('device_id') or '').strip()
@@ -2862,6 +2864,8 @@ def tb_send_attributes(device: dict, attributes: dict):
 
 
 def sync_tb_attributes_from_row(row):
+    if not settings.THINGSBOARD_ENABLED:
+        return None
     tb_device = tb_get_or_create_device(row['device_id'], row['node_type'])
     tb_send_attributes(tb_device, {'building': row['building'], 'floor':
         row['floor'], 'room': row['room'], 'label': row['label'],
@@ -3271,7 +3275,7 @@ def read_tb_latest_telemetry(device_id: str, profile: (dict | None)=None):
     Passing profile is optional to preserve compatibility with
     existing callers.
     """
-    if settings.PREVIEW_MODE:
+    if settings.PREVIEW_MODE or not settings.THINGSBOARD_ENABLED:
         conn = db()
         try:
             return get_local_latest_telemetry(conn, device_id) or {}
@@ -4595,6 +4599,28 @@ def validate_decoded_payload_against_profile(profile: dict, decoded_payload):
     normalized_payload = {str(key).strip().lower(): value for key, value in
         decoded_payload.items()}
 
+    # TTN's Cayenne formatter emits GPS as an object, unlike scalar channels.
+    # Flatten only its three known numeric components for profile validation,
+    # telemetry storage and field learning. Do not admit arbitrary nested data.
+    for raw_key, raw_val in list(normalized_payload.items()):
+        if not re.fullmatch(r'gps_\d+', raw_key) or not isinstance(raw_val, dict):
+            continue
+        coordinates = {}
+        for component, bounds in (
+            ('latitude', (-90, 90)), ('longitude', (-180, 180)),
+            ('altitude', (-83886.08, 83886.07)),
+        ):
+            value = raw_val.get(component)
+            if (isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not bounds[0] <= value <= bounds[1]):
+                break
+            coordinates[component] = value
+        else:
+            channel = raw_key.split('_')[1]
+            for component, value in coordinates.items():
+                normalized_payload.setdefault(f'{component}_{channel}', value)
+            del normalized_payload[raw_key]
+
     # Recognize Cayenne LPP dynamic channels (e.g. temperature_1 -> temperature)
     cayenne_channel_fields = {}
     for raw_key, raw_val in list(normalized_payload.items()):
@@ -5506,19 +5532,20 @@ def process_ttn_webhook_background(data: dict):
         thingsboard_error = None
         thingsboard_device_status = None
         thingsboard_attribute_status = None
-        try:
-            tb_ensure_result = ensure_tb_device_from_profile(device_name=
-                device_id, profile=profile)
-            tb_device = tb_ensure_result['device']
-            thingsboard_device_status = tb_ensure_result['status']
-            tb_attribute_result = sync_tb_attributes_from_profile(device_row
-                =device, profile=profile, tb_device=tb_device)
-            thingsboard_attribute_status = tb_attribute_result['status']
-            tb_send_telemetry(tb_device, telemetry)
-            thingsboard_sent = True
-        except Exception as exc:
-            thingsboard_error = str(exc)
-            logger.error('Profile-driven ThingsBoard forwarding failed: %s', exc)
+        if settings.THINGSBOARD_ENABLED:
+            try:
+                tb_ensure_result = ensure_tb_device_from_profile(device_name=
+                    device_id, profile=profile)
+                tb_device = tb_ensure_result['device']
+                thingsboard_device_status = tb_ensure_result['status']
+                tb_attribute_result = sync_tb_attributes_from_profile(device_row
+                    =device, profile=profile, tb_device=tb_device)
+                thingsboard_attribute_status = tb_attribute_result['status']
+                tb_send_telemetry(tb_device, telemetry)
+                thingsboard_sent = True
+            except Exception as exc:
+                thingsboard_error = str(exc)
+                logger.error('Profile-driven ThingsBoard forwarding failed: %s', exc)
         email_alarms = []
         for message in (newly_triggered_profile_messages + newly_triggered_system_alarms):
             if message and message not in email_alarms:
@@ -5527,8 +5554,10 @@ def process_ttn_webhook_background(data: dict):
             logger.info(f'NEW ALARM for {device_id}: {email_alarms}')
             send_alarm_email(device_id=device_id, node_type=node_type, room
                 =device['room'], alarms=email_alarms, telemetry=telemetry)
-        return {'status': 'ok_profile_validated' if thingsboard_sent else
+        return {'status': 'ok_profile_validated' if (thingsboard_sent or
+            not settings.THINGSBOARD_ENABLED) else
             'ok_profile_validated_thingsboard_failed', **response_base,
+            'thingsboard_enabled': settings.THINGSBOARD_ENABLED,
             'thingsboard_sent': thingsboard_sent, 'thingsboard_profile':
             profile['tb_device_profile_name'], 'thingsboard_device_status':
             thingsboard_device_status, 'thingsboard_attribute_status':

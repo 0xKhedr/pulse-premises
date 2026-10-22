@@ -6,6 +6,9 @@ __pycache__/
 .git/
 .gitignore
 .env
+.env.*
+!.env.example
+!.env.building.example
 .docker-local-ca.cer
 .venv/
 venv/
@@ -13,3 +16,12 @@ venv/
 *.whl
 tools/archive/
 docs/
+backups/
+build/
+uploads/
+deploy/stack/
+# Generated firmware contains live LoRaWAN root keys; gitignore alone does
+# not exclude files from a local Docker build context.
+**/lorawan_credentials.h
+firmware/lilygo_provisioning_template/lilygo_provisioning_template.ino
+firmware/lilygo_dht11_debug/lilygo_dht11_debug.ino

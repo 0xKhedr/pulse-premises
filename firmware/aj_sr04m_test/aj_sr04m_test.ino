@@ -15,7 +15,7 @@
  *   VCC        ->     3.3V first, 5V only if that fails - see below
  *   GND        ->     GND
  *   Trig       ->     GPIO 4
- *   Echo       ->     GPIO 34  THROUGH A DIVIDER - see below
+ *   Echo       ->     GPIO 34  THROUGH A DIVIDER when powered at 5V - see below
  *
  * TRY 3.3V FIRST
  * --------------
@@ -23,43 +23,42 @@
  * drives a safe 3.3V logic level and no divider is needed at all.
  *
  * These modules vary: many AJ-SR04M and JSN-SR04T units run anywhere from 3.0V
- * to 5.5V, while some are specified for 5V only. If 3.3V gives sensible
- * readings, stop here. If it reports NO ECHO or nonsense, it needs 5V, and
- * then the divider below is required.
+ * to 5.5V, while some are specified for 5V only. Verify your revision's supply
+ * and output levels. At 3.3V, remove the 5V divider or the echo will be too low.
+ * NO ECHO can also mean incorrect wiring or mode; it does not prove a power
+ * problem. At 5V the divider below is required.
  *
  * IF IT NEEDS 5V, THE ECHO PIN NEEDS A VOLTAGE DIVIDER
  * ----------------------------------------------------
  * ESP32 GPIOs are NOT 5V tolerant: the absolute maximum input is about
- * VDD + 0.3V. Feeding 5V in usually appears to work, because the pin's
- * protection diode clamps the excess into the 3.3V rail -- which is precisely
- * why this gets skipped. The damage is cumulative rather than immediate.
- * Two resistors remove the question:
+ * VDD + 0.3V. Feeding 5V into a GPIO can damage it. Use two resistors:
  *
- *     Echo ----[ 1k ]----+---- GPIO 34
+ *     Echo ----[ 2.2k ]--+---- GPIO 34
  *                        |
- *                     [ 2k ]
+ *                    [ 3.3k ]
  *                        |
  *                       GND
  *
- * That divides 5V down to 5 * 2/(1+2) = 3.3V. Any pair in the same ratio works
- * (10k/20k is common and draws less current). With only one resistor to hand,
- * a single 1k in series is a real improvement over bare wire, because it
- * limits the current through the protection diode.
+ * That divides 5V down to 5 * 3.3/(2.2+3.3) = 3.0V, leaving some margin.
+ * A single series resistor does not replace this voltage divider.
  *
  * Trig is driven BY the ESP32 at 3.3V, which the module accepts, so it needs
  * no divider.
  *
  * IF YOU GET NO READINGS
  * ----------------------
- * These modules have a mode-select pad, usually marked R27, on the back:
+ * The AJ-SR04M manual specifies a mode-select resistor at R19:
  *
  *   open (no resistor)  trigger/echo, HC-SR04 compatible  <- assumed here
- *   47k                 automatic serial output at 9600 baud
- *   120k                serial, responds to a command byte
+ *   300k                low-power pulse-width mode
+ *   120k                automatic serial output at 9600 baud
+ *   47k                 serial, responds to a command byte
+ *   0 ohm               ASCII output
  *
- * If your board shipped with a resistor fitted it will never answer a trigger
- * pulse. Set SENSOR_MODE_SERIAL to 1 below to listen for serial frames
- * instead; wire the module's Echo/TX line to GPIO 34 the same way.
+ * Check your exact revision's manual; JSN-SR04T R27 mode values differ.
+ * SENSOR_MODE_SERIAL below only listens for automatic binary UART frames;
+ * it does not trigger command-based serial modes or parse ASCII output.
+ * In automatic UART mode, wire Echo/TX to GPIO34 with the same level protection.
  *
  * LIBRARIES
  * ---------
@@ -241,7 +240,7 @@ void setup() {
     Serial.print(PIN_TRIG);
     Serial.print(F(", Echo GPIO "));
     Serial.println(PIN_ECHO);
-    Serial.println(F("Echo must reach the ESP32 through a 1k/2k divider."));
+    Serial.println(F("At 5V, ECHO needs a 2.2k/3.3k divider. At verified 3.3V use direct ECHO."));
 
     Wire.begin(SBMS_OLED_SDA, SBMS_OLED_SCL);
     oledReady = display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS,
@@ -269,7 +268,7 @@ void loop() {
 
     if (cm < 0) {
         failureCount++;
-        Serial.println(F("no echo  (check 5V supply, wiring, and R27 mode)"));
+        Serial.println(F("no echo  (check supply, wiring, and mode selection for your revision)"));
         showReading(-1, "NO ECHO");
     } else if (cm < MIN_VALID_CM || cm > MAX_VALID_CM) {
         failureCount++;

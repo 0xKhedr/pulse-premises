@@ -10,6 +10,7 @@ import requests
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from app.config import settings
 from app.db.connection import get_db_connection as db
 from app.main import (
     TB_PASSWORD,
@@ -824,7 +825,7 @@ def admin_summary():
         def thingsboard_available_quick():
             global TB_TOKEN_CACHE
 
-            if not THINGSBOARD_URL:
+            if not settings.THINGSBOARD_ENABLED or not THINGSBOARD_URL:
                 return False
 
             try:

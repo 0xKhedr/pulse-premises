@@ -17,9 +17,13 @@ Thumbs.db
 *.whl
 *.csv
 .env
+.env.building
+deploy/stack/
 firmware/lorawan_credentials.h
 firmware/lilygo_cayenne_lpp_node/lorawan_credentials.h
 firmware/lilygo_environment_lpp_node/lorawan_credentials.h
+firmware/lilygo_gps_lpp_node/lorawan_credentials.h
+firmware/lilygo_sr04_lpp_node/lorawan_credentials.h
 # Local provisioning template embeds the live LoRaWAN credentials.
 firmware/lilygo_provisioning_template/lilygo_provisioning_template.ino
 firmware/lilygo_dht11_debug/lilygo_dht11_debug.ino
