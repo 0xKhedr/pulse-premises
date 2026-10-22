@@ -25,9 +25,10 @@ jobs:
       - run: python -m ruff check app tests tools/prepare_building.py tools/register_ttn_devices.py tools/hardware_acceptance.py tools/generate_lorawan_credentials.py tools/configure_local_ttn.py tools/reconcile_legacy_database.py tools/sync_ttn_credentials.py
       - run: python -m compileall -q app tests tools
       - run: python -m pytest -q
-      - run: docker build -t smart-building-management-system:test .
       - name: Prepare a fresh building installation
-        run: python tools/prepare_building.py --host 192.0.2.10 --admin-email admin@building.local --image smart-building-management-system:test
+        run: python tools/prepare_building.py --host 192.0.2.10 --admin-email admin@building.local
+      - name: Build SBMS from the repository
+        run: docker compose --env-file .env.building -f docker-compose.building.yml build sbms-app
       - name: Initialize The Things Stack
         run: bash linux/initialize-building.sh admin@building.local
         env:

@@ -174,12 +174,18 @@ relational joins and migration tests pass against a copy of real data.
 
 For the building's Linux server, follow **[the building deployment guide](deploy/README.md)**.
 `docker-compose.building.yml` installs SBMS, The Things Stack Open Source,
-PostgreSQL, and Redis using prebuilt images and persistent named volumes.
+PostgreSQL, and Redis in one Compose stack with persistent named volumes.
+SBMS is built from this repository's Dockerfile; The Things Stack, PostgreSQL,
+and Redis use upstream images. No published SBMS image is required.
 ThingsBoard is optional: `THINGSBOARD_ENABLED=false` disables its requests while
 local readings, telemetry history, alarms, and email alerts continue to work.
 The deployment generator creates separate `.env.building` and stack configuration
-files without changing the developer's `.env`. The image workflow publishes to
-`ghcr.io/0xkhedr/pulse-premises` after tests and a fresh-stack startup check pass.
+files without changing the developer's `.env`. After the first-time stack
+initialization in the guide, start the deployment with:
+
+```bash
+docker compose --env-file .env.building -f docker-compose.building.yml up -d --build --wait
+```
 
 The commands below are for building SBMS from source with separately managed
 TTN/ThingsBoard services:

@@ -1,5 +1,5 @@
-# Image-only deployment for a building server. Development overrides are not
-# loaded when this file is selected explicitly.
+# Build SBMS from this repository alongside The Things Stack and its dependencies.
+# Development overrides are not loaded when this file is selected explicitly.
 name: ${COMPOSE_PROJECT_NAME:-pulse-building}
 
 x-logging: &logging
@@ -10,7 +10,11 @@ x-logging: &logging
 
 services:
   sbms-app:
-    image: ${SBMS_IMAGE:?Set SBMS_IMAGE in .env.building}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - sbms_local_ca
     restart: unless-stopped
     init: true
     env_file: .env.building
@@ -109,3 +113,7 @@ volumes:
   tts-postgres:
   tts-redis:
   tts-blob:
+
+secrets:
+  sbms_local_ca:
+    file: ${SBMS_LOCAL_CA_FILE:-.docker-local-ca.cer.example}

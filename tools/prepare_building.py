@@ -46,6 +46,7 @@ def stack_config(host: str) -> dict:
         "http": {"listen": ":1885", "listen-tls": "", "health": {"enable": True},
                  "metrics": {"enable": False}, "pprof": {"enable": False}},
         "grpc": {"listen": ":1884", "listen-tls": "", "allow-insecure-for-credentials": True},
+        "interop": {"listen": "", "listen-tls": ""},
         "cluster": {"tls": False},
         "is": {"oauth": {"ui": {"canonical-url": f"{base}/oauth", "is": api}}},
         "console": {
@@ -61,6 +62,7 @@ def stack_config(host: str) -> dict:
             "mqtt": {"listen-tls": "", "public-address": f"{host}:1882", "public-tls-address": ""},
             "mqtt-v2": {"listen-tls": "", "public-address": f"{host}:1881", "public-tls-address": ""},
             "basic-station": {"listen": ":1887", "listen-tls": "", "use-traffic-tls-address": False},
+            "ttigw": {"listen": "", "listen-tls": ""},
         },
         "as": {
             "mqtt": {"listen-tls": "", "public-address": f"{host}:1883", "public-tls-address": ""},
@@ -73,12 +75,10 @@ def stack_config(host: str) -> dict:
     }
 
 
-def prepare(host: str, admin_email: str, output_dir: Path, image: str) -> tuple[Path, Path]:
+def prepare(host: str, admin_email: str, output_dir: Path) -> tuple[Path, Path]:
     validate_host(host)
     if not re.fullmatch(r"[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+", admin_email):
         raise ValueError("Provide an administrator email address")
-    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._/@:-]+", image):
-        raise ValueError("Provide a Docker image reference without spaces or shell characters")
     env_path = output_dir / ".env.building"
     config_path = output_dir / "deploy/stack/ttn-lw-stack.yml"
     if env_path.exists() or config_path.exists():
@@ -88,7 +88,6 @@ def prepare(host: str, admin_email: str, output_dir: Path, image: str) -> tuple[
         "TTS_HOST": host,
         "ADMIN_EMAIL": admin_email,
         "ADMIN_PASSWORD": secrets.token_urlsafe(32),
-        "SBMS_IMAGE": image,
         "TTS_POSTGRES_PASSWORD": secrets.token_hex(32),
         "TTS_CONSOLE_SECRET": secrets.token_hex(32),
         "TTS_COOKIE_BLOCK_KEY": secrets.token_hex(32),
@@ -119,11 +118,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", required=True, help="Building server's static LAN IPv4 or DNS name")
     parser.add_argument("--admin-email", required=True)
-    parser.add_argument("--image", default="ghcr.io/0xkhedr/pulse-premises:latest")
     parser.add_argument("--output-dir", type=Path, default=ROOT)
     args = parser.parse_args()
     try:
-        env_path, config_path = prepare(args.host, args.admin_email, args.output_dir, args.image)
+        env_path, config_path = prepare(args.host, args.admin_email, args.output_dir)
     except (OSError, ValueError) as exc:
         parser.exit(1, f"ERROR: {exc}\n")
     print(f"Created {env_path} and {config_path}")

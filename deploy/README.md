@@ -8,7 +8,9 @@ and configure SMTP to send alerts.
 
 Use Docker Engine with Docker Compose v2.24 or newer, Python 3.10+ for the
 configuration generator, and a static LAN IPv4 address or DNS name reachable by
-browsers and gateways. The image workflow builds SBMS for Linux amd64 and arm64.
+browsers and gateways. Keep a checkout of this repository on the server: Compose
+builds SBMS from its Dockerfile and pulls The Things Stack, PostgreSQL, and Redis
+as upstream images. No published SBMS image or registry login is required.
 The default configuration uses HTTP and unencrypted gateway connections on the
 building's trusted LAN. Publish these ports only to that network; use a reverse
 proxy and TLS configuration before exposing the service beyond it.
@@ -35,30 +37,19 @@ The generated SBMS administrator password is stored as `ADMIN_PASSWORD` in
 `.env.building`. Save it in your password manager. The Things Stack has a
 separate administrator account, created in the next step.
 
-Edit `.env.building` to set `SBMS_IMAGE` to a published version, preferably
-`ghcr.io/0xkhedr/pulse-premises:sha-<full-commit-sha>` or an image digest for
-repeatable upgrades. `.github/workflows/image.yml` publishes images on pushes
-to `main`/`master`, `v*` tags, or manual runs, after verification passes. Version
-tags omit the leading `v` in the image tag. The workflow must be pushed and run
-successfully before those images exist. For a private GHCR package, log in using
-a GitHub token with `read:packages` before pulling.
+Build SBMS from the files in this checkout and pull the supporting services:
 
 ```bash
-docker compose --env-file .env.building -f docker-compose.building.yml pull
-```
-
-To build locally before the image has been published, set
-`SBMS_IMAGE=pulse-premises:building` in `.env.building`, then run:
-
-```bash
-docker build -t pulse-premises:building .
+docker compose --env-file .env.building -f docker-compose.building.yml build sbms-app
 docker compose --env-file .env.building -f docker-compose.building.yml pull stack postgres redis
 ```
 
-The production Compose file has no `build` section, CA-file dependency,
-development mounts, or host aliases. After building or pulling, running SBMS
-does not require the application's source files. Keep the Compose file,
-`.env.building`, and generated stack configuration on the server.
+The Dockerfile copies the app, templates, static assets, and supporting files
+into the SBMS image. Source changes take effect after rebuilding. The services
+communicate over the Compose network and store their data in named volumes.
+On a network with a managed CA, save the certificate as `.docker-local-ca.cer`
+and set `SBMS_LOCAL_CA_FILE=.docker-local-ca.cer` in `.env.building` before
+building. Otherwise the committed empty certificate placeholder is used.
 
 ## 2. Initialize The Things Stack
 
@@ -120,7 +111,7 @@ An existing TTN application or device registry is not migrated automatically.
 ## 3. Start SBMS and verify
 
 ```bash
-docker compose --env-file .env.building -f docker-compose.building.yml up -d --wait
+docker compose --env-file .env.building -f docker-compose.building.yml up -d --build --wait
 curl --fail http://192.168.10.20:8000/healthz
 ```
 
@@ -186,9 +177,11 @@ restore the two configuration files, and use the same database/image versions
 before starting services. Test restoration on an isolated server before relying
 on the backup. Never restore over a running database.
 
-Before an upgrade, take a backup and record the currently deployed image
-references. Change `SBMS_IMAGE` to the new tested version, pull that image, and
-run `up -d --wait`. SBMS runs its database migrations on startup. If changing
+Before an upgrade, take a backup and record the currently deployed Git commit
+and supporting image references. Check out the tested application revision,
+preserve `.env.building` and the generated stack configuration, and run
+`docker compose --env-file .env.building -f docker-compose.building.yml up -d --build --wait`.
+SBMS runs its database migrations on startup. If changing
 the Things Stack version, follow its migration instructions and run
 `docker compose --env-file .env.building -f docker-compose.building.yml run --rm stack is-db migrate`
 while the stack is stopped. Do not change the PostgreSQL major version by
