@@ -1,0 +1,9 @@
+{
+  "additionalFiles": "",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "",
+  "fqbn": "esp32:esp32:ttgo-lora32:Revision=TTGO_LoRa32_v21new",
+  "hardwareFolders": "C:\\Users\\Dell\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7,C:\\Users\\Dell\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7",
+  "otherLibrariesFolders": "C:\\Users\\Dell\\Documents\\Arduino\\libraries",
+  "sketchLocation": "C:\\Users\\Dell\\Desktop\\Smart Building Managment System\\firmware\\aj_sr04m_test"
+}

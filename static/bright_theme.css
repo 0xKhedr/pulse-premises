@@ -1,9 +1,0 @@
-/* Shared light theme for dashboard and sign-in controls. */
-:root { color-scheme: light; --bg-main: #f4f7fb; --bg-card: #fff; --border-color: #e4eaf1; --text-primary: #142033; --text-secondary: #475569; --text-accent: #2563eb; }
-body, html { background: var(--bg-main); color: var(--text-primary); font-family: 'Segoe UI', sans-serif; }
-input, select, textarea { color-scheme: light; background: #fff; color: #142033; border: 1px solid #d8e1ed; border-radius: 8px; padding: 10px 12px; font: inherit; }
-option, optgroup { background: #fff; color: #142033; }
-:focus-visible { outline: 3px solid #93b9ff; outline-offset: 3px; }
-button, .btn { cursor: pointer; font: inherit; }
-button:disabled { opacity: .55; cursor: wait; }
-[hidden] { display: none !important; }
