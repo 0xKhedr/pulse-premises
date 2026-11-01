@@ -160,6 +160,10 @@ static char nickname[NICKNAME_MAX_LENGTH + 1] = "";
 static bool nicknameUplinkPending = false;
 static uint16_t uplinksSinceNickname = 0;
 
+#include "DownlinkObserver.h"
+static DownlinkObserver downlinkObserver;
+static bool downlinkLogPending = false;
+
 // ------------------------------------------------------------------------------
 // ONBOARD OLED (SSD1306 128x64 over I2C)
 // ------------------------------------------------------------------------------
@@ -189,7 +193,42 @@ static uint16_t lastPayloadLen = 0;
 static float    lastTemp       = NAN;
 static float    lastHum        = NAN;
 static bool     displayDirty   = true;
+static bool     observerJoined = false;
+static size_t   observerPage = 0;
+static unsigned long lastObserverPageAt = 0;
 #endif
+
+// Class A application data is available when EV_TXCOMPLETE closes RX1/RX2.
+// ACK-only/MAC-only frames have no application port and are not messages.
+static void captureApplicationDownlink() {
+    if (!(LMIC.txrxFlags & TXRX_PORT) || LMIC.dataBeg == 0
+        || size_t(LMIC.dataBeg) + LMIC.dataLen > sizeof(LMIC.frame)) return;
+    if (!downlinkObserver.capture(LMIC.frame[LMIC.dataBeg - 1],
+                                  LMIC.frame + LMIC.dataBeg, LMIC.dataLen)) return;
+    downlinkLogPending = true;
+#if ENABLE_OLED
+    observerPage = 0;
+    lastObserverPageAt = millis();
+    displayDirty = true;
+#endif
+}
+
+static void logObservedDownlink() {
+    if (!downlinkLogPending || (LMIC.opmode & OP_TXRXPEND)) return;
+    downlinkLogPending = false;
+    Serial.printf("[DOWNLINK] #%lu FPort %u, %u bytes\nHEX: ",
+                  (unsigned long)downlinkObserver.count, downlinkObserver.port,
+                  (unsigned)downlinkObserver.length);
+    for (size_t i = 0; i < downlinkObserver.length; ++i) {
+        Serial.printf("%02X ", downlinkObserver.bytes[i]);
+    }
+    Serial.print(F("\nTEXT: "));
+    for (size_t i = 0; i < downlinkObserver.length; ++i) {
+        uint8_t value = downlinkObserver.bytes[i];
+        Serial.print(value >= 32 && value <= 126 ? char(value) : '.');
+    }
+    Serial.println();
+}
 
 bool initUniqueDevEUI() {
     uint8_t mac[6];
@@ -708,6 +747,45 @@ static void renderDisplay() {
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
 
+    if (observerJoined) {
+        display.setTextWrap(false);
+        display.setCursor(0, 0);
+        display.print(F("DOWNLINK / CLASS A"));
+        display.drawFastHLine(0, 9, OLED_WIDTH, SSD1306_WHITE);
+        if (!downlinkObserver.count) {
+            display.setCursor(0, 14);
+            display.print(F("No downlink yet."));
+            display.setCursor(0, 26);
+            display.print(F("RX after each uplink"));
+            display.setCursor(0, 38);
+            display.print(F("TX #"));
+            display.print(uplinkCount);
+            display.setCursor(0, 52);
+            display.print(nickname);
+        } else {
+            char line[DownlinkObserver::Columns + 1];
+            display.setCursor(0, 12);
+            snprintf(line, sizeof(line), "#%lu Port:%u", (unsigned long)downlinkObserver.count,
+                     downlinkObserver.port);
+            display.print(line);
+            const bool textPage = observerPage < downlinkObserver.textPages();
+            const size_t page = textPage ? observerPage : observerPage - downlinkObserver.textPages();
+            display.setCursor(0, 22);
+            snprintf(line, sizeof(line), "%uB %s %u/%u", (unsigned)downlinkObserver.length,
+                     textPage ? "TEXT" : "HEX", (unsigned)page + 1,
+                     (unsigned)(textPage ? downlinkObserver.textPages() : downlinkObserver.hexPages()));
+            display.print(line);
+            for (size_t row = 0; row < DownlinkObserver::Rows; ++row) {
+                downlinkObserver.formatRow(observerPage, row, line);
+                display.setCursor(0, 32 + row * 8);
+                display.print(line);
+            }
+        }
+        display.display();
+        display.setTextWrap(true);
+        return;
+    }
+
     // The nickname is the whole point of having one, so it takes the title
     // line when set; otherwise the generic name stands in.
     display.setCursor(0, 0);
@@ -811,6 +889,7 @@ void onEvent (ev_t ev) {
         case EV_JOINING:
             Serial.println(F("EV_JOINING (Sending OTAA Join Request over LoRa...)"));
 #if ENABLE_OLED
+            observerJoined = false;
             joinState = "JOINING";
             displayDirty = true;
 #endif
@@ -829,24 +908,24 @@ void onEvent (ev_t ev) {
             // Announce the nickname as soon as there is a session to send it on.
             nicknameUplinkPending = strlen(nickname) > 0;
 #if ENABLE_OLED
+            observerJoined = true;
             joinState = "JOINED";
             displayDirty = true;
 #endif
             break;
         case EV_JOIN_FAILED:
-            Serial.println(F("EV_JOIN_FAILED. Check AppKey / Gateway signal."));
+            Serial.println(F("EV_JOIN_FAILED. New node? Open discovery and accept it in the web portal. Also check credentials / gateway signal."));
 #if ENABLE_OLED
             joinState = "JOIN FAIL";
             displayDirty = true;
 #endif
             break;
         case EV_JOIN_TXCOMPLETE:
-            // The join request went out but no join-accept came back. This is
-            // the useful one: it separates "no gateway heard me" from "a
-            // gateway heard me but the JoinEUI/AppKey did not match".
-            Serial.println(F("EV_JOIN_TXCOMPLETE (Join request sent, no JoinAccept received)"));
+            // No response cannot distinguish pending approval from RF loss or
+            // incorrect credentials. Let LMIC keep its normal join retry timing.
+            Serial.println(F("EV_JOIN_TXCOMPLETE: no JoinAccept yet. New node? Accept it in the web portal. OTAA retries continue."));
 #if ENABLE_OLED
-            joinState = "NO ACCEPT";
+            joinState = "WAITING JOIN";
             displayDirty = true;
 #endif
             break;
@@ -867,7 +946,8 @@ void onEvent (ev_t ev) {
             Serial.println(F("EV_RXSTART (Opening receive window)"));
             break;
         case EV_TXCOMPLETE:
-            Serial.println(F("EV_TXCOMPLETE (Uplink delivered successfully)"));
+            Serial.println(F("EV_TXCOMPLETE (Uplink and receive windows complete)"));
+            captureApplicationDownlink();
             // Re-send the nickname occasionally so a missed uplink is not
             // permanent. An unchanged nickname is a no-op at the other end.
             if (++uplinksSinceNickname >= NICKNAME_REFRESH_UPLINKS) {
@@ -884,6 +964,10 @@ void onEvent (ev_t ev) {
             break;
         case EV_RESET:
             Serial.println(F("EV_RESET"));
+#if ENABLE_OLED
+            observerJoined = false;
+            displayDirty = true;
+#endif
             break;
         case EV_RXCOMPLETE:
             Serial.println(F("EV_RXCOMPLETE"));
@@ -1000,8 +1084,14 @@ void setup() {
 void loop() {
     os_runloop_once();
     pollSerialConsole();
+    logObservedDownlink();
 
 #if ENABLE_OLED
+    if (observerJoined && downlinkObserver.count && (millis() - lastObserverPageAt) >= 4000) {
+        observerPage = (observerPage + 1) % downlinkObserver.pageCount();
+        lastObserverPageAt = millis();
+        displayDirty = true;
+    }
     // Refresh at most every 250 ms, and never while a transmission or receive
     // window is pending -- os_runloop_once() has to be serviced promptly, and
     // the I2C framebuffer push is comparatively slow.

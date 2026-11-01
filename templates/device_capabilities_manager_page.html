@@ -174,7 +174,7 @@
         }
     </style>
     <link rel="stylesheet" href="/static/bright_theme.css">
-<link rel="stylesheet" href="/static/workspace.css?v=3">
+<link rel="stylesheet" href="/static/workspace.css?v=6">
 </head>
 
 {% set workspace_title = 'Device capabilities' %}
@@ -189,6 +189,7 @@
 
     <div class="container">
         {% include 'device_enrollment_panel.html' %}
+        {% include 'device_downlink_panel.html' %}
         <div class="toolbar">
             <button class="admin-home-btn" onclick="window.location.href='/admin'">
                 ← Admin Home
@@ -428,6 +429,7 @@
                         </div>
 
                         <div class="profile-controls"></div>
+                        <button type="button" data-send-downlink>Send downlink</button>
 
                         <div class="capabilities">
                             ${buildCapabilityCheckboxes(device)}
@@ -441,6 +443,7 @@
                     `;
 
                     renderProfileControls(card, device, profiles);
+                    card.querySelector('[data-send-downlink]').addEventListener('click', () => window.selectDeviceDownlink(device.device_id));
                     card.querySelector(".cap-save").addEventListener("click", () => saveCapabilities(device.device_id));
 
                     area.appendChild(card);

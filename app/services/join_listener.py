@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import math
 import threading
 import time
 
@@ -52,12 +53,14 @@ def start() -> bool:
         logger.info("Enrollment listener not started: AUTO_ENROLLMENT_ENABLED is false")
         return False
     with _lock:
-        global _thread
-        if _thread is not None and _thread.is_alive():
+        global _thread, _stop
+        if _thread is not None and _thread.is_alive() and not _stop.is_set():
             return True
-        _stop.clear()
+        # A recently stopped stream may still be waiting for its next event.
+        # Give the new scan its own stop signal rather than reviving that stream.
+        _stop = threading.Event()
         _thread = threading.Thread(
-            target=_run, name="join-enrollment-listener", daemon=True
+            target=_run, args=(_stop,), name="join-enrollment-listener", daemon=True
         )
         _thread.start()
         logger.info("Enrollment listener started")
@@ -91,7 +94,7 @@ def _gateway_identifiers() -> list[dict]:
     return [{"gateway_ids": {"gateway_id": gateway_id}} for gateway_id in configured]
 
 
-def _run() -> None:
+def _run(stop_event: threading.Event) -> None:
     """Stream events until the window closes or stop() is called."""
     from app.db.connection import get_db_connection
 
@@ -114,39 +117,39 @@ def _run() -> None:
     # threads, so it must be opened here rather than handed in.
     conn = get_db_connection()
     try:
-        while not _stop.is_set():
+        while not stop_event.is_set():
             if not join_enrollment.window_status()["open"]:
                 logger.info("Enrollment listener stopping: window closed")
                 return
             try:
-                _consume(base, headers, identifiers, conn)
+                _consume(base, headers, identifiers, conn, stop_event)
             except Exception as exc:
                 logger.info(
                     "Enrollment event stream dropped (%s); reconnecting",
                     type(exc).__name__,
                 )
-                _stop.wait(3)
+                stop_event.wait(3)
     finally:
         conn.close()
         logger.info("Enrollment listener stopped")
 
 
-def _consume(base: str, headers: dict, identifiers: list[dict], conn) -> None:
+def _consume(base: str, headers: dict, identifiers: list[dict], conn, stop_event: threading.Event) -> None:
     body = {"identifiers": identifiers, "tail": 0}
     saw_traffic = False
-    # No read timeout: an event stream is legitimately idle between uplinks.
+    # Idle streams must eventually wake to observe window closure or stop().
     with requests.post(
         f"{base}/api/v3/events", headers=headers, json=body,
-        stream=True, timeout=(10, None),
+        stream=True, timeout=(10, 15),
     ) as response:
         if response.status_code != 200:
             logger.warning(
                 "Enrollment event stream refused: HTTP %s", response.status_code
             )
-            _stop.wait(10)
+            stop_event.wait(10)
             return
         for line in response.iter_lines(decode_unicode=True):
-            if _stop.is_set():
+            if stop_event.is_set():
                 return
             # Re-check each event rather than on a timer, so the listener shuts
             # down promptly when the window lapses.
@@ -200,15 +203,34 @@ def _handle_line(line: str, conn) -> bool:
     if request is None:
         return True  # a data uplink: traffic is flowing, just not a join
 
-    decision = join_enrollment.evaluate_join_request(conn, request)
-    if decision.enrolled:
+    metadata = (message.get("rx_metadata") if isinstance(message, dict) else None) or data.get("rx_metadata") or []
+    if isinstance(metadata, dict):
+        metadata = [metadata]
+    radio = next((item for item in metadata if isinstance(item, dict)), {})
+    gateway_id = (radio.get("gateway_ids") or {}).get("gateway_id")
+    if not gateway_id:
+        for identifier in result.get("identifiers") or []:
+            gateway_id = (identifier.get("gateway_ids") or {}).get("gateway_id")
+            if gateway_id:
+                break
+
+    def signal(name):
+        try:
+            value = float(radio[name])
+            return value if math.isfinite(value) else None
+        except (KeyError, TypeError, ValueError):
+            return None
+
+    decision = join_enrollment.evaluate_join_request(
+        conn, request, gateway_id=gateway_id, rssi=signal("rssi"), snr=signal("snr")
+    )
+    if decision.outcome is join_enrollment.Outcome.PENDING_APPROVAL:
         logger.info(
-            "Enrollment: DevEUI %s registered as %s; its next OTAA attempt "
-            "should now succeed",
+            "Enrollment: DevEUI %s discovered as %s; awaiting portal approval",
             decision.dev_eui,
             decision.detail,
         )
-    elif decision.outcome is not join_enrollment.Outcome.ALREADY_REGISTERED:
+    elif decision.outcome not in (join_enrollment.Outcome.ALREADY_REGISTERED, join_enrollment.Outcome.REJECTED):
         logger.info(
             "Enrollment: DevEUI %s not enrolled (%s: %s)",
             decision.dev_eui,

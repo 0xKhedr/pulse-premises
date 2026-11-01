@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import truststore
 
@@ -226,6 +227,23 @@ function decodeUplink(input) {
             f"/api/v3/applications/{self.app_id}/devices/{device_id}",
             params={"field_mask": "ids,name,created_at,updated_at"},
         ).json()
+
+    def push_downlink(
+        self, device_id: str, *, f_port: int, frm_payload: str,
+        confirmed: bool, correlation_id: str,
+    ) -> None:
+        """Append one message; preserve the existing queue and Class A timing."""
+        self._request(
+            "POST",
+            f"/api/v3/as/applications/{quote(self.app_id, safe='')}/devices/{quote(device_id, safe='')}/down/push",
+            json={"downlinks": [{
+                "f_port": f_port,
+                "frm_payload": frm_payload,
+                "confirmed": confirmed,
+                "priority": "NORMAL",
+                "correlation_ids": [correlation_id],
+            }]},
+        )
 
     def get_gateway_info(self, gateway_id: str) -> dict[str, Any]:
         if settings.PREVIEW_MODE:

@@ -427,7 +427,7 @@
         }
     </style>
     <link rel="stylesheet" href="/static/bright_theme.css">
-<link rel="stylesheet" href="/static/workspace.css?v=3">
+<link rel="stylesheet" href="/static/workspace.css?v=6">
 </head>
 
 {% set workspace_title = 'Buildings & assets' %}
@@ -461,7 +461,7 @@
             <li><strong>No shared network needed:</strong> The node runs in pure LoRa mode (Wi-Fi and Bluetooth are switched off in firmware). It reaches the backend over LoRaWAN via the gateway and The Things Network, so the node and the server do not need to be on the same network &mdash; or even in the same country. What the <em>server</em> needs is to be reachable by TTN's webhook.</li>
             <li><strong>Arduino firmware:</strong> There is no Wi-Fi SSID or password in the sketch. What must match is <code>firmware/lorawan_credentials.h</code>, generated from your <code>.env</code> with <code>python tools/generate_lorawan_credentials.py</code>. Every node is flashed with the identical sketch; only the sensor reads inside <code>do_send()</code> differ.</li>
             <li><strong>Setup order:</strong> Devices self-register on their first uplink, so they can be powered on at any time &mdash; no hierarchy is required first. Recommended order: flash and power the node (it appears under Discovered Devices) → create client → site → building → floor → upload maps → optionally draw rooms → place the node from the discovery inbox.</li>
-            <li><strong>Rooms are optional:</strong> Placement is anchored to a <em>floor</em>, not a room. A device may be placed directly on a floor with no room assigned. The node receives nothing from the backend &mdash; it only transmits; the backend resolves the hierarchy when you place it.</li>
+            <li><strong>Rooms are optional:</strong> Placement is anchored to a <em>floor</em>, not a room. A device may be placed directly on a floor with no room assigned. The backend resolves the hierarchy when you place it. Class A downlinks can be queued below and received after an uplink.</li>
             <li><strong>Swagger policy:</strong> Swagger remains only for developer testing. Normal setup should be completed from the Admin UI.</li>
         </ul>
     </div>
@@ -506,6 +506,7 @@
 
     <div class="grid">
         {% include 'device_enrollment_panel.html' %}
+        {% include 'device_downlink_panel.html' %}
         <div class="card">
             <div class="card-header-line">
                 <h2>Clients</h2>

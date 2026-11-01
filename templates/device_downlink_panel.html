@@ -1,0 +1,28 @@
+<section class="card full downlink-panel" id="deviceDownlinks" data-downlink-panel aria-labelledby="downlinkTitle">
+    <h2 id="downlinkTitle">Send downlink</h2>
+    <p class="muted">Class A: messages wait in TTN until a receive window after the device's next uplink. Queued does not mean received. Leave the node sending uplinks.</p>
+    <form data-downlink-form>
+        <div class="form-grid">
+            <label>Device
+                <select data-downlink-device required disabled><option value="">Loading devices...</option></select>
+            </label>
+            <label>Application port (FPort)
+                <input data-downlink-port type="number" min="1" max="223" step="1" value="1" required>
+            </label>
+            <label>Payload format
+                <select data-downlink-encoding><option value="text">UTF-8 text</option><option value="hex">Hexadecimal bytes</option><option value="base64">Base64 bytes</option></select>
+            </label>
+            <label class="downlink-confirmed"><input data-downlink-confirmed type="checkbox"> Confirmed downlink (ACK in a later uplink)</label>
+        </div>
+        <label class="downlink-payload-label">Payload
+            <textarea data-downlink-payload rows="3" maxlength="4096" placeholder="Hello from the portal" required></textarea>
+        </label>
+        <p class="muted" data-downlink-size>0 / 51 bytes</p>
+        <pre class="downlink-preview" data-downlink-preview aria-label="Payload bytes in hexadecimal"></pre>
+        <div class="downlink-actions">
+            <button type="submit" data-downlink-send disabled>Queue downlink</button>
+            <button type="button" class="secondary" data-downlink-refresh>Refresh devices</button>
+        </div>
+    </form>
+    <p data-downlink-message class="provisioning-message" role="status">Choose a device that has joined the network. Messages are appended to its existing queue.</p>
+</section>

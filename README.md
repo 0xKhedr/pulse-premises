@@ -111,6 +111,55 @@ Generate the shared firmware credential header after configuring `.env`:
 python tools/generate_lorawan_credentials.py
 ```
 
+For portal-controlled admission, enable `AUTO_ENROLLMENT_ENABLED` and configure
+`AUTO_ENROLLMENT_GATEWAY_API_KEY` with gateway traffic access. In Device
+Management or Sensor Capabilities, select **Scan for new devices**, power on
+the node, and save its nickname. A valid join request adds one **Pending
+approval** entry; it does not register the node in TTN. Review the DevEUI,
+receiving gateway, signal and last-seen time, then select **Accept** or
+**Reject**. Pending entries and decisions survive scan closure and restarts.
+The per-window quota limits new discoveries; repeated requests update the
+existing entry.
+
+Accept registers the node in TTN. The portal shows **Registering**, then
+**Awaiting join**, and **Online** once its first uplink arrives (including the
+nickname uplink on port 10). LMIC keeps retrying OTAA while approval is pending.
+Registration failures remain visible with **Retry registration**; radio traffic
+does not trigger registration retries. Reject is persistent and does not
+recreate a pending entry on another scan. This admission decision applies to
+new candidates; it does not revoke devices previously registered outside this
+flow. Building placement remains a separate step after the first uplink.
+
+`AUTO_ENROLLMENT_MAX_PER_WINDOW` caps new candidates per scan. Scanning closes
+on a restart, but saved pending devices can still be reviewed without another
+scan. A changed root key requires a fresh verified join request before a saved
+candidate can be accepted. Restart the backend after updating so migration
+`012_device_enrollment_approvals` creates the approval queue automatically.
+
+### Send a Class A downlink
+
+Device Management and Device Capabilities include **Send downlink**. Select
+a joined device, FPort (1–223), payload format (UTF-8 text, hex, or Base64),
+and payload, then **Queue downlink**. The limit is 51 decoded bytes. Messages
+append to the TTN queue; existing queued messages are preserved. Unconfirmed
+is the default; optional confirmed messages request an ACK in a later uplink.
+
+The backend uses `POST /devices/{device_id}/downlinks` and the TTN Application
+Server's `/api/v3/as/applications/{application_id}/devices/{device_id}/down/push`
+API. `TTN_API_KEY` needs application downlink-write permission
+(`RIGHT_APPLICATION_TRAFFIC_DOWN_WRITE`). Only administrators can send, and
+preview mode cannot queue downlinks. Requests validate FPort, encoding, and
+decoded byte length before contacting TTN. The audit log records the sender,
+target, port, length, and correlation ID, without recording the message bytes.
+
+**Queued is not received.** Class A delivery waits for RX1/RX2 after an uplink.
+A timeout leaves the queue outcome unknown, so the portal asks the operator
+to check TTN before resending; it never automatically repeats a queue push.
+The environment node's OLED displays the last received application downlink
+in paged TEXT/HEX views after joining. See
+[`firmware/lilygo_environment_lpp_node`](firmware/lilygo_environment_lpp_node/README.md)
+for a simple `Hello` test.
+
 For the u-blox NEO-6M GPS node, see
 [`firmware/lilygo_gps_lpp_node`](firmware/lilygo_gps_lpp_node/README.md)
 for breadboard wiring, Arduino IDE setup and GPS telemetry details. It uses

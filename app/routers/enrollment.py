@@ -1,10 +1,8 @@
 """
 Administrator control over over-the-air device enrollment.
 
-Enrollment lets the app register a never-before-seen DevEUI in TTN, so it is
-deliberately not a background behaviour that is simply on. An administrator
-opens a bounded window, the window closes on its own, and a restart closes it
-too. See app/services/join_enrollment.py for the rules applied to each request.
+An administrator opens a bounded discovery window, then accepts or rejects
+individual verified identities. Discovery never grants network admission.
 """
 
 from __future__ import annotations
@@ -34,10 +32,19 @@ def _require_admin(request: Request) -> dict:
 
 @router.get("/admin/enrollment/status")
 def enrollment_status(request: Request):
-    """Current window state, plus what it has admitted and refused so far."""
+    """Discovery window and durable approval queue, including closed windows."""
     _require_admin(request)
+    return _status()
+
+
+def _status():
     status = join_enrollment.window_status()
     status["listener_running"] = join_listener.is_running()
+    conn = db()
+    try:
+        status["candidates"] = join_enrollment.list_candidates(conn)
+    finally:
+        conn.close()
     return status
 
 
@@ -46,9 +53,8 @@ def open_enrollment(request: Request, data: dict | None = None):
     """
     Open an enrollment window and start watching gateway traffic.
 
-    Only devices that prove possession of the shared AppKey are registered, so
-    an open window is not itself an authorisation to join -- but it is still
-    bounded in time and count, and every enrollment is audited.
+    Verified devices are queued for individual approval. Opening discovery
+    does not register them or authorise a join.
     """
     current_user = _require_admin(request)
 
@@ -86,7 +92,7 @@ def open_enrollment(request: Request, data: dict | None = None):
     finally:
         conn.close()
 
-    return status
+    return _status()
 
 
 @router.post("/admin/enrollment/close")
@@ -114,4 +120,28 @@ def close_enrollment(request: Request):
     finally:
         conn.close()
 
-    return status
+    return _status()
+
+
+@router.post("/admin/enrollment/candidates/{dev_eui}/accept")
+def accept_enrollment(request: Request, dev_eui: str):
+    current_user = _require_admin(request)
+    actor = current_user.get("email") or str(current_user.get("id") or "admin")
+    conn = db()
+    try:
+        join_enrollment.accept_candidate(conn, dev_eui, actor)
+    finally:
+        conn.close()
+    return _status()
+
+
+@router.post("/admin/enrollment/candidates/{dev_eui}/reject")
+def reject_enrollment(request: Request, dev_eui: str):
+    current_user = _require_admin(request)
+    actor = current_user.get("email") or str(current_user.get("id") or "admin")
+    conn = db()
+    try:
+        join_enrollment.reject_candidate(conn, dev_eui, actor)
+    finally:
+        conn.close()
+    return _status()

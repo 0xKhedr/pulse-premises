@@ -2,11 +2,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import base64
 import csv
 import json
 import math
 import secrets
+import uuid
 
+import requests
 from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 
@@ -18,6 +21,7 @@ from app.main import (
     build_profile_display_telemetry,
     build_profile_live_field_metadata,
     build_profile_live_metadata,
+    get_current_user_from_request,
     get_device_capabilities_list,
     get_device_metadata_by_device_id,
     get_device_scope_for_audit,
@@ -32,12 +36,81 @@ from app.main import (
     set_device_formatter,
     set_device_formatter_from_profile,
 )
-from app.schemas.core import DeviceProfileAssignment
+from app.schemas.core import DeviceDownlinkRequest, DeviceProfileAssignment
 from app.services.device_profiles import assign_device_profile, mark_formatter_synced
 from app.services.device_state import build_device_state
+from app.services.downlinks import decode_downlink_payload
 from app.services.export_safety import redact_secrets
+from app.services.join_enrollment import uplink_is_blocked
+from app.services.ttn import ttn_client
 
 router = APIRouter()
+
+
+@router.get("/devices/downlink-targets")
+def downlink_targets():
+    """Local radio identities, without waiting for a telemetry upstream."""
+    conn = db()
+    try:
+        rows = conn.execute(
+            """SELECT device_id, label, dev_eui FROM devices
+            WHERE dev_eui IS NOT NULL AND LENGTH(dev_eui) = 16
+            ORDER BY COALESCE(label, device_id), device_id"""
+        ).fetchall()
+        return {"devices": [dict(row) for row in rows
+                            if not uplink_is_blocked(conn, row["device_id"], row["dev_eui"])]}
+    finally:
+        conn.close()
+
+
+@router.post("/devices/{device_id}/downlinks")
+def send_device_downlink(device_id: str, data: DeviceDownlinkRequest, request: Request):
+    user = get_current_user_from_request(request)
+    if not user or str(user.get("role") or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Administrator access required")
+    if settings.PREVIEW_MODE:
+        raise HTTPException(status_code=409, detail="Downlinks are unavailable in preview mode")
+    raw = decode_downlink_payload(data.payload, data.encoding)
+    conn = db()
+    try:
+        device = conn.execute("SELECT device_id, dev_eui FROM devices WHERE device_id = ?", (device_id,)).fetchone()
+        if device is None:
+            raise HTTPException(status_code=404, detail="Device not found")
+        if not device["dev_eui"] or uplink_is_blocked(conn, device_id, device["dev_eui"]):
+            raise HTTPException(status_code=409, detail="Device must have an approved LoRaWAN identity before receiving downlinks")
+        correlation_id = "sbms:downlink:" + uuid.uuid4().hex
+        try:
+            ttn_client.push_downlink(
+                device_id, f_port=data.f_port, frm_payload=base64.b64encode(raw).decode("ascii"),
+                confirmed=data.confirmed, correlation_id=correlation_id,
+            )
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status in (401, 403):
+                raise HTTPException(status_code=503, detail="TTN denied access. Check the API key's application downlink permission.")
+            if status == 404:
+                raise HTTPException(status_code=409, detail="TTN could not find this device in the configured application.")
+            if status is None or status >= 500:
+                raise HTTPException(status_code=502, detail="TTN returned a server error. Queue state is unknown; check TTN before sending again.")
+            raise HTTPException(status_code=502, detail="TTN did not accept the downlink request. Check the device session and queue in TTN.")
+        except requests.RequestException:
+            # A timed-out POST may already be queued. Never retry it automatically.
+            raise HTTPException(status_code=504, detail="TTN did not confirm the request. Its queue state is unknown; check TTN before sending again.")
+        metadata = {
+            "f_port": data.f_port, "byte_count": len(raw), "confirmed": data.confirmed,
+            "encoding": data.encoding, "correlation_id": correlation_id,
+        }
+        log_audit_event(
+            conn, action="device_downlink_queued", target_type="device", target_id=device_id,
+            actor=str(user.get("email") or user.get("id") or "admin"), details=metadata,
+            **get_device_scope_for_audit(conn, device_id),
+        )
+        return {
+            "status": "queued", "device_id": device_id, "device_class": "A", **metadata,
+            "message": "Queued in TTN. Class A delivery waits for an uplink receive window; receipt is not yet confirmed.",
+        }
+    finally:
+        conn.close()
 
 
 @router.put("/devices/{device_id}/profile")

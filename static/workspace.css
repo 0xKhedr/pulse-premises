@@ -63,6 +63,24 @@ body.workspace { margin: 0 !important; padding: 0 !important; height: auto; }
 .workspace-content .provisioning-controls select { min-width: 150px; }
 .workspace-content .provisioning-message { margin: 14px 0 0; color: #475569 !important; font-size: 13px; }
 .workspace-content .provisioning-message[data-tone=error] { color: #be123c !important; }
+.workspace-content .downlink-panel { margin-bottom: 22px; }
+.workspace-content .downlink-panel .downlink-confirmed { display: flex; align-items: center; gap: 8px; }
+.workspace-content .downlink-confirmed input { width: auto; }
+.workspace-content .downlink-payload-label { display: grid; gap: 7px; margin-top: 16px; }
+.workspace-content .downlink-payload-label textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.workspace-content .downlink-preview { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.workspace-content .downlink-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.workspace-content .provisioning-queue { overflow-x: auto; margin-top: 14px; }
+.workspace-content .provisioning-queue table { width: 100%; border-collapse: collapse; text-align: left; }
+.workspace-content .provisioning-queue th, .workspace-content .provisioning-queue td { padding: 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+.workspace-content .provisioning-queue th { font-size: 12px; color: #475569; }
+.workspace-content .provisioning-queue small { display: block; margin-top: 6px; overflow-wrap: anywhere; }
+.workspace-content .provisioning-queue button { margin: 0 6px 6px 0; }
+.workspace-content .provisioning-queue .pill { display: inline-block; white-space: nowrap; }
+.workspace-content .provisioning-queue .provisioning-error { color: #be123c; max-width: 320px; }
+.workspace-content [data-enrollment-state=pending], .workspace-content [data-enrollment-state=awaiting_join] { color: #92400e; background: #fffbeb; }
+.workspace-content [data-enrollment-state=online] { color: #047857; background: #ecfdf5; }
+.workspace-content [data-enrollment-state=rejected], .workspace-content [data-enrollment-state=registration_failed] { color: #be123c; background: #fff1f2; }
 .workspace-content .provisioning-panel [data-provisioning-state][data-state=open] { background: #ecfdf5 !important; color: #047857 !important; border-color: #a7f3d0 !important; }
 .workspace-content .deviceItem.active { background: #eff6ff !important; border-color: #93b9ff !important; }
 .workspace-content .status-line, .workspace-content .activity-message, .workspace-content .infoRow { color: #43536a !important; border-color: var(--line); }

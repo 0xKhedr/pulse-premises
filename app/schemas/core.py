@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -7,6 +9,15 @@ class DeviceProfileAssignment(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     profile_id: int = Field(gt=0, strict=True)
+
+
+class DeviceDownlinkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    f_port: int = Field(default=1, ge=1, le=223, strict=True)
+    payload: str = Field(min_length=1, max_length=4096)
+    encoding: Literal["text", "hex", "base64"] = "text"
+    confirmed: bool = Field(default=False, strict=True)
 
 
 class Device(BaseModel):

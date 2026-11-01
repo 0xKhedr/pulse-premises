@@ -5337,8 +5337,16 @@ def process_ttn_webhook_background(data: dict):
         if decoded_payload is None:
             decoded_payload = {}
         conn = db()
+        from app.services.join_enrollment import mark_online, uplink_is_blocked
+
+        envelope_dev_eui = str(end_device_ids.get('dev_eui') or '')
+        if uplink_is_blocked(conn, device_id, envelope_dev_eui):
+            return {'status': 'rejected_enrollment_not_approved', 'device_id': device_id,
+                'telemetry_stored': False, 'thingsboard_sent': False}
         context = load_device_profile_context_for_webhook(conn, device_id, raw_envelope=data)
         device = context['device']
+        if uplink_message:
+            mark_online(conn, device['device_id'], envelope_dev_eui)
 
         # A nickname uplink carries no telemetry: it exists so an installer can
         # tell fifty identical boards apart. Cayenne cannot decode it, so it

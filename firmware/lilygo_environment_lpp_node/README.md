@@ -49,6 +49,48 @@ Generate credentials with `python tools/generate_lorawan_credentials.py`;
 the new sketch folder gets its own gitignored header. A local copy of the
 original sketch's credential header can also be used with this sketch.
 
+For a new node, open **Scan for new devices** in the web portal, then power
+on the board and save its nickname. The board's verified join request appears
+as **Pending approval**. Select **Accept** to register it on the network;
+LMIC retries OTAA automatically, so no power cycle is needed. Until a join is
+accepted, the OLED shows `WAITING JOIN` after an unanswered request. This can
+also mean missing coverage or incorrect credentials; it is not proof that a
+gateway heard the request. After joining, the nickname uplink on port 10 lets
+the portal confirm **Online**, even before the first sensor reading.
+
+The approval gate is enforced by the backend and also works with the previous
+firmware. Reflash this sketch to get the updated OLED/serial explanations.
+
+## Class A downlink observer
+
+After joining, the OLED switches to **DOWNLINK / CLASS A**. It initially shows
+that no downlink has arrived. Each application downlink replaces the displayed
+message, with its receive count, FPort, and byte length. TEXT and HEX pages
+rotate every four seconds; long payloads use multiple pages rather than being
+clipped. TEXT shows printable ASCII and dots for other bytes; HEX preserves
+the full binary message. The same bytes are logged on Serial at 115200 baud.
+The last message is retained in RAM until another downlink or a restart.
+
+In the portal's **Device Management** or **Device Capabilities** page, open
+**Send downlink**, choose the joined node, use FPort **1**, and enter a message
+such as `Hello`. Leave the format as **UTF-8 text**, then select **Queue
+downlink**. Hexadecimal and Base64 input are also supported, with a maximum
+of 51 decoded bytes. The firmware observes these bytes; it does not interpret
+them as configuration commands or execute them.
+
+The device remains **Class A**: LMIC receives during RX1/RX2 after an uplink.
+Queueing a message does not transmit it immediately or prove receipt. With
+the current 30-second sensor interval, wait for the next successfully received
+uplink and its receive windows; retries, duty-cycle limits, and gateway traffic
+can delay delivery further. A missing sensor can stop sensor uplinks, so it
+can also prevent new receive opportunities after the nickname announcement.
+ACK-only and MAC-only downlinks do not replace the observed application message.
+Optional confirmed downlinks request a LoRaWAN acknowledgement in a later
+uplink; they do not make the radio listen continuously.
+
+OLED rendering and Serial output run in `loop()`, outside the LMIC receive
+callback. No Class B or Class C receive mode is enabled.
+
 The 30-second interval and fixed SF7 radio setting match the original bench
 sketch. For deployment, increase `TX_INTERVAL_SECONDS` and set
 `BENCH_RADIO_TEST` to `0` to enable adaptive data rate.

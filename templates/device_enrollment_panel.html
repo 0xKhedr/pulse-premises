@@ -1,15 +1,15 @@
 <section class="card full provisioning-panel" id="deviceProvisioning" data-provisioning-panel aria-labelledby="provisioningTitle">
     <div class="card-header-line">
-        <h2 id="provisioningTitle">Device provisioning</h2>
+        <h2 id="provisioningTitle">Device discovery and approval</h2>
         <span class="pill" data-provisioning-state aria-live="polite">Checking status</span>
     </div>
-    <p class="muted">Open a window to automatically register new nodes using this deployment's firmware credentials. Their first uplink adds them to Discovered Devices.</p>
+    <p class="muted">Scan for nodes using this deployment's firmware credentials, then Accept or Reject each verified device. Only accepted devices are registered on the network. Their first uplink adds them to Discovered Devices.</p>
     <div class="provisioning-details">
         <div><span>Time remaining</span><strong data-provisioning-remaining>—</strong></div>
-        <div><span>Nodes registered</span><strong data-provisioning-count>—</strong></div>
+        <div><span>New nodes this scan</span><strong data-provisioning-count>—</strong></div>
     </div>
     <div class="provisioning-controls">
-        <label for="provisioningDuration">Provisioning window
+        <label for="provisioningDuration">Discovery window
             <select id="provisioningDuration" data-provisioning-duration>
                 <option value="300">5 minutes</option>
                 <option value="600" selected>10 minutes</option>
@@ -17,9 +17,18 @@
                 <option value="3600">1 hour</option>
             </select>
         </label>
-        <button type="button" data-provisioning-open disabled>Open provisioning</button>
-        <button type="button" class="secondary" data-provisioning-close disabled>Close provisioning</button>
+        <button type="button" data-provisioning-open disabled>Scan for new devices</button>
+        <button type="button" class="secondary" data-provisioning-close disabled>Stop scanning</button>
         <button type="button" class="secondary" data-provisioning-refresh>Refresh status</button>
     </div>
-    <p class="provisioning-message" data-provisioning-message role="status">Checking provisioning availability…</p>
+    <p class="provisioning-message" data-provisioning-message role="status">Checking discovery availability…</p>
+    <h3>Device approvals</h3>
+    <p class="muted">Pending devices and your decisions are saved when scanning stops. Rejected devices stay rejected across scans and restarts. Online means the first uplink has been received.</p>
+    <p data-provisioning-empty>No verified devices awaiting approval.</p>
+    <div class="provisioning-queue" data-provisioning-queue hidden>
+        <table>
+            <thead><tr><th scope="col">Node</th><th scope="col">Gateway / signal</th><th scope="col">Last seen</th><th scope="col">Status</th><th scope="col">Decision</th></tr></thead>
+            <tbody data-provisioning-candidates></tbody>
+        </table>
+    </div>
 </section>

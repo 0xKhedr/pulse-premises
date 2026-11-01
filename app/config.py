@@ -62,17 +62,16 @@ class Settings(BaseSettings):
     # --- Over-the-air enrollment ------------------------------------------
     # A node whose DevEUI the network has never seen cannot join, and cannot
     # therefore be discovered by the webhook. Enrollment closes that gap: the
-    # app watches gateway traffic for join requests, and registers a DevEUI in
-    # TTN once the request's MIC proves the sender already holds this
-    # deployment's shared AppKey.
+    # app watches gateway traffic for join requests and queues verified devices
+    # for individual portal approval. Only Accept registers an identity in TTN.
     #
     # Off by default, and an open window is deliberately not persisted -- a
     # restart closes it, so the system fails closed.
     AUTO_ENROLLMENT_ENABLED: bool = False
     # How long a window stays open once an administrator opens one.
     AUTO_ENROLLMENT_WINDOW_SECONDS: int = 600
-    # Registrations allowed per window, so one open window cannot be used to
-    # flood the TTN device registry.
+    # New approval candidates allowed per discovery window. Repeat requests
+    # update existing candidates without consuming additional quota.
     AUTO_ENROLLMENT_MAX_PER_WINDOW: int = 10
     # Gateways whose traffic is watched. Empty means every gateway in the
     # gateways table.
