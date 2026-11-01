@@ -4,6 +4,10 @@ import { createBrowserRouter, Navigate } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import './index.css'
 import App from './App.jsx'
+import Gateways from './pages/Gateways.jsx'
+import Devices from './pages/Devices.jsx'
+import Buildings from './pages/Buildings.jsx'
+import Provisioning from './pages/Provisioning.jsx'
 
 const router = createBrowserRouter([
   {
@@ -11,16 +15,26 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Navigate to="/gateways" replace /> },
-      ...[
-        { path: "gateways", title: "Gateways", group: "Manage" },
-        { path: "devices", title: "Devices", group: "Manage" },
-        { path: "buildings", title: "Buildings", group: "Manage" },
-        { path: "provisioning", title: "Provisioning", group: "Control" },
-      ].map(({ path, title, group }) => ({
-        path,
-        handle: { title, group },
-        element: <h1 className="text-2xl font-semibold">{title}</h1>,
-      })),
+      {
+        path: "gateways",
+        handle: { title: "Gateways", group: "Manage" },
+        element: <Gateways />,
+      },
+      {
+        path: "devices",
+        handle: { title: "Devices", group: "Manage" },
+        element: <Devices />,
+      },
+      {
+        path: "buildings",
+        handle: { title: "Buildings", group: "Manage" },
+        element: <Buildings />,
+      },
+      {
+        path: "provisioning",
+        handle: { title: "Provisioning", group: "Control" },
+        element: <Provisioning />,
+      },
     ],
   },
 ]);
