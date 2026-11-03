@@ -6,8 +6,8 @@ import './index.css'
 import App from './App.jsx'
 import Gateways from './pages/Gateways.jsx'
 import Devices from './pages/Devices.jsx'
-import Buildings from './pages/Buildings.jsx'
-import Provisioning from './pages/Provisioning.jsx'
+import Premises from './pages/Premises.jsx'
+import Provision from './pages/Provision.jsx'
 
 const router = createBrowserRouter([
   {
@@ -26,14 +26,14 @@ const router = createBrowserRouter([
         element: <Devices />,
       },
       {
-        path: "buildings",
-        handle: { title: "Buildings", group: "Manage" },
-        element: <Buildings />,
+        path: "premises",
+        handle: { title: "Premises", group: "Manage" },
+        element: <Premises />,
       },
       {
-        path: "provisioning",
-        handle: { title: "Provisioning", group: "Control" },
-        element: <Provisioning />,
+        path: "provision",
+        handle: { title: "Provision", group: "Control" },
+        element: <Provision />,
       },
     ],
   },

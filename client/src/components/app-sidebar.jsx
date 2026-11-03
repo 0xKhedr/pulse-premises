@@ -4,8 +4,8 @@ import {
   CpuIcon,
   GalleryVerticalEndIcon,
   RouterIcon,
-  Settings2Icon,
   TerminalIcon,
+  WrenchIcon,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -34,10 +34,10 @@ const data = {
   manage: [
     { title: "Gateways", url: "/gateways", icon: <RouterIcon /> },
     { title: "Devices", url: "/devices", icon: <CpuIcon /> },
-    { title: "Buildings", url: "/buildings", icon: <Building2Icon /> },
+    { title: "Premises", url: "/premises", icon: <Building2Icon /> },
   ],
   control: [
-    { title: "Provisioning", url: "/provisioning", icon: <Settings2Icon /> },
+    { title: "Provision", url: "/provision", icon: <WrenchIcon /> },
   ],
 }
 
