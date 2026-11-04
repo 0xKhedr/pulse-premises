@@ -27,14 +27,17 @@ class TTNClient:
             or self.base_url.replace("https://", "").replace("http://", "")
         )
 
-    def get_headers(self) -> dict[str, str]:
+    def get_headers(self, *, gateway: bool = False) -> dict[str, str]:
+        api_key = self.api_key
+        if gateway:
+            api_key = settings.AUTO_ENROLLMENT_GATEWAY_API_KEY.strip() or api_key
         return {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
 
-    def _request(self, method: str, path: str, **kwargs) -> requests.Response:
+    def _request(self, method: str, path: str, *, gateway: bool = False, **kwargs) -> requests.Response:
         if settings.PREVIEW_MODE:
             raise RuntimeError("TTN changes are unavailable in the preview workspace")
         url = f"{self.base_url}{path}"
@@ -42,7 +45,7 @@ class TTNClient:
             r = requests.request(
                 method,
                 url,
-                headers=self.get_headers(),
+                headers=self.get_headers(gateway=gateway),
                 timeout=20,
                 **kwargs,
             )
@@ -251,15 +254,34 @@ function decodeUplink(input) {
         return self._request(
             "GET",
             f"/api/v3/gateways/{gateway_id}",
+            gateway=True,
         ).json()
 
     def get_gateway_stats(self, gateway_id: str) -> dict[str, Any]:
         if settings.PREVIEW_MODE:
             from app.services.preview import gateway_stats
             return gateway_stats(gateway_id)
-        return self._request(
-            "GET",
-            f"/api/v3/gs/gateways/{gateway_id}/connection/stats",
-        ).json()
+        try:
+            return self._request(
+                "GET",
+                f"/api/v3/gs/gateways/{gateway_id}/connection/stats",
+                gateway=True,
+            ).json()
+        except requests.HTTPError as error:
+            # A registered gateway with no active connection is offline.
+            # Preserve authentication failures and genuinely missing gateways.
+            if error.response is not None and error.response.status_code == 404:
+                try:
+                    details = error.response.json().get("details", [])
+                except ValueError:
+                    details = []
+                if any(
+                    isinstance(detail, dict)
+                    and detail.get("namespace") == "pkg/gatewayserver"
+                    and detail.get("name") == "not_connected"
+                    for detail in details
+                ):
+                    return {}
+            raise
 
 ttn_client = TTNClient()

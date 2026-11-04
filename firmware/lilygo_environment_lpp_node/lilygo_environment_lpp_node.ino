@@ -145,15 +145,10 @@ CayenneLPP lpp(51);
 // requires at least 8 characters.
 #define PROVISION_PASSWORD_LENGTH 8
 
-// The BOOT button, used to forget the nickname and reopen the portal so a
-// board can be renamed in the field without a cable.
-//
-// It is checked for a hold shortly AFTER boot, never through a reset: GPIO0 is
-// the ESP32's bootstrap pin, and holding it low through reset puts the chip
-// into flash-download mode instead of running this sketch at all.
-#define PIN_RESET_NICKNAME 0
-#define RENAME_HOLD_MS     2000
-#define RENAME_WINDOW_MS   4000
+// Press RST during this startup window to forget the nickname on the next
+// boot. The marker lives in flash because hardware reset can clear RTC RAM.
+// A power interruption during the window has the same effect as pressing RST.
+#define RESET_WINDOW_MS 3000
 
 Preferences preferences;
 static char nickname[NICKNAME_MAX_LENGTH + 1] = "";
@@ -700,11 +695,29 @@ void runProvisioningPortal() {
 }
 
 
-// Watch the BOOT button for a sustained press in the first few seconds of
-// running. Returns true if it was held long enough to mean "rename me".
+// Arm a persistent marker for three seconds. If reset interrupts the wait,
+// the next boot consumes the marker and reopens the existing naming portal.
+// This runs before LMIC starts; the normal radio loop is never suspended.
 static bool renameRequested() {
-    unsigned long start = millis();
-    unsigned long heldSince = 0;
+    Preferences resetPreferences;
+    if (!resetPreferences.begin("sbms", /*readOnly=*/false)) {
+        Serial.println(F("[ERROR] Cannot open reset-window storage."));
+        return false;
+    }
+
+    const bool interrupted = resetPreferences.getBool("rename_pending", false);
+    if (resetPreferences.putBool("rename_pending", !interrupted) != 1) {
+        Serial.println(F("[ERROR] Cannot update reset-window marker."));
+        resetPreferences.end();
+        return false;
+    }
+    if (interrupted) {
+        resetPreferences.end();
+        return true;
+    }
+
+    Serial.printf("[BOOT] Press RST within %lu seconds to rename.\n",
+                  static_cast<unsigned long>(RESET_WINDOW_MS / 1000));
 
 #if ENABLE_OLED
     if (oledReady) {
@@ -712,21 +725,17 @@ static bool renameRequested() {
         display.setCursor(0, 0);
         display.println(F("SBMS LoRaWAN Node"));
         display.setCursor(0, 24);
-        display.println(F("Hold BOOT 2s"));
+        display.println(F("Press RST within 3s"));
         display.println(F("to rename."));
         display.display();
     }
 #endif
 
-    while (millis() - start < RENAME_WINDOW_MS) {
-        if (digitalRead(PIN_RESET_NICKNAME) == LOW) {
-            if (!heldSince) heldSince = millis();
-            if (millis() - heldSince >= RENAME_HOLD_MS) return true;
-        } else {
-            heldSince = 0;
-        }
-        delay(20);
+    delay(RESET_WINDOW_MS);
+    if (resetPreferences.putBool("rename_pending", false) != 1) {
+        Serial.println(F("[ERROR] Cannot clear reset-window marker."));
     }
+    resetPreferences.end();
     return false;
 }
 
@@ -1013,17 +1022,6 @@ void setup() {
     // this board still has to be named, and is switched off immediately after.
     btStop();
 
-    pinMode(PIN_RESET_NICKNAME, INPUT_PULLUP);
-
-    scanI2CBus();
-    float initialTemp = NAN, initialHum = NAN;
-    environmentalReadingValid = readEnvironmentalSensor(initialTemp, initialHum);
-#if ENABLE_OLED
-    lastTemp = initialTemp;
-    lastHum = initialHum;
-    displayDirty = true;
-#endif
-
     // The DevEUI names the provisioning access point, so it has to exist
     // before the portal can start.
     if (!initUniqueDevEUI()) {
@@ -1034,7 +1032,7 @@ void setup() {
 
     loadNickname();
     if (strlen(nickname) && renameRequested()) {
-        Serial.println(F("[SETUP] BOOT held: forgetting nickname."));
+        Serial.println(F("[SETUP] Startup reset detected: forgetting nickname."));
         saveNickname("-");
     }
 
@@ -1044,6 +1042,17 @@ void setup() {
     if (!strlen(nickname)) {
         runProvisioningPortal();
     }
+
+    // Probe sensors after the reset window and naming portal so slow or
+    // missing hardware cannot postpone the rename prompt.
+    scanI2CBus();
+    float initialTemp = NAN, initialHum = NAN;
+    environmentalReadingValid = readEnvironmentalSensor(initialTemp, initialHum);
+#if ENABLE_OLED
+    lastTemp = initialTemp;
+    lastHum = initialHum;
+    displayDirty = true;
+#endif
 
     WiFi.mode(WIFI_OFF);
     Serial.println(F("[INFO] Wi-Fi & Bluetooth off (Pure LoRa Mode)"));

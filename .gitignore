@@ -37,3 +37,5 @@ uploads/*
 
 # Compiled firmware. Reproducible from the sketch with tools/node_firmware.sh.
 build/
+node_modules
+/client

@@ -81,6 +81,8 @@ class Settings(BaseSettings):
     # key silently receives only status events, never uplinks. Mint a key with
     # RIGHT_GATEWAY_READ_TRAFFIC on the gateway and set it here. Falls back to
     # TTN_API_KEY, which works only if that key happens to be gateway-scoped.
+    # Gateway monitoring also uses this key; include RIGHT_GATEWAY_INFO and
+    # RIGHT_GATEWAY_STATUS_READ alongside gateway traffic access.
     AUTO_ENROLLMENT_GATEWAY_API_KEY: str = ""
 
     # A decoded uplink is self-describing, and the webhook already stores

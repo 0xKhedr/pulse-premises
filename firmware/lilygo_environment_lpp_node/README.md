@@ -44,10 +44,19 @@ Other channels from the dummy sketch are omitted because their sensors are
 not connected. Existing historical dummy readings in the cloud are unaffected.
 
 The original DevEUI derivation, OTAA credentials, nickname storage, naming
-portal, BOOT-button rename flow, and nickname uplinks on port **10** are kept.
+portal, and nickname uplinks on port **10** are kept.
 Generate credentials with `python tools/generate_lorawan_credentials.py`;
 the new sketch folder gets its own gitignored header. A local copy of the
 original sketch's credential header can also be used with this sketch.
+
+To rename an already named node, restart it and press **RST** again during
+the **three-second window** shown on Serial and the OLED. On the next boot,
+the stored marker clears the nickname and reopens the Wi-Fi naming portal.
+Save the new name in the portal, or type `nick <name>` over Serial at 115200
+baud; the node then continues into normal LoRaWAN operation. Letting the
+window expire keeps the nickname. An unnamed node opens the portal directly.
+The marker uses flash and is written twice per ordinary named startup; a
+power interruption during the window also requests a rename.
 
 For a new node, open **Scan for new devices** in the web portal, then power
 on the board and save its nickname. The board's verified join request appears
