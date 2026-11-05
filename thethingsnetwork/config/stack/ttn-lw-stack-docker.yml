@@ -1,0 +1,134 @@
+# Identity Server configuration
+# Email configuration for "thethings.example.com"
+is:
+  email:
+    sender-name: "The Things Stack"
+    sender-address: "noreply@${TTN_HOST}"
+    network:
+      name: "The Things Stack"
+      console-url: "http://${TTN_HOST}/console"
+      identity-server-url: "http://${TTN_HOST}/oauth"
+
+    # If sending email with Sendgrid
+    # provider: sendgrid
+    # sendgrid:
+    #   api-key: '...'              # enter Sendgrid API key
+
+    # If sending email with SMTP
+    # provider: smtp
+    # smtp:
+    #   address:  '...'             # enter SMTP server address
+    #   username: '...'             # enter SMTP server username
+    #   password: '...'             # enter SMTP server password
+
+  # Web UI configuration for "thethings.example.com":
+  oauth:
+    ui:
+      canonical-url: "http://${TTN_HOST}/oauth"
+      is:
+        base-url: "http://${TTN_HOST}/api/v3"
+
+# HTTP server configuration
+http:
+  cookie:
+    block-key: "" # generate 32 bytes (openssl rand -hex 32)
+    hash-key: "" # generate 64 bytes (openssl rand -hex 64)
+  metrics:
+    password: "metrics" # choose a password
+  pprof:
+    password: "pprof" # choose a password
+  listen-tls: ""
+
+grpc:
+  listen-tls: ""
+
+interop:
+  listen-tls: ""
+
+# If using custom certificates:
+# tls:
+#   source: file
+#   root-ca: /run/secrets/ca.pem
+#   certificate: /run/secrets/cert.pem
+#   key: /run/secrets/key.pem
+
+# Let's encrypt for "thethings.example.com"
+# tls:
+#   source: acme
+#   acme:
+#     dir: /var/lib/acme
+#     email: "you@thethings.example.com"
+#     hosts: ["thethings.example.com"]
+#     default-host: "thethings.example.com"
+
+# If Gateway Server enabled, defaults for "thethings.example.com":
+gs:
+  mqtt:
+    public-address: "${TTN_HOST}:1882"
+    # public-tls-address: "$https://thethings.example.com:8882"
+    listen-tls: ""
+  mqtt-v2:
+    public-address: "${TTN_HOST}:1881"
+    # public-tls-address: "$https://thethings.example.com:8881"
+    listen-tls: ""
+  basic-station:
+    listen-tls: ""
+  ttigw:
+    listen-tls: ""
+
+# If Gateway Configuration Server enabled, defaults for "thethings.example.com":
+gcs:
+  basic-station:
+    default:
+      lns-uri: "ws://${TTN_HOST}:1887"
+
+# Web UI configuration for "thethings.example.com":
+console:
+  ui:
+    canonical-url: "http://${TTN_HOST}/console"
+    account-url: "http://${TTN_HOST}/oauth"
+    is:
+      base-url: "http://${TTN_HOST}/api/v3"
+    gs:
+      base-url: "http://${TTN_HOST}/api/v3"
+    ns:
+      base-url: "http://${TTN_HOST}/api/v3"
+    as:
+      base-url: "http://${TTN_HOST}/api/v3"
+    js:
+      base-url: "http://${TTN_HOST}/api/v3"
+    gcs:
+      base-url: "http://${TTN_HOST}/api/v3"
+    qrg:
+      base-url: "http://${TTN_HOST}/api/v3"
+    edtc:
+      base-url: "http://${TTN_HOST}/api/v3"
+    dcs:
+      base-url: "http://${TTN_HOST}/api/v3"
+  oauth:
+    authorize-url: "http://${TTN_HOST}/oauth/authorize"
+    token-url: "http://${TTN_HOST}:1885/oauth/token"
+    logout-url: "http://${TTN_HOST}/oauth/logout"
+    client-id: "console"
+    client-secret: "console" # choose or generate a secret
+
+# If Application Server enabled, defaults for "thethings.example.com":
+as:
+  mqtt:
+    public-address: "${TTN_HOST}:1883"
+    # public-tls-address: "https://thethings.example.com:8883"
+    listen-tls: ""
+  webhooks:
+    downlink:
+      public-address: "${TTN_HOST}:1885/api/v3"
+
+# Managed gateway configuration, defaults for "thethings.example.com".
+# This configures a connection with The Things Gateway Controller, a service operated by The Things Industries.
+# This allows connecting The Things Indoor Gateway Pro.
+# ttgc:
+#   enabled: true
+#   domain: thethings.example.com
+#   tls:
+#     source: file
+#     certificate: /run/secrets/cert.pem
+#     key: /run/secrets/key.pem

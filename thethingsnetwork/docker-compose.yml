@@ -1,0 +1,98 @@
+services:
+
+  postgres:
+    # In production, replace 'latest' with tag from https://hub.docker.com/_/postgres?tab=tags
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_USER=root
+      - POSTGRES_DB=ttn_lorawan
+    volumes:
+      - ttn-postgres:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    # In production, replace 'latest' with tag from https://hub.docker.com/_/redis?tab=tags
+    image: redis:8-alpine
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    volumes:
+      - ttn-redis:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  stack:
+    # The Dockerfile extends the pinned upstream image with config rendering
+    image: ttn-lw-stack:3.37
+    build: .
+    command: start
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ttn-blob:/srv/ttn-lorawan/public/blob
+      - ./config/stack:/config:ro
+      # If using Let's Encrypt:
+      # - ./acme:/var/lib/acme
+    environment:
+      TTN_LW_BLOB_LOCAL_DIRECTORY: /srv/ttn-lorawan/public/blob
+      TTN_LW_REDIS_ADDRESS: redis:6379
+      TTN_LW_IS_DATABASE_URI: postgres://root:root@postgres:5432/ttn_lorawan?sslmode=disable
+    env_file:
+      - ./.env
+
+    ports:
+      # If deploying on a public server:
+      - "80:1885"
+      # - "443:8885"
+      # - "1881:1881"
+      # - "8881:8881"
+      # - "1882:1882"
+      # - "8882:8882"
+      # - "1883:1883"
+      # - "8883:8883"
+      # - "1884:1884"
+      # - "8884:8884"
+      # - "1885:1885"
+      # - "8885:8885"
+      # - "1886:1886"
+      # - "8886:8886"
+      # - "1887:1887"
+      # - "8887:8887"
+      # - "8889:8889"
+      # - "1700:1700/udp"
+
+    # If using custom certificates:
+    # secrets:
+    #   - ca.pem
+    #   - cert.pem
+    #   - key.pem
+
+volumes:
+  ttn-postgres:
+  ttn-redis:
+  ttn-blob:
+
+# If using custom certificates:
+# secrets:
+#   ca.pem:
+#     file: ./ca.pem
+#   cert.pem:
+#     file: ./cert.pem
+#   key.pem:
+#     file: ./key.pem
