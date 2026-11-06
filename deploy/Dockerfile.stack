@@ -1,0 +1,12 @@
+ARG TTS_IMAGE=thethingsnetwork/lorawan-stack:3.36.2
+FROM ${TTS_IMAGE}
+
+USER root
+COPY --chmod=755 linux/stack-entrypoint.sh linux/stack-init.sh /setup/
+# Named volumes inherit ownership from the image on first use.
+RUN mkdir -p /srv/ttn-lorawan/public/blob \
+    && chown 886:886 /srv/ttn-lorawan/public/blob
+
+USER 886:886
+ENTRYPOINT ["/setup/stack-entrypoint.sh"]
+CMD ["start"]

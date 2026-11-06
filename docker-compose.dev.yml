@@ -1,10 +1,10 @@
 # Local development conveniences.
 #
-# Docker Compose merges this file automatically, so `docker compose up` picks
-# it up with no extra flags. Deploy WITHOUT it so the image stays
-# self-contained:
+# Opt in to live template/static mounts with:
 #
-#     docker compose -f docker-compose.yml up -d --build
+#     docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Ordinary `docker compose up` uses the self-contained deployment image.
 #
 # Templates and static assets are baked into the image by COPY, so without
 # these mounts every edit needs a full rebuild before it shows up. Mounted

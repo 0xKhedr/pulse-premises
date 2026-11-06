@@ -227,7 +227,14 @@ Each of these caused a real defect. Preserve them.
    - DB persists in the sbms-data NAMED volume (not a bind mount - this avoids SQLite WAL
      locking problems on Docker Desktop / WSL2). DB_FILE defaults to /app/data/smarthome.db
      in the image so a bare `docker run` cannot silently write to the ephemeral layer.
-   - uploads/ is a host bind mount. On a Linux host it may need `chown -R 1000:1000 uploads`.
+   - Uploads persist in the sbms-uploads named volume, with ownership inherited from the image.
+   - docker-compose.yml is the default full stack: SBMS, The Things Stack, PostgreSQL and Redis.
+     tools/setup.py prepares config and starts Compose on Windows/Linux. The TTN entrypoint
+     initializes before exec-ing the server; per-step checkpoints live in the blob volume.
+     tools/setup.py and tools/prepare_building.py overwrite .env and deploy/stack/ttn-lw-stack.yml
+     on every run, regenerating random keys. Fixed defaults: PostgreSQL root, Console secret
+     console, admin password admin, enrollment true, host localhost, email admin@{host}.
+     Compose loads .env automatically. Use ordinary Compose commands to keep existing config.
    - PORT is honoured via shell-form CMD; EXPOSE and compose both default to 8000.
    - Managed-network TLS interception: save the proxy root CA (DER) as .docker-local-ca.cer and
      set SBMS_LOCAL_CA_FILE=.docker-local-ca.cer in .env. Compose defaults to the committed
@@ -237,9 +244,9 @@ Each of these caused a real defect. Preserve them.
      as a no-op and silently breaks every later build. Do not split them apart again.
    - TTN_WEBHOOK_SECRET must be set to a real value or ALL telemetry ingestion returns 503.
    - templates/ and static/ are COPYied into the image, so an edit does NOT appear until a
-     rebuild. docker-compose.override.yml mounts both read-only for local dev (Compose merges
-     it automatically) and they then hot-reload per request. Deploy with
-     `docker compose -f docker-compose.yml up -d --build` to EXCLUDE the override.
+     rebuild. Opt into live read-only mounts for development with
+     `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`.
+     Ordinary `docker compose up -d --build --wait` uses the self-contained image.
      Python changes always need a rebuild.
 
 --------------------------------------------------------------------------------

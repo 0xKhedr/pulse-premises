@@ -17,7 +17,8 @@ Thumbs.db
 *.whl
 *.csv
 .env
-.env.building
+.env.*
+!.env.example
 deploy/stack/
 firmware/lorawan_credentials.h
 firmware/lilygo_cayenne_lpp_node/lorawan_credentials.h

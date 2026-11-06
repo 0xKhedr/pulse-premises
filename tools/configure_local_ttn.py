@@ -26,7 +26,7 @@ def main() -> int:
         shutil.copy2(env_path, backup_dir / ".env")
 
     # Host-side tools use localhost. docker-compose overrides only the
-    # container value with host.docker.internal.
+    # container value with the bundled stack's service name, stack:1885.
     set_key(str(env_path), "TTN_BASE_URL", "http://localhost:1885", quote_mode="never")
     set_key(str(env_path), "TTN_APP_ID", "smart-building-lora-2", quote_mode="never")
     set_key(str(env_path), "TTN_API_KEY", api_key, quote_mode="never")

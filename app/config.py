@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
 
     ADMIN_EMAIL: str = "admin@system.local"
-    ADMIN_PASSWORD: str = "change-me"
+    ADMIN_PASSWORD: str = "admin"
     SESSION_TTL_SECONDS: int = 28800
     PASSWORD_PBKDF2_ITERATIONS: int = 200000
     COOKIE_SECURE: bool = False
@@ -65,9 +65,9 @@ class Settings(BaseSettings):
     # app watches gateway traffic for join requests and queues verified devices
     # for individual portal approval. Only Accept registers an identity in TTN.
     #
-    # Off by default, and an open window is deliberately not persisted -- a
+    # Enabled by default, and an open window is deliberately not persisted -- a
     # restart closes it, so the system fails closed.
-    AUTO_ENROLLMENT_ENABLED: bool = False
+    AUTO_ENROLLMENT_ENABLED: bool = True
     # How long a window stays open once an administrator opens one.
     AUTO_ENROLLMENT_WINDOW_SECONDS: int = 600
     # New approval candidates allowed per discovery window. Repeat requests

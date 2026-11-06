@@ -30,12 +30,12 @@ if [[ -z "${ttn_owner//[[:space:]]/}" ]]; then
 fi
 
 cd "$(dirname "$0")/.."
-if [[ ! -f .env.building || ! -f deploy/stack/ttn-lw-stack.yml ]]; then
-    echo "Existing .env.building and deploy/stack/ttn-lw-stack.yml files are required." >&2
+if [[ ! -f .env || ! -f deploy/stack/ttn-lw-stack.yml ]]; then
+    echo "Existing .env and deploy/stack/ttn-lw-stack.yml files are required." >&2
     exit 1
 fi
 
-compose=(docker compose --env-file .env.building -f docker-compose.building.yml)
+compose=(docker compose)
 "${compose[@]}" config --quiet
 # Read the secret inside the container. Warning-level logging suppresses the
 # CLI's success message, which otherwise includes the client secret.

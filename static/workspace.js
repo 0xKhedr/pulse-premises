@@ -49,13 +49,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.querySelector('.workspace-content > .container');
     if (path === '/admin/setup') {
         const cards = [...container.querySelectorAll(':scope > .grid > .card')];
-        const matching = names => cards.filter(card => names.includes(card.querySelector('h2')?.textContent.trim()));
+        const matching = section => cards.filter(card => card.dataset.assetSection === section);
         tabs(container, [
-            {label: 'Organization', nodes: matching(['Clients', 'Sites'])},
-            {label: 'Buildings & floors', nodes: matching(['Buildings', 'Floors'])},
-            {label: 'Gateways', nodes: matching(['Gateways'])},
-            {label: 'Devices', nodes: matching(['Device provisioning', 'Device Assignment', 'Devices & Building Placement'])},
-            {label: 'Structure & tools', nodes: matching(['Operational Links', 'Deployment Structure Summary'])}
+            {label: 'Organization', nodes: matching('organization')},
+            {label: 'Buildings & floors', nodes: matching('buildings')},
+            {label: 'Gateways', nodes: matching('gateways')},
+            {label: 'Devices', nodes: matching('devices')},
+            {label: 'Structure & tools', nodes: matching('tools')}
         ]);
         // Separate creation, updates and map uploads inside each asset card.
         const formGroups = [
@@ -77,8 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const host = document.createElement('div'); card.insertBefore(host, status); tabs(host, sections);
         });
-        const note = container.querySelector('.note-card');
-        if (note) { const details = document.createElement('details'); details.className = 'setup-guide'; const summary = document.createElement('summary'); summary.textContent = 'Setup guide'; note.before(details); details.append(summary, note); details.style.marginBottom = '20px'; }
     }
     if (path === '/admin/client-access') {
         const cards = [...container.querySelectorAll(':scope > .grid > .card, :scope > .card')];

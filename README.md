@@ -3,21 +3,50 @@
 FastAPI-based smart-building platform for LoRaWAN provisioning, telemetry,
 floor maps, alarms, gateways, client access and firmware tooling.
 
+Start with [setup.md](setup.md) for the quick setup steps and default logins.
+
 ## Requirements
 
 - Python **3.10+**
-- pip
+- Docker Engine / Docker Desktop with Docker Compose **2.24+**
 
 ## Install and run
 
-### Windows
+The default setup runs SBMS, The Things Stack, PostgreSQL, and Redis together.
+Set it up from PowerShell or a Linux terminal:
+
+```text
+python tools/setup.py
+```
+
+The host defaults to `localhost` and the SBMS administrator email defaults to
+`admin@{host}`. Use `--host <LAN-IP-or-DNS-name>` for remote browsers or gateways,
+and `--admin-email` to override the email. Each run overwrites `.env` and the
+stack configuration using these arguments and defaults, regenerating random keys.
+
+This generates configuration, builds the images, and starts all
+services. The TTN entrypoint initializes its database, administrator, and
+Console OAuth client before starting the server. Completed database initialization
+steps remain recorded in the blob volume. See [the setup guide](deploy/NEW_MACHINE_SETUP.md).
+
+Open `http://localhost:8000/admin` for SBMS or
+`http://localhost:1885/console` for TTN. Compose automatically loads `.env`
+and `docker-compose.yml`. See [the deployment guide](deploy/README.md) for
+TTN initialization, credentials, gateway connections, backups, and upgrades.
+
+### Run the Python app directly
+
+For source development with Python and pip, the existing launchers run SBMS
+on the host. The TTN stack must already be running.
+
+On Windows:
 
 ```powershell
 .\windows\install.ps1
 .\windows\run.bat
 ```
 
-### Linux
+On Linux:
 
 ```bash
 bash linux/install.sh
@@ -50,19 +79,18 @@ checks still apply. Re-running preserves changes made in the preview workspace.
 Use `--seed-only` to prepare the sample database without starting a server,
 or `--port 8002` to choose another local port.
 
-Copy `.env.example` to `.env` and edit it for your environment.
+Generate `.env` with `python tools/prepare_building.py`, then edit it for your
+environment. `.env.example` documents settings and contains sample credentials.
 
 The active names include `DB_FILE`, TTN settings, `TB_USERNAME`, `TB_PASSWORD`,
 `ALERT_EMAIL_FROM`, `ALERT_EMAIL_TO`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`,
 `COOKIE_SECURE`, and `LOCAL_TEST_MODE`.
 
-Two settings gate real security behaviour:
+Connection and access settings:
 
-- **The development TTN is local.** Host-side tools use
-  `http://localhost:1885`; Docker Compose routes the application container to
-  the same stack through `SBMS_TTN_BASE_URL` (default
-  `http://host.docker.internal:1885`). The building deployment installs its own
-  stack and uses `http://stack:1885` on the Compose network.
+- **TTN is bundled.** Host-side tools use `TTN_BASE_URL`, generated from the
+  selected host (default `http://localhost:1885`). Docker Compose routes SBMS
+  to `http://stack:1885` on its internal network.
 - **`TTN_WEBHOOK_SECRET` is required.** `/ttn-webhook` returns 503 to every
   request while it is empty. Set the same value in the TTN webhook's
   `X-Webhook-Secret` header.
@@ -111,7 +139,7 @@ Generate the shared firmware credential header after configuring `.env`:
 python tools/generate_lorawan_credentials.py
 ```
 
-For portal-controlled admission, enable `AUTO_ENROLLMENT_ENABLED` and configure
+For portal-controlled admission, `AUTO_ENROLLMENT_ENABLED` defaults to `true`. Configure
 `AUTO_ENROLLMENT_GATEWAY_API_KEY` with gateway traffic access. In Device
 Management or Sensor Capabilities, select **Scan for new devices**, power on
 the node, and save its nickname. A valid join request adds one **Pending
@@ -221,106 +249,61 @@ relational joins and migration tests pass against a copy of real data.
 
 ## Deployment (Docker)
 
-For the building's Linux server, follow **[the building deployment guide](deploy/README.md)**.
-`docker-compose.building.yml` installs SBMS, The Things Stack Open Source,
-PostgreSQL, and Redis in one Compose stack with persistent named volumes.
-SBMS is built from this repository's Dockerfile; The Things Stack, PostgreSQL,
-and Redis use upstream images. No published SBMS image is required.
-ThingsBoard is optional: `THINGSBOARD_ENABLED=false` disables its requests while
-local readings, telemetry history, alarms, and email alerts continue to work.
-The deployment generator creates separate `.env.building` and stack configuration
-files without changing the developer's `.env`. After the first-time stack
-initialization in the guide, start the deployment with:
+`docker-compose.yml` installs SBMS, The Things Stack Open Source, PostgreSQL,
+and Redis with five persistent named volumes. SBMS uses `Dockerfile`; the
+stack uses `deploy/Dockerfile.stack` to add automatic initialization to the
+upstream image. PostgreSQL and Redis use upstream images. ThingsBoard is optional and
+is disabled by default. Local readings, telemetry history, alarms, and email
+alerts work without it.
+
+For a fresh installation, run `python tools/setup.py`. To prepare configuration
+without starting Docker, use `python tools/setup.py --prepare-only`.
+Start and update configured services using:
 
 ```bash
-docker compose --env-file .env.building -f docker-compose.building.yml up -d --build --wait
+docker compose up -d --build --wait
 ```
 
-The commands below are for building SBMS from source with separately managed
-TTN/ThingsBoard services:
+The generated `.env` uses PostgreSQL password `root`, SBMS admin password
+`admin`, Console secret `console`, and enables auto-enrollment. Cookie, cluster,
+webhook, and device keys are randomly generated.
+Preserve it and
+`deploy/stack/ttn-lw-stack.yml` across upgrades. Keep `COMPOSE_PROJECT_NAME`
+stable (default `smart-building`) to reuse the existing volumes. SBMS stores
+its SQLite database in `sbms-data` and uploaded files in `sbms-uploads`. Both
+volumes inherit ownership from the image's unprivileged user (UID 1000).
 
-```bash
-cp .env.example .env   # then edit .env for your environment
-docker compose up --build
-```
-
-This builds the image, starts the `sbms-app` container, and publishes it on
-`http://localhost:8000`. The SQLite database file persists across container
-restarts and rebuilds in the `sbms-data` named Docker volume (mounted at
-`/app/data` inside the container); uploaded files persist in the `./uploads`
-bind mount. The container runs as an unprivileged, non-root user (uid 1000).
+Configure TTN's webhook with base URL `http://sbms-app:8000`, uplink path
+`/ttn-webhook`, and an `X-Webhook-Secret` header matching `TTN_WEBHOOK_SECRET`
+in `.env`. SBMS reaches TTN at `http://stack:1885` inside Compose. Set the
+application API key created in the bundled stack as `TTN_API_KEY` in `.env`.
 
 ### Editing templates and static files
 
-`templates/` and `static/` are baked into the image by `COPY`, so a plain
-`docker compose up -d` would need `--build` before an edit shows up.
-`docker-compose.override.yml` mounts both read-only for local development, and
-Compose merges it automatically:
+Templates and static files are baked into the image. Rebuild after changes
+with `docker compose up -d --build`. To mount these directories read-only
+for development, explicitly add the optional development file:
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-Edits then appear on the next request -- no rebuild, no restart (Jinja2
-auto-reloads templates, and StaticFiles reads from disk per request). Hard-refresh
-the browser (Ctrl+Shift+R) if a page looks stale; a service worker is registered.
-
-Run the source-built app **without** the development override:
-
-```bash
-docker compose -f docker-compose.yml up -d --build
-```
-
-Python code changes still need a rebuild either way.
+Template and static edits then appear on the next request. Python source
+changes still need a rebuild. Ordinary Compose commands use the self-contained
+image without development mounts.
 
 ### Networks that intercept TLS
 
-The build fetches packages from PyPI, so on a network with a TLS-inspecting
-proxy it needs that proxy's root certificate or the build fails with
-`CERTIFICATE_VERIFY_FAILED`. Export the root certificate (DER format) to
-`.docker-local-ca.cer` and add this to `.env`:
+Export the network's root certificate in DER format to `.docker-local-ca.cer`
+and add this to `.env`:
 
-```
+```text
 SBMS_LOCAL_CA_FILE=.docker-local-ca.cer
 ```
 
-The certificate is installed into the image trust store (so outbound HTTPS to
-TTN also works at runtime) and is never committed. By default compose points at
-the empty `.docker-local-ca.cer.example` placeholder, which the build reads as
-"no corporate CA" -- so an ordinary network needs no setup at all.
-
-The `sbms-data` named volume is initialized with the correct ownership
-automatically (Docker copies it from the image on first mount). The
-`./uploads` bind mount is different: its permissions come from the *host*
-directory, not the image. On a Linux host, if the container ever fails to
-write to `/app/uploads` with a permission error, run
-`sudo chown -R 1000:1000 uploads` on the host once;
-Docker Desktop on Windows/macOS does not need this. The building deployment
-uses a named uploads volume instead, with ownership initialized by the image.
-
-Required environment variables (set in `.env`, loaded via `env_file` in
-`docker-compose.yml`):
-
-- `TTN_WEBHOOK_SECRET`
-- `ADMIN_EMAIL` / `ADMIN_PASSWORD`
-- `DB_FILE` (already set to `/app/data/smarthome.db` by `docker-compose.yml`)
-- `COOKIE_SECURE=true` for any deployment served over HTTPS
-
-For this local Docker setup, configure the TTN webhook with base URL
-`http://host.docker.internal:8000`, uplink path `/ttn-webhook`, and the
-`X-Webhook-Secret` header. A public URL is not required while both services run
-on this Docker Desktop host.
-
-> **Telemetry ingestion is dead until you set `TTN_WEBHOOK_SECRET`.**
-> `.env.example` ships this blank on purpose. While it is empty, `/ttn-webhook`
-> fails closed and returns `503` to every request, so **no LoRaWAN telemetry
-> is accepted at all**. Before going live: set `TTN_WEBHOOK_SECRET` in your
-> `.env` to a real random value, and configure the **exact same value** in the
-> TTN application's webhook integration, in the `X-Webhook-Secret` header.
-
-On a PaaS that injects its own port (Render/Railway/Fly/etc.), the container
-honors `PORT` — pass `-e PORT=<port>` (or the platform's equivalent) and the
-process binds to it instead of the default `8000`.
+The build installs the certificate into the image trust store. On an ordinary
+network, the committed empty `.docker-local-ca.cer.example` placeholder is
+used automatically.
 
 ## Verification
 
