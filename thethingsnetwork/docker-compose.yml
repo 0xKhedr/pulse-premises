@@ -47,6 +47,7 @@ services:
     volumes:
       - ttn-blob:/srv/ttn-lorawan/public/blob
       - ./config/stack:/config:ro
+      - ./state:/state
       # If using Let's Encrypt:
       # - ./acme:/var/lib/acme
     environment:

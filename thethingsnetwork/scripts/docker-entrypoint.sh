@@ -6,7 +6,7 @@ umask 077
 envsubst < /config/ttn-lw-stack-docker.yml > /tmp/ttn-lw-stack.yml
 
 if [ "${1:-}" = start ]; then
-    exec stack-init.sh
+    stack-init.sh
 fi
 
 exec ttn-lw-stack -c /tmp/ttn-lw-stack.yml "$@"
