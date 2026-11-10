@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smartbms-cache-v12';
+const CACHE_NAME = 'smartbms-cache-v13';
 // These are served from the /static mount, not /uploads (which holds
 // uploaded floorplan images). Pointing at /uploads made every fetch 404, and
 // because cache.addAll() rejects as a whole on any failure, the service
@@ -10,6 +10,7 @@ const STATIC_ASSETS = [
   '/static/workspace.js?v=4',
   '/static/device_enrollment.js?v=2',
   '/static/device_downlinks.js?v=1',
+  '/static/device_configuration.js?v=1',
   '/static/management_tools.js?v=1',
   '/static/signin.css?v=2',
   '/static/graphs.js?v=3',

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Device configuration · {{ device.label or device.device_id }}</title>
+    <link rel="stylesheet" href="/static/bright_theme.css">
+    <link rel="stylesheet" href="/static/workspace.css?v=6">
+    <style>
+        .configuration-card { max-width: 760px; padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+        .configuration-card label { display: grid; gap: 8px; font-weight: 600; }
+        .configuration-card input { width: min(100%, 280px); box-sizing: border-box; }
+        .configuration-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+        .configuration-identity { overflow-wrap: anywhere; }
+        .configuration-card [data-last-queued] { padding: 14px; background: #f1f5f9; border-radius: 8px; }
+    </style>
+    <script src="/static/device_configuration.js?v=1" defer></script>
+</head>
+{% set workspace_title = 'Device configuration' %}
+{% set workspace_nav = '/device-capabilities-manager' %}
+<body class="workspace">
+{% include 'workspace_start.html' %}
+<header class="header">
+    <p><a href="/device-capabilities-manager">Devices</a> / Configuration</p>
+    <h1>{{ device.label or device.device_id }}</h1>
+    <p class="configuration-identity">Device ID: {{ device.device_id }}</p>
+</header>
+<section class="configuration-card" data-device-configuration data-device-id="{{ device.device_id }}" aria-labelledby="sendRateTitle">
+    <h2 id="sendRateTitle">Send rate</h2>
+    <p>Choose how long the device waits between uplinks. This also controls sensor retry timing.</p>
+    <p class="muted">Requires the updated environment_lpp_node firmware. The setting is saved on the device and survives restarts.</p>
+    <p data-last-queued>Loading the last queued setting…</p>
+    <form data-configuration-form>
+        <label for="sendInterval">Send interval (seconds)
+            <input id="sendInterval" data-send-interval type="number" min="30" max="86400" step="1" required disabled aria-describedby="intervalHelp">
+        </label>
+        <p id="intervalHelp" class="muted">30–86,400 seconds (24 hours). Firmware default: 30 seconds. Longer intervals also mean a longer wait for future configuration changes.</p>
+        <div class="configuration-actions">
+            <button type="submit" class="primary-button" data-configuration-send disabled>Queue send-rate change</button>
+            <button type="button" class="secondary-button" data-configuration-refresh>Refresh status</button>
+        </div>
+    </form>
+    <p class="provisioning-message" data-configuration-message role="status" aria-live="polite"></p>
+    <p class="muted">Class A delivery waits for a receive window after the next uplink at the existing send rate. Keep the device powered and sending. Queued does not confirm receipt or application; the device's active value is not reported to this page. Radio duty-cycle limits can extend the interval.</p>
+</section>
+{% include 'workspace_end.html' %}
+</body>
+</html>

@@ -482,6 +482,9 @@ def test_portal_approval_then_environment_nickname_uplink(enrollment_admin, db_c
     # Even a trusted webhook must not turn a pending candidate into a device.
     client.post("/ttn-webhook", json=envelope, headers={"X-Webhook-Secret": "approval-test-secret"})
     assert not db_conn.execute("SELECT 1 FROM devices WHERE dev_eui = ?", (dev_eui,)).fetchone()
+    candidate = join_enrollment.list_candidates(db_conn)[0]
+    assert candidate["status"] == "pending"
+    assert candidate["online_at"] is None
     client.post("/admin/enrollment/close")
     response = client.post(f"/admin/enrollment/candidates/{dev_eui}/accept")
     assert response.status_code == 200, response.text
@@ -496,6 +499,97 @@ def test_portal_approval_then_environment_nickname_uplink(enrollment_admin, db_c
     assert device["is_placed"] == 0
     db_conn.execute("DELETE FROM devices WHERE dev_eui = ?", (dev_eui,))
     db_conn.commit()
+
+
+@pytest.mark.parametrize("profile_failure", ["outdated", "disabled"])
+@pytest.mark.parametrize("port", [1, 10])
+def test_approved_uplink_marks_online_even_when_profile_context_fails(
+    client, db_conn, enrollment_env, monkeypatch, profile_failure, port
+):
+    from app.main import auto_provision_discovered_device, load_device_profile_context_for_webhook
+
+    dev_eui = _eui_for("aa119933cc44")
+    device_id = "node-aa119933cc44"
+    monkeypatch.setattr(settings, "TTN_WEBHOOK_SECRET", "profile-failure-test-secret")
+    join_enrollment.open_window("tester")
+    evaluate_join_request(db_conn, make_request(dev_eui))
+    join_enrollment.accept_candidate(db_conn, dev_eui, "tester")
+    join_enrollment.close_window("tester")
+    envelope = {
+        # TTN may rename its human-readable ID. Enrollment follows DevEUI,
+        # with the same case-insensitive matching as device resolution.
+        "end_device_ids": {"device_id": "renamed-environment-node", "dev_eui": dev_eui.lower(),
+                           "application_ids": {"application_id": settings.TTN_APP_ID}},
+        "uplink_message": {"f_port": port, "frm_payload": base64.b64encode(b"Environment lobby").decode()},
+    }
+    device = auto_provision_discovered_device(
+        db_conn, device_id,
+        {"end_device_ids": {"device_id": device_id, "dev_eui": dev_eui}},
+    )
+    profile_id = device["profile_id"]
+    original_enabled = db_conn.execute(
+        "SELECT enabled FROM sensor_profiles WHERE id = ?", (profile_id,),
+    ).fetchone()["enabled"]
+    try:
+        if profile_failure == "outdated":
+            db_conn.execute("UPDATE devices SET profile_version = profile_version + 1 WHERE device_id = ?", (device_id,))
+        else:
+            db_conn.execute("UPDATE sensor_profiles SET enabled = 0 WHERE id = ?", (profile_id,))
+        db_conn.commit()
+        # Exercise the real profile checks, not a stubbed failure.
+        with pytest.raises(HTTPException) as error:
+            load_device_profile_context_for_webhook(db_conn, "renamed-environment-node", envelope)
+        assert error.value.status_code == 409
+        assert join_enrollment.list_candidates(db_conn)[0]["status"] == "awaiting_join"
+
+        response = client.post(
+            "/ttn-webhook", json=envelope,
+            headers={"X-Webhook-Secret": "profile-failure-test-secret"},
+        )
+        assert response.status_code == 200
+        candidate = join_enrollment.list_candidates(db_conn)[0]
+        assert candidate["status"] == "online"
+        assert candidate["online_at"]
+        assert candidate["device_id"] == device_id
+        # Profile rejection still prevents nickname/telemetry processing.
+        stored = db_conn.execute("SELECT label FROM devices WHERE device_id = ?", (device_id,)).fetchone()
+        assert stored["label"] == device["label"]
+    finally:
+        db_conn.execute("UPDATE sensor_profiles SET enabled = ? WHERE id = ?", (original_enabled, profile_id))
+        db_conn.execute("DELETE FROM devices WHERE device_id = ?", (device_id,))
+        db_conn.commit()
+
+
+@pytest.mark.parametrize("message", [None, {}])
+def test_join_accept_or_empty_uplink_does_not_mark_approved_candidate_online(
+    client, db_conn, enrollment_env, monkeypatch, message
+):
+    monkeypatch.setattr(settings, "TTN_WEBHOOK_SECRET", "non-uplink-test-secret")
+    dev_eui = _eui_for("aa119944cc55")
+    device_id = "node-aa119944cc55"
+    join_enrollment.open_window("tester")
+    evaluate_join_request(db_conn, make_request(dev_eui))
+    join_enrollment.accept_candidate(db_conn, dev_eui, "tester")
+    join_enrollment.close_window("tester")
+
+    def reject_profile_context(*args, **kwargs):
+        raise HTTPException(status_code=409, detail="No telemetry profile available")
+
+    monkeypatch.setattr("app.main.load_device_profile_context_for_webhook", reject_profile_context)
+    envelope = {
+        "end_device_ids": {"device_id": device_id, "dev_eui": dev_eui},
+        "join_accept": {"session_key_id": "test-session"},
+    }
+    if message is not None:
+        envelope["uplink_message"] = message
+    response = client.post(
+        "/ttn-webhook", json=envelope,
+        headers={"X-Webhook-Secret": "non-uplink-test-secret"},
+    )
+    assert response.status_code == 200
+    candidate = join_enrollment.list_candidates(db_conn)[0]
+    assert candidate["status"] == "awaiting_join"
+    assert candidate["online_at"] is None
 
 
 def test_portal_rejection_is_persistent_and_audited(enrollment_admin, db_conn, enrollment_env):

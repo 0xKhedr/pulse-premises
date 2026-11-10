@@ -12,6 +12,15 @@ from fastapi import HTTPException
 # TTN still validates the actual radio/session payload limit at scheduling time.
 MAX_DOWNLINK_BYTES = 51
 
+# SBMS configuration protocol v1, command 1: uint32 big-endian seconds.
+CONFIGURATION_F_PORT = 42
+
+
+def encode_send_rate(seconds: int) -> bytes:
+    if type(seconds) is not int or not 30 <= seconds <= 86400:
+        raise ValueError("Send interval must be an integer from 30 to 86400 seconds")
+    return bytes((1, 1)) + seconds.to_bytes(4, "big")
+
 
 def decode_downlink_payload(payload: str, encoding: str) -> bytes:
     try:

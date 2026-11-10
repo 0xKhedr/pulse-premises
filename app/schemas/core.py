@@ -20,6 +20,12 @@ class DeviceDownlinkRequest(BaseModel):
     confirmed: bool = Field(default=False, strict=True)
 
 
+class DeviceSendRateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    send_interval_seconds: int = Field(ge=30, le=86400, strict=True)
+
+
 class Device(BaseModel):
     """
     Provisioning request model.

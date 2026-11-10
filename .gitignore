@@ -27,6 +27,8 @@ firmware/lilygo_gps_lpp_node/lorawan_credentials.h
 firmware/lilygo_sr04_lpp_node/lorawan_credentials.h
 # Local provisioning template embeds the live LoRaWAN credentials.
 firmware/lilygo_provisioning_template/lilygo_provisioning_template.ino
+# Standalone solar sketch also embeds the live LoRaWAN credentials.
+firmware/lilygo_solar_lpp_node/lilygo_solar_lpp_node.ino
 firmware/lilygo_dht11_debug/lilygo_dht11_debug.ino
 firmware/espcam_lorawan_node/lorawan_credentials.h
 .docker-local-ca.cer

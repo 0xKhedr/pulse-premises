@@ -27,7 +27,7 @@
  * Serial Monitor at 115200 baud lists bus addresses and the detected family.
  * Only measured temperature (LPP channel 1) and humidity (channel 2) are sent.
  * A missing, unsupported, or failing sensor skips the data uplink and retries
- * after TX_INTERVAL_SECONDS. No simulated readings are ever sent.
+ * after the configured send interval. No simulated readings are ever sent.
  * ==============================================================================
  */
 
@@ -106,8 +106,9 @@ const lmic_pinmap lmic_pins = {
 // ==============================================================================
 // 3. HARDWARE CONFIGURATION & INTERVALS
 // ==============================================================================
-// Keep the original 30-second bench interval. Raise it for deployment.
-const unsigned TX_INTERVAL_SECONDS = 30;
+#include "SendRateConfig.h"
+// Restored from flash at boot; updated by a configuration downlink on FPort 42.
+static uint32_t txIntervalSeconds = SendRateConfig::DefaultSeconds;
 static osjob_t sendjob;
 CayenneLPP lpp(51);
 
@@ -223,6 +224,67 @@ static void logObservedDownlink() {
         Serial.print(value >= 32 && value <= 126 ? char(value) : '.');
     }
     Serial.println();
+}
+
+// Keep each LMIC timer below the signed tick rollover limit, even at 24 hours.
+// A single sec2osticks(86400) can overflow a 32-bit ostime_t.
+void do_send(osjob_t* j);
+static uint32_t sendWaitRemainingSeconds = 0;
+
+static void waitForNextUplink(osjob_t* job) {
+    if (!sendWaitRemainingSeconds) {
+        do_send(job);
+        return;
+    }
+    const uint32_t chunk = sendWaitRemainingSeconds > 3600 ? 3600 : sendWaitRemainingSeconds;
+    sendWaitRemainingSeconds -= chunk;
+    os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(chunk), waitForNextUplink);
+}
+
+static void scheduleNextUplink() {
+    sendWaitRemainingSeconds = txIntervalSeconds;
+    waitForNextUplink(&sendjob);
+}
+
+static void loadSendRate() {
+    Preferences config;
+    if (config.begin("sbms", /*readOnly=*/true)) {
+        const uint32_t stored = config.getUInt("send_interval", SendRateConfig::DefaultSeconds);
+        config.end();
+        if (SendRateConfig::valid(stored)) txIntervalSeconds = stored;
+    }
+    Serial.printf("[CONFIG] Send interval: %lu seconds\n", (unsigned long)txIntervalSeconds);
+}
+
+// Process the observer's owned copy outside the radio callback. No flash writes
+// or logging can block LMIC while a transmission/receive window is pending.
+static void applyObservedConfiguration() {
+    static uint32_t processedCount = 0;
+    if ((LMIC.opmode & OP_TXRXPEND) || processedCount == downlinkObserver.count) return;
+    processedCount = downlinkObserver.count;
+    if (downlinkObserver.port != SendRateConfig::Port) return;
+    uint32_t seconds = 0;
+    if (!SendRateConfig::decode(downlinkObserver.port, downlinkObserver.bytes,
+                               downlinkObserver.length, seconds)) {
+        Serial.println(F("[CONFIG] Invalid send-rate command ignored."));
+        return;
+    }
+    // Repeated delivery is idempotent and does not wear flash or reset timing.
+    if (seconds == txIntervalSeconds) return;
+    Preferences config;
+    if (!config.begin("sbms", /*readOnly=*/false)) {
+        Serial.println(F("[CONFIG] Cannot open flash; send interval unchanged."));
+        return;
+    }
+    const bool saved = config.putUInt("send_interval", seconds) == sizeof(uint32_t);
+    config.end();
+    if (!saved) {
+        Serial.println(F("[CONFIG] Flash write failed; send interval unchanged."));
+        return;
+    }
+    txIntervalSeconds = seconds;
+    scheduleNextUplink();
+    Serial.printf("[CONFIG] Send interval saved: %lu seconds\n", (unsigned long)seconds);
 }
 
 bool initUniqueDevEUI() {
@@ -872,7 +934,7 @@ void do_send(osjob_t* j) {
         Serial.println(F("[SENSOR] Missing sensor or invalid reading; data uplink skipped."));
         scanI2CBus();
         // No TX means EV_TXCOMPLETE will not schedule the next attempt.
-        os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(TX_INTERVAL_SECONDS), do_send);
+        scheduleNextUplink();
         return;
     }
 
@@ -968,8 +1030,7 @@ void onEvent (ev_t ev) {
             joinState = "ONLINE";
             displayDirty = true;
 #endif
-            // Schedule next uplink after TX_INTERVAL_SECONDS
-            os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(TX_INTERVAL_SECONDS), do_send);
+            scheduleNextUplink();
             break;
         case EV_RESET:
             Serial.println(F("EV_RESET"));
@@ -1030,6 +1091,7 @@ void setup() {
         }
     }
 
+    loadSendRate();
     loadNickname();
     if (strlen(nickname) && renameRequested()) {
         Serial.println(F("[SETUP] Startup reset detected: forgetting nickname."));
@@ -1092,6 +1154,7 @@ void setup() {
 
 void loop() {
     os_runloop_once();
+    applyObservedConfiguration();
     pollSerialConsole();
     logObservedDownlink();
 

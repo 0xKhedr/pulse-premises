@@ -36,7 +36,8 @@ family in the sketch's probe order is used.
 Open Serial Monitor at **115200 baud** to see the I2C scan, detected family,
 address, and measured values. If detection fails, the OLED shows `SENSOR ERROR`
 and Serial Monitor lists the detected addresses. No simulated data is sent;
-the sketch retries after 30 seconds. Unknown sensor types need another driver.
+the sketch retries after the configured send interval (30 seconds by default).
+Unknown sensor types need another driver.
 
 Temperature uses Cayenne LPP channel **1** and humidity channel **2**, on port
 **1**. The seven-byte payload works with TTN's built-in Cayenne LPP formatter.
@@ -84,12 +85,12 @@ In the portal's **Device Management** or **Device Capabilities** page, open
 **Send downlink**, choose the joined node, use FPort **1**, and enter a message
 such as `Hello`. Leave the format as **UTF-8 text**, then select **Queue
 downlink**. Hexadecimal and Base64 input are also supported, with a maximum
-of 51 decoded bytes. The firmware observes these bytes; it does not interpret
-them as configuration commands or execute them.
+of 51 decoded bytes. These messages are displayed as bytes. Configuration
+commands use the separate port described below.
 
 The device remains **Class A**: LMIC receives during RX1/RX2 after an uplink.
 Queueing a message does not transmit it immediately or prove receipt. With
-the current 30-second sensor interval, wait for the next successfully received
+the configured sensor interval, wait for the next successfully received
 uplink and its receive windows; retries, duty-cycle limits, and gateway traffic
 can delay delivery further. A missing sensor can stop sensor uplinks, so it
 can also prevent new receive opportunities after the nickname announcement.
@@ -100,6 +101,41 @@ uplink; they do not make the radio listen continuously.
 OLED rendering and Serial output run in `loop()`, outside the LMIC receive
 callback. No Class B or Class C receive mode is enabled.
 
-The 30-second interval and fixed SF7 radio setting match the original bench
-sketch. For deployment, increase `TX_INTERVAL_SECONDS` and set
+## Send-rate configuration
+
+Flash this updated sketch, then open **Devices → Configuration** on the
+desired device's card. Set **Send interval (seconds)** and select **Queue
+send-rate change**. Accepted values are whole seconds from **30 to 86,400**
+(24 hours). The page keeps the last queued value across reloads; it does not
+claim that value is active on the device. Existing firmware must be reflashed
+once to support this command. Other sketches currently only observe downlinks.
+
+The downlink waits for RX1/RX2 after an uplink at the **old** rate. On receipt,
+the firmware validates it, saves it to ESP32 NVS (`sbms` / `send_interval`),
+and schedules the next uplink using the new interval. It also uses this rate
+for missing/invalid sensor retries and nickname uplinks. The value survives
+restart, nickname reset, and ordinary reflashing without flash erase. The
+default is 30 seconds when no valid saved value exists. Serial at 115200 baud
+prints `[CONFIG] Send interval saved: ... seconds` when applied, and prints
+the loaded interval at startup. No application acknowledgement is sent to the
+website. Radio duty-cycle scheduling can delay actual transmissions further.
+
+The binary protocol is **FPort 42**, exactly six bytes:
+
+| Bytes | Meaning |
+| --- | --- |
+| `01` | Protocol version 1 |
+| `01` | Set send interval command |
+| Four bytes | Unsigned 32-bit interval in seconds, big-endian |
+
+For example, five minutes (300 seconds) is `01 01 00 00 01 2C` (Base64
+`AQEAAAEs`). Malformed commands, unsupported versions/commands, and values
+outside the range are ignored. Other ports never change the interval.
+Duplicate settings avoid another flash write. A flash write failure leaves
+the previous active interval in place. OLED/Serial downlink observation still
+works for configuration messages. Long intervals use bounded timer chunks
+to avoid LMIC tick overflow.
+
+The default 30-second interval and fixed SF7 radio setting match the original
+bench sketch. For deployment, choose a longer interval in Configuration and set
 `BENCH_RADIO_TEST` to `0` to enable adaptive data rate.

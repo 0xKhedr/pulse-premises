@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -161,3 +161,19 @@ def floor_editor(request: Request):
 @router.get("/device-capabilities-manager", response_class=HTMLResponse)
 def device_capabilities_manager_page(request: Request):
     return templates.TemplateResponse(request, "device_capabilities_manager_page.html", {})
+
+
+@router.get("/devices/{device_id}/configuration-page", response_class=HTMLResponse)
+def device_configuration_page(device_id: str, request: Request):
+    from app.db.connection import get_db_connection
+
+    conn = get_db_connection()
+    try:
+        device = conn.execute(
+            "SELECT device_id, label FROM devices WHERE device_id = ?", (device_id,),
+        ).fetchone()
+        if device is None:
+            raise HTTPException(status_code=404, detail="Device not found")
+        return templates.TemplateResponse(request, "device_configuration_page.html", {"device": dict(device)})
+    finally:
+        conn.close()

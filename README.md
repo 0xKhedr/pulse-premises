@@ -188,6 +188,25 @@ in paged TEXT/HEX views after joining. See
 [`firmware/lilygo_environment_lpp_node`](firmware/lilygo_environment_lpp_node/README.md)
 for a simple `Hello` test.
 
+### Configure a device's send rate
+
+Open **Devices**, then **Configuration** on the device's card. Enter a send
+interval from **30 to 86,400 seconds** and choose **Queue send-rate change**.
+This requires the updated `lilygo_environment_lpp_node` firmware to be built
+and flashed once. The device saves the interval in flash and restores it on
+restart. Other sketches need support for the same command before they can
+apply this setting.
+
+The administrator-only endpoint is
+`POST /devices/{device_id}/configuration/send-rate`, with JSON
+`{"send_interval_seconds": 300}` for five minutes. It uses the existing TTN
+queue, on FPort **42**, with a versioned six-byte binary command. Preview mode
+and unapproved devices cannot queue changes. The page remembers the last
+queued request and distinguishes it from the unknown active device value.
+Delivery waits for an uplink at the old rate; no application acknowledgement
+is reported to the website. See the environment firmware README for the wire
+format and Serial verification instructions.
+
 For the u-blox NEO-6M GPS node, see
 [`firmware/lilygo_gps_lpp_node`](firmware/lilygo_gps_lpp_node/README.md)
 for breadboard wiring, Arduino IDE setup and GPS telemetry details. It uses

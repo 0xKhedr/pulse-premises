@@ -120,6 +120,11 @@ the gateway. Unauthenticated Basics Station connections stay disabled.
 Gateway MQTT and TLS ports are not published by this configuration. Expose
 additional transports only after configuring their listeners and credentials.
 
+Direct Ethernet connections are supported on Windows and Linux. For gateways
+using `169.254.x.x`, configure the Ethernet return route using
+[Direct Ethernet gateway connection](NEW_MACHINE_SETUP.md#direct-ethernet-gateway-connection).
+Point the packet forwarder at the PC's Ethernet IPv4 address on UDP 1700.
+
 The default LoRaWAN AppKey is newly generated for this building. For existing
 sensors, copy their actual shared `LORAWAN_APP_KEY` and `JOIN_EUI` into
 `.env` before registration, or flash firmware with the new values.

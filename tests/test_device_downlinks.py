@@ -199,3 +199,98 @@ def test_ttn_appends_a_class_a_message_without_replacing_queue(monkeypatch):
     assert message == {"f_port": 15, "frm_payload": "SGVsbG8=", "confirmed": False,
                        "priority": "NORMAL", "correlation_ids": ["test-id"]}
     assert "class_b_c" not in message
+
+
+@pytest.mark.parametrize("seconds,expected", [
+    (30, b"\x01\x01\x00\x00\x00\x1e"),
+    (300, b"\x01\x01\x00\x00\x01\x2c"),
+    (86400, b"\x01\x01\x00\x01\x51\x80"),
+])
+def test_configuration_queues_binary_command_and_remembers_request(downlinks, seconds, expected):
+    client, calls = downlinks
+    response = client.post(f"/devices/{DEVICE_ID}/configuration/send-rate", json={"send_interval_seconds": seconds})
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "queued"
+    assert response.json()["send_interval_seconds"] == seconds
+    assert len(calls) == 1
+    assert calls[0]["f_port"] == 42
+    assert calls[0]["confirmed"] is False
+    assert base64.b64decode(calls[0]["frm_payload"]) == expected
+    config = client.get(f"/devices/{DEVICE_ID}/configuration").json()
+    assert config["can_queue"] is True
+    assert config["send_rate"]["last_queued"]["send_interval_seconds"] == seconds
+    assert config["send_rate"]["last_queued"]["correlation_id"] == calls[0]["correlation_id"]
+    assert "applied" not in config
+
+
+@pytest.mark.parametrize("seconds", [0, 29, 86401, -1, 1.5, True, "300", None])
+def test_configuration_rejects_invalid_rates_without_sending(downlinks, seconds):
+    client, calls = downlinks
+    response = client.post(f"/devices/{DEVICE_ID}/configuration/send-rate", json={"send_interval_seconds": seconds})
+    assert response.status_code == 422
+    assert calls == []
+
+
+def test_configuration_page_and_defaults(downlinks, db_conn):
+    client, calls = downlinks
+    db_conn.execute("DELETE FROM audit_log WHERE action = 'device_send_rate_queued' AND target_id = ?", (DEVICE_ID,))
+    db_conn.execute("UPDATE devices SET label = '<script>unsafe</script>' WHERE device_id = ?", (DEVICE_ID,))
+    db_conn.commit()
+    config = client.get(f"/devices/{DEVICE_ID}/configuration")
+    assert config.status_code == 200
+    assert config.json()["send_rate"] == {"min_seconds": 30, "max_seconds": 86400, "default_seconds": 30, "last_queued": None}
+    page = client.get(f"/devices/{DEVICE_ID}/configuration-page")
+    assert page.status_code == 200
+    assert "data-device-configuration" in page.text
+    assert "&lt;script&gt;unsafe&lt;/script&gt;" in page.text
+    assert "<script>unsafe</script>" not in page.text
+    assert calls == []
+    for suffix in ("configuration", "configuration-page"):
+        assert client.get(f"/devices/missing-configuration-device/{suffix}").status_code == 404
+
+
+def test_configuration_uses_same_approval_preview_and_failure_guards(downlinks, db_conn, monkeypatch):
+    client, calls = downlinks
+    path = f"/devices/{DEVICE_ID}/configuration"
+    monkeypatch.setattr(settings, "PREVIEW_MODE", True)
+    assert client.get(path).json()["can_queue"] is False
+    assert client.post(path + "/send-rate", json={"send_interval_seconds": 60}).status_code == 409
+    monkeypatch.setattr(settings, "PREVIEW_MODE", False)
+    db_conn.execute("UPDATE devices SET dev_eui = NULL WHERE device_id = ?", (DEVICE_ID,))
+    db_conn.commit()
+    assert client.get(path).json()["can_queue"] is False
+    assert client.post(path + "/send-rate", json={"send_interval_seconds": 60}).status_code == 409
+    assert calls == []
+
+
+def test_configuration_timeout_does_not_replace_last_queued_value(downlinks, monkeypatch):
+    client, calls = downlinks
+    path = f"/devices/{DEVICE_ID}/configuration"
+    assert client.post(path + "/send-rate", json={"send_interval_seconds": 300}).status_code == 200
+    attempts = []
+
+    def timeout(*args, **kwargs):
+        attempts.append(1)
+        raise requests.Timeout("unknown queue state")
+
+    monkeypatch.setattr("app.routers.devices.ttn_client.push_downlink", timeout)
+    response = client.post(path + "/send-rate", json={"send_interval_seconds": 600})
+    assert response.status_code == 504
+    assert "unknown" in response.json()["detail"]
+    assert attempts == [1]
+    assert client.get(path).json()["send_rate"]["last_queued"]["send_interval_seconds"] == 300
+
+
+@pytest.mark.parametrize("role", [None, "client"])
+def test_configuration_requires_admin(downlinks, db_conn, role):
+    client, calls = downlinks
+    client.cookies.clear()
+    if role:
+        db_conn.execute("UPDATE users SET role = 'client' WHERE id = 9826")
+        db_conn.commit()
+        client.cookies.set("sbms_session", create_login_session(db_conn, 9826))
+    path = f"/devices/{DEVICE_ID}/configuration"
+    for suffix in ("", "-page"):
+        assert client.get(path + suffix, follow_redirects=False).status_code in (302, 401, 403)
+    assert client.post(path + "/send-rate", json={"send_interval_seconds": 60}, follow_redirects=False).status_code in (302, 401, 403)
+    assert calls == []

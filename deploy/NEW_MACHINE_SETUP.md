@@ -115,6 +115,61 @@ new values. Match the gateway/sensor frequency plans and protocol versions.
 Verify a real uplink reaches TTN, the webhook delivers it, and the device
 appears in SBMS before placing it on a floor.
 
+## Direct Ethernet gateway connection
+
+1. Connect the gateway to the PC's Ethernet port. Use a stable IPv4 address
+   on the PC's Ethernet adapter.
+2. Set the gateway's packet-forwarder server to that **PC Ethernet IP**, with
+   upstream and downstream UDP ports **1700**.
+3. If the gateway uses `169.254.x.x`, ensure replies to `169.254.0.0/16` use
+   Ethernet. Otherwise it can register in TTN but remain **Awaiting join**.
+
+Replace the adapter/interface/profile names below with your own.
+
+**Windows — permanent route, Administrator PowerShell:**
+
+```powershell
+Get-NetAdapter
+New-NetRoute -DestinationPrefix '169.254.0.0/16' `
+    -InterfaceAlias 'Ethernet' -NextHop '0.0.0.0' -RouteMetric 5
+```
+
+**Linux — immediate route (until restart):**
+
+```bash
+ip -br address
+sudo ip route replace 169.254.0.0/16 dev enp3s0 scope link metric 5
+```
+
+For persistence, use **one** method matching your existing Linux configuration:
+
+- **NetworkManager:** save the route to the wired profile, then reapply it:
+
+  ```bash
+  nmcli -f NAME,DEVICE connection show --active
+  sudo nmcli connection modify "WIRED_PROFILE" +ipv4.routes "169.254.0.0/16 0.0.0.0 5"
+  sudo nmcli device reapply enp3s0
+  ```
+
+- **Netplan:** append this route under the existing Ethernet interface in
+  `/etc/netplan/*.yaml`, keeping its current addresses/DHCP settings:
+
+  ```yaml
+  routes:
+    - to: 169.254.0.0/16
+      scope: link
+      metric: 5
+  ```
+
+  Apply locally with `sudo netplan try` and confirm when connectivity works.
+
+Start Docker/the deployment, restart the sensor once, and confirm **Online**.
+No firmware change is needed. Normal LAN connections use their existing routes.
+
+References: [Windows routes](https://learn.microsoft.com/en-us/powershell/module/nettcpip/new-netroute),
+[NetworkManager](https://networkmanager.pages.freedesktop.org/NetworkManager/NetworkManager/nmcli.html),
+[Netplan routes](https://netplan.readthedocs.io/en/stable/netplan-yaml/#routing).
+
 ## Restarts and troubleshooting
 
 ```text

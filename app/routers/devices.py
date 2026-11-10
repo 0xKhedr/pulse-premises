@@ -36,10 +36,10 @@ from app.main import (
     set_device_formatter,
     set_device_formatter_from_profile,
 )
-from app.schemas.core import DeviceDownlinkRequest, DeviceProfileAssignment
+from app.schemas.core import DeviceDownlinkRequest, DeviceProfileAssignment, DeviceSendRateRequest
 from app.services.device_profiles import assign_device_profile, mark_formatter_synced
 from app.services.device_state import build_device_state
-from app.services.downlinks import decode_downlink_payload
+from app.services.downlinks import CONFIGURATION_F_PORT, decode_downlink_payload, encode_send_rate
 from app.services.export_safety import redact_secrets
 from app.services.join_enrollment import uplink_is_blocked
 from app.services.ttn import ttn_client
@@ -65,6 +65,11 @@ def downlink_targets():
 
 @router.post("/devices/{device_id}/downlinks")
 def send_device_downlink(device_id: str, data: DeviceDownlinkRequest, request: Request):
+    return queue_device_downlink(device_id, data, request)
+
+
+def queue_device_downlink(device_id: str, data: DeviceDownlinkRequest, request: Request,
+                          *, send_interval_seconds: int | None = None):
     user = get_current_user_from_request(request)
     if not user or str(user.get("role") or "").lower() != "admin":
         raise HTTPException(status_code=403, detail="Administrator access required")
@@ -100,8 +105,11 @@ def send_device_downlink(device_id: str, data: DeviceDownlinkRequest, request: R
             "f_port": data.f_port, "byte_count": len(raw), "confirmed": data.confirmed,
             "encoding": data.encoding, "correlation_id": correlation_id,
         }
+        if send_interval_seconds is not None:
+            metadata["send_interval_seconds"] = send_interval_seconds
         log_audit_event(
-            conn, action="device_downlink_queued", target_type="device", target_id=device_id,
+            conn, action="device_send_rate_queued" if send_interval_seconds is not None else "device_downlink_queued",
+            target_type="device", target_id=device_id,
             actor=str(user.get("email") or user.get("id") or "admin"), details=metadata,
             **get_device_scope_for_audit(conn, device_id),
         )
@@ -111,6 +119,51 @@ def send_device_downlink(device_id: str, data: DeviceDownlinkRequest, request: R
         }
     finally:
         conn.close()
+
+
+@router.get("/devices/{device_id}/configuration")
+def get_device_configuration(device_id: str):
+    conn = db()
+    try:
+        device = conn.execute(
+            "SELECT device_id, label, dev_eui FROM devices WHERE device_id = ?", (device_id,),
+        ).fetchone()
+        if device is None:
+            raise HTTPException(status_code=404, detail="Device not found")
+        last_request = conn.execute(
+            """SELECT details, created_at FROM audit_log
+               WHERE action = 'device_send_rate_queued' AND target_type = 'device' AND target_id = ?
+               ORDER BY id DESC LIMIT 1""", (device_id,),
+        ).fetchone()
+        last_queued = None
+        if last_request:
+            details = json.loads(last_request["details"])
+            last_queued = {
+                "send_interval_seconds": details["send_interval_seconds"],
+                "queued_at": last_request["created_at"],
+                "correlation_id": details["correlation_id"],
+            }
+        can_queue = bool(device["dev_eui"]) and not uplink_is_blocked(conn, device_id, device["dev_eui"])
+        return {
+            "device_id": device_id, "label": device["label"],
+            "can_queue": can_queue and not settings.PREVIEW_MODE,
+            "unavailable_reason": "Downlinks are unavailable in preview mode" if settings.PREVIEW_MODE else (
+                None if can_queue else "Device must have an approved LoRaWAN identity before receiving downlinks"
+            ),
+            "send_rate": {"min_seconds": 30, "max_seconds": 86400, "default_seconds": 30,
+                          "last_queued": last_queued},
+        }
+    finally:
+        conn.close()
+
+
+@router.post("/devices/{device_id}/configuration/send-rate")
+def configure_device_send_rate(device_id: str, data: DeviceSendRateRequest, request: Request):
+    downlink = DeviceDownlinkRequest(
+        f_port=CONFIGURATION_F_PORT, encoding="hex",
+        payload=encode_send_rate(data.send_interval_seconds).hex(), confirmed=False,
+    )
+    return queue_device_downlink(device_id, downlink, request, send_interval_seconds=data.send_interval_seconds)
 
 
 @router.put("/devices/{device_id}/profile")

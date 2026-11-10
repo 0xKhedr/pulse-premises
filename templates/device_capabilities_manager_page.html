@@ -429,6 +429,7 @@
                         </div>
 
                         <div class="profile-controls"></div>
+                        <p><a data-device-configuration>Configuration</a></p>
                         <button type="button" data-send-downlink>Send downlink</button>
 
                         <div class="capabilities">
@@ -443,6 +444,7 @@
                     `;
 
                     renderProfileControls(card, device, profiles);
+                    card.querySelector('[data-device-configuration]').href = `/devices/${encodeURIComponent(device.device_id)}/configuration-page`;
                     card.querySelector('[data-send-downlink]').addEventListener('click', () => window.selectDeviceDownlink(device.device_id));
                     card.querySelector(".cap-save").addEventListener("click", () => saveCapabilities(device.device_id));
 

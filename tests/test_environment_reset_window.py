@@ -8,12 +8,13 @@ import subprocess
 import pytest
 
 
-def test_reset_window_survives_reset_and_is_consumed_once(tmp_path):
+@pytest.mark.parametrize("node", ["lilygo_environment_lpp_node", "lilygo_solar_lpp_node"])
+def test_reset_window_survives_reset_and_is_consumed_once(tmp_path, node):
     compiler = shutil.which("g++")
     if not compiler:
         pytest.skip("g++ is required for the reset-window simulation")
     sketch = (Path(__file__).resolve().parents[1] /
-              "firmware/lilygo_environment_lpp_node/lilygo_environment_lpp_node.ino").read_text()
+              f"firmware/{node}/{node}.ino").read_text()
     start = sketch.index("static bool renameRequested() {")
     function = sketch[start:sketch.index("\n#if ENABLE_OLED\n// EU868", start)]
     window = re.search(r"^#define RESET_WINDOW_MS\s+\d+", sketch, re.MULTILINE).group()
