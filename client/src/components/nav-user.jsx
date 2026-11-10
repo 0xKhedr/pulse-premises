@@ -20,10 +20,23 @@ import {
 } from "@/components/ui/sidebar"
 import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
 
+import { useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "react-router"
+import Cookies from "js-cookie"
+
 export function NavUser({
   user
 }) {
-  const { isMobile } = useSidebar()
+  const { isMobile } = useSidebar();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    Cookies.remove('ttn_api_key');
+    queryClient.clear();
+    navigate('/auth', { replace: true });
+  }
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -90,7 +103,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOutIcon
               />
               Log out
@@ -99,5 +112,5 @@ export function NavUser({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }
