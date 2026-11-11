@@ -24,6 +24,7 @@ export function NavMain({
           <SidebarMenuItem key={item.title}>
             <SidebarMenuButton
               tooltip={item.title}
+              className="font-[450] data-active:font-[450] text-sidebar-foreground/65 [&_svg]:text-sidebar-foreground/65 hover:text-sidebar-foreground active:text-sidebar-foreground data-active:bg-sidebar-foreground/6 data-active:hover:bg-sidebar-foreground/6 data-active:active:bg-sidebar-foreground/6 data-active:text-sidebar-foreground data-active:hover:text-sidebar-foreground data-active:active:text-sidebar-foreground data-active:[&_svg]:text-sidebar-foreground"
               isActive={pathname === item.url || pathname.startsWith(`${item.url}/`)}
               render={<Link to={item.url} />}
               onClick={() => {

@@ -1,43 +1,35 @@
 import {
-  AudioLinesIcon,
-  Building2Icon,
-  CpuIcon,
-  GalleryVerticalEndIcon,
-  RouterIcon,
-  TerminalIcon,
-  WrenchIcon,
-} from "lucide-react"
+  RiBuildingLine,
+  RiCpuLine,
+  RiDashboardLine,
+  RiRouterLine,
+  RiToolsLine,
+} from "@remixicon/react"
+import { Link } from "react-router"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarRail,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// Replace the sample account and teams when authentication is connected.
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    { name: "Acme Inc", logo: <GalleryVerticalEndIcon />, plan: "Enterprise" },
-    { name: "Acme Corp.", logo: <AudioLinesIcon />, plan: "Startup" },
-    { name: "Evil Corp.", logo: <TerminalIcon />, plan: "Free" },
+  monitor: [
+    { title: "Dashboard", url: "/dashboard", icon: <RiDashboardLine /> },
   ],
   manage: [
-    { title: "Gateways", url: "/gateways", icon: <RouterIcon /> },
-    { title: "Devices", url: "/devices", icon: <CpuIcon /> },
-    { title: "Premises", url: "/premises", icon: <Building2Icon /> },
+    { title: "Gateways", url: "/gateways", icon: <RiRouterLine /> },
+    { title: "Devices", url: "/devices", icon: <RiCpuLine /> },
+    { title: "Premises", url: "/premises", icon: <RiBuildingLine /> },
   ],
   control: [
-    { title: "Provision", url: "/provision", icon: <WrenchIcon /> },
+    { title: "Provision", url: "/provision", icon: <RiToolsLine /> },
   ],
 }
 
@@ -45,16 +37,28 @@ export function AppSidebar({ ...props }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" render={<Link to="/dashboard" />}>
+              <div className="flex aspect-square size-8 p-px shrink-0 items-center justify-center rounded-lg bg-black">
+                <img src="/logo.svg" alt="" className="invert" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">Pulse Premises</span>
+                <span className="truncate text-xs text-muted-foreground">Observe every signal</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <NavMain title="Monitor" items={data.monitor} />
         <NavMain title="Manage" items={data.manage} />
         <NavMain title="Control" items={data.control} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }

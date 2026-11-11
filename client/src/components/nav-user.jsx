@@ -8,8 +8,10 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -18,22 +20,26 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { RiExpandUpDownLine, RiVerifiedBadgeLine, RiBankCardLine, RiNotification3Line, RiLogoutBoxRLine, RiUserSharedLine, RiUserSettingsLine, RiCheckLine } from "@remixicon/react"
 
-import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router"
-import Cookies from "js-cookie"
+import { useAccounts, useActiveAccount, useAccountActions } from "@/hooks/use-auth"
 
-export function NavUser({
-  user
-}) {
+export function NavUser() {
   const { isMobile } = useSidebar();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const accounts = useAccounts();
+  const activeAccount = useActiveAccount();
+  const { logout, switchAccount } = useAccountActions();
+  const user = {
+    name: activeAccount?.name || activeAccount?.username || 'User',
+    username: activeAccount?.username || '',
+    avatar: activeAccount?.image || '',
+  };
+  const initials = (user.name || user.username || 'U').trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase();
 
-  function handleLogout() {
-    Cookies.remove('ttn_api_key');
-    queryClient.clear();
+  async function handleLogout() {
+    await logout();
     navigate('/auth', { replace: true });
   }
 
@@ -43,68 +49,77 @@ export function NavUser({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
+              <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground" />
             }
           >
-            <Avatar>
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>CN</AvatarFallback>
+            <Avatar className="rounded-lg after:rounded-lg">
+              <AvatarImage className="rounded-lg" src={user.avatar} alt={user.name} />
+              <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs">{user.email}</span>
+              <span className="truncate text-xs">{user.username}</span>
             </div>
-            <ChevronsUpDownIcon className="ml-auto size-4" />
+            <RiExpandUpDownLine className="ml-auto size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-fit"
+            className="min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar>
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>CN</AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs">{user.email}</span>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
               <DropdownMenuItem>
-                <SparklesIcon
-                />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheckIcon
+                <RiVerifiedBadgeLine
                 />
                 Account
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <CreditCardIcon
+                <RiBankCardLine
                 />
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <BellIcon
+                <RiNotification3Line
                 />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <RiUserSharedLine />
+                Switch Accounts
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-56">
+                <DropdownMenuGroup>
+                  {Object.values(accounts).map((account) => (
+                    <DropdownMenuItem
+                      key={account.username}
+                      onClick={() => switchAccount(account.username)}
+                      className="gap-2 py-2"
+                      aria-label={`${account.username}${account.username === activeAccount?.username ? ' (current account)' : ''}`}
+                    >
+                      <Avatar className="size-7 rounded-lg after:rounded-lg">
+                        <AvatarImage src={account.image} alt="" className="rounded-lg" />
+                        <AvatarFallback className="rounded-lg text-xs">
+                          {account.username.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="flex-1 truncate">{account.username}</span>
+                      {account.username === activeAccount?.username && <RiCheckLine aria-hidden="true" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled>
+                  <RiUserSettingsLine />
+                  Manage Accounts
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuItem onClick={handleLogout}>
-              <LogOutIcon
+              <RiLogoutBoxRLine
               />
               Log out
             </DropdownMenuItem>

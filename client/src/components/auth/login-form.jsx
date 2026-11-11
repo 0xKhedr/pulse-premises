@@ -3,8 +3,7 @@ import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import { useLocation, useNavigate } from "react-router"
-import Cookies from "js-cookie"
-import { ClipboardPasteIcon, EyeIcon, EyeOffIcon, LoaderCircleIcon } from "lucide-react"
+import { RiClipboardLine, RiEyeLine, RiEyeOffLine, RiLoader4Line } from "@remixicon/react"
 
 import { AuthInfoPanel } from "./auth-info-panel"
 import { Button } from "@/components/ui/button"
@@ -17,7 +16,8 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
-import { ttn_api } from "@/lib/axios"
+import { useAccountActions } from "@/hooks/use-auth"
+import { getAuthInfo } from "@/lib/auth"
 
 export function LoginForm({
   className,
@@ -25,32 +25,21 @@ export function LoginForm({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { login: loginAccount } = useAccountActions();
   const [pasteError, setPasteError] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
 
-  async function getAuthInfo(apiKey) {
-    if (!apiKey) throw new Error("Enter your API key");
-
-    const { data } = await ttn_api.get('/auth_info', {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!data.api_key?.entity_ids?.user_ids?.user_id) throw new Error("User not found");
-
-    return data;
-  }
-
   const login = useMutation({
-    mutationFn: getAuthInfo,
-    onSuccess: (data, apiKey) => {
-      Cookies.set('ttn_api_key', apiKey, { expires: 365 });
+    mutationFn: loginAccount,
+    onSuccess: () => {
       navigate(location.state?.from || '/', { replace: true });
     },
   });
 
-  const view = useMutation({ mutationFn: getAuthInfo });
+  const view = useMutation({ mutationFn: (apiKey) => getAuthInfo(apiKey) });
   const isLoading = login.isPending || view.isPending;
   const requestError = view.error || login.error;
-  const error = pasteError || requestError?.response?.data?.message || requestError?.message || location.state?.error;
+  const error = pasteError || ((requestError || location.state?.error) ? "User not found" : "");
 
   const form = useForm({
     onSubmit: ({ value }) => login.mutate(value.apiKey.trim()),
@@ -126,7 +115,7 @@ export function LoginForm({
                       onClick={handlePaste}
                       disabled={isLoading}
                     >
-                      <ClipboardPasteIcon aria-hidden="true" />
+                      <RiClipboardLine aria-hidden="true" />
                     </Button>
                     <Button
                       type="button"
@@ -139,7 +128,7 @@ export function LoginForm({
                       onClick={() => setShowApiKey(!showApiKey)}
                       disabled={isLoading}
                     >
-                      {showApiKey ? <EyeOffIcon aria-hidden="true" /> : <EyeIcon aria-hidden="true" />}
+                      {showApiKey ? <RiEyeOffLine aria-hidden="true" /> : <RiEyeLine aria-hidden="true" />}
                     </Button>
                   </div>
                   <div className="h-[2lh] overflow-y-auto text-sm">
@@ -150,7 +139,7 @@ export function LoginForm({
             </form.Field>
             <Field className="grid grid-cols-[2fr_1fr] gap-3">
               <Button type="submit" disabled={isLoading} aria-busy={login.isPending}>
-                {login.isPending && <LoaderCircleIcon className="animate-spin" aria-hidden="true" />}
+                {login.isPending && <RiLoader4Line className="animate-spin" aria-hidden="true" />}
                 Login
               </Button>
               <Button variant="outline" type="button" onClick={handleView} disabled={isLoading} aria-busy={view.isPending}>

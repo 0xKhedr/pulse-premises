@@ -1,5 +1,5 @@
 import { cn } from "cn"
-import { LoaderCircleIcon, UserRoundIcon } from "lucide-react"
+import { RiLoader4Line, RiUserLine } from "@remixicon/react"
 import RippleGrid from "@/components/ripple-grid"
 
 export function AuthInfoPanel({ data, isPending }) {
@@ -11,15 +11,15 @@ export function AuthInfoPanel({ data, isPending }) {
     <div className={cn("relative min-w-0 border-t md:border-t-0 md:border-l", !isPending && !data && "hidden md:block")}>
       {isPending ? (
         <div className="flex h-72 items-center justify-center gap-2 p-6 text-sm text-muted-foreground md:absolute md:inset-0 md:h-auto" role="status">
-          <LoaderCircleIcon className="size-4 animate-spin" aria-hidden="true" />
+          <RiLoader4Line className="size-4 animate-spin" aria-hidden="true" />
           Loading user details…
         </div>
       ) : data ? (
         <section className="grid h-72 min-h-0 grid-cols-2 gap-4 p-6 md:absolute md:inset-0 md:h-auto md:p-8" aria-labelledby="viewed-user-title" aria-live="polite">
           <div className="min-w-0 space-y-4 overflow-y-auto">
             <div className="flex items-center gap-3">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <UserRoundIcon className="size-4" aria-hidden="true" />
+              <div className="flex size-8 shrink-0 items-center justify-center bg-primary/10 text-primary">
+                <RiUserLine className="size-4" aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h2 id="viewed-user-title" className="text-sm text-muted-foreground">User details</h2>
