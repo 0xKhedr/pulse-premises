@@ -73,19 +73,35 @@ static bool environmentalReadingValid = false;
 #error "Missing firmware/lorawan_credentials.h. Run: python tools/generate_lorawan_credentials.py"
 #endif
 
-// AppEUI / JoinEUI (8 bytes, Little-Endian format for TTN)
-static const u1_t PROGMEM APPEUI[8] = { SBMS_JOIN_EUI_LSB_BYTES };
-void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8); }
-
-// AppKey (16 bytes, Big-Endian format from TTN Application)
-static const u1_t PROGMEM APPKEY[16] = { SBMS_APP_KEY_BYTES };
-void os_getDevKey (u1_t* buf) { memcpy_P(buf, APPKEY, 16); }
+// Defaults from the local header, optionally overridden by the setup portal.
+// EUIs use LMIC's little-endian order; AppKey uses the displayed byte order.
+struct OtaaCredentials {
+    u1_t joinEui[8];
+    u1_t appKey[16];
+    u1_t devEui[8];
+};
+static OtaaCredentials otaaCredentials = {
+    { SBMS_JOIN_EUI_LSB_BYTES }, { SBMS_APP_KEY_BYTES }, {}
+};
+void os_getArtEui (u1_t* buf) { memcpy(buf, otaaCredentials.joinEui, 8); }
+void os_getDevKey (u1_t* buf) { memcpy(buf, otaaCredentials.appKey, 16); }
 
 // DevEUI is generated dynamically from the ESP32 chip's unique MAC address!
 // (Little-Endian format required by LMIC)
-static u1_t DEVEUI[8];
+static u1_t (&DEVEUI)[8] = otaaCredentials.devEui;
 static const u1_t PROGMEM DEV_EUI_XOR[8] = { SBMS_DEV_EUI_XOR_LSB_BYTES };
 void os_getDevEui (u1_t* buf) { memcpy(buf, DEVEUI, 8); }
+
+static void loadOtaaCredentials() {
+    Preferences config;
+    if (!config.begin("sbms", /*readOnly=*/true)) return;
+    OtaaCredentials stored;
+    if (config.getBytesLength("otaa_creds") == sizeof(stored)
+        && config.getBytes("otaa_creds", &stored, sizeof(stored)) == sizeof(stored)) {
+        otaaCredentials = stored;
+    }
+    config.end();
+}
 
 // ==============================================================================
 // 2. PIN MAPPING FOR LILYGO ESP32 LORA BOARDS
@@ -311,6 +327,10 @@ bool initUniqueDevEUI() {
     for (int i = 0; i < 8; i++) {
         DEVEUI[i] ^= pgm_read_byte(&DEV_EUI_XOR[i]);
     }
+
+    // Load after deriving the default DevEUI, before displaying it or naming
+    // the access point. A nickname reset never removes these credentials.
+    loadOtaaCredentials();
 
     Serial.print(F("[INFO] Unique Hardware DevEUI (MSB): "));
     for (int i = 7; i >= 0; i--) {
@@ -608,10 +628,11 @@ static bool nicknameIsAcceptable(const String& value) {
 static const char PROVISION_PAGE[] PROGMEM = R"rawliteral(
 <!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Name this device</title><style>
+<title>Set up this device</title><style>
 body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#0f172a;color:#e2e8f0}
 h1{font-size:20px;margin:0 0 4px}p{color:#94a3b8;font-size:14px;margin:0 0 20px}
 label{display:block;font-size:13px;margin-bottom:6px;color:#cbd5e1}
+label:not(:first-child){margin-top:16px}
 input{width:100%;box-sizing:border-box;padding:14px;font-size:17px;border-radius:8px;
 border:1px solid #334155;background:#1e293b;color:#f1f5f9}
 button{width:100%;margin-top:16px;padding:16px;font-size:17px;font-weight:600;
@@ -620,12 +641,24 @@ button:disabled{background:#475569}
 .eui{margin-top:20px;font-size:12px;color:#64748b}
 .err{color:#f87171;font-size:13px;margin-top:8px;min-height:18px}
 </style></head><body>
-<h1>Name this device</h1>
+<h1>Set up this device</h1>
 <p>It will not join the network until you confirm.</p>
 <form method="POST" action="/save" onsubmit="return check()">
 <label for="n">Nickname</label>
 <input id="n" name="nickname" autocomplete="off" autocapitalize="none"
        maxlength="48" placeholder="temp_c_floor3_308" required>
+<p style="margin:20px 0 12px">Optional LoRaWAN credentials. Leave any field blank
+to keep its current value. Enter hexadecimal values in the order shown by your network server.</p>
+<label for="d">DevEUI (optional, 16 hex characters)</label>
+<input id="d" name="dev_eui" autocomplete="off" autocapitalize="none" spellcheck="false"
+       maxlength="16" pattern="[0-9A-Fa-f]{16}" placeholder="Leave blank to keep current">
+<label for="j">JoinEUI / AppEUI (optional, 16 hex characters)</label>
+<input id="j" name="join_eui" autocomplete="off" autocapitalize="none" spellcheck="false"
+       maxlength="16" pattern="[0-9A-Fa-f]{16}" placeholder="Leave blank to keep current">
+<label for="k">AppKey (optional, 32 hex characters)</label>
+<input id="k" name="app_key" type="password" autocomplete="new-password" autocapitalize="none"
+       spellcheck="false" maxlength="32" pattern="[0-9A-Fa-f]{32}"
+       placeholder="Leave blank to keep current">
 <div class="err" id="e"></div>
 <button type="submit" id="b">Confirm</button>
 </form>
@@ -643,6 +676,61 @@ function check(){
 }
 </script></body></html>
 )rawliteral";
+
+static int credentialHexDigit(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+// Missing, empty, or whitespace-only fields leave the candidate unchanged.
+// Parse into a copy: invalid input must never change active or saved values.
+static bool parseOptionalCredential(String text, u1_t* output, size_t length, bool reverse) {
+    text.trim();
+    if (!text.length()) return true;
+    if (text.length() != length * 2) return false;
+    for (size_t i = 0; i < length; ++i) {
+        const int high = credentialHexDigit(text[i * 2]);
+        const int low = credentialHexDigit(text[i * 2 + 1]);
+        if (high < 0 || low < 0) return false;
+        output[reverse ? length - 1 - i : i] = (high << 4) | low;
+    }
+    return true;
+}
+
+static bool saveProvisionCredentials() {
+    OtaaCredentials candidate = otaaCredentials;
+    if (!parseOptionalCredential(provisioningServer.arg("dev_eui"), candidate.devEui, 8, true)
+        || !parseOptionalCredential(provisioningServer.arg("join_eui"), candidate.joinEui, 8, true)
+        || !parseOptionalCredential(provisioningServer.arg("app_key"), candidate.appKey, 16, false)) {
+        provisioningServer.send(400, "text/plain",
+            "Invalid credentials. DevEUI and JoinEUI need 16 hex characters; AppKey needs 32. "
+            "Leave fields blank to keep their current values. Go back and try again.");
+        return false;
+    }
+    if (memcmp(&candidate, &otaaCredentials, sizeof(candidate)) == 0) return true;
+
+    Preferences config;
+    if (!config.begin("sbms", /*readOnly=*/false)) {
+        provisioningServer.send(500, "text/plain", "Cannot open credential storage. Go back and try again.");
+        return false;
+    }
+    // One NVS blob keeps a multi-field update together. Do not apply it to
+    // LMIC until the complete candidate has been persisted successfully.
+    const bool saved = config.putBytes("otaa_creds", &candidate, sizeof(candidate)) == sizeof(candidate);
+    config.end();
+    if (!saved) {
+        provisioningServer.send(500, "text/plain", "Cannot save credentials. Go back and try again.");
+        return false;
+    }
+    otaaCredentials = candidate;
+#if ENABLE_OLED
+    for (int i = 0; i < 8; ++i) snprintf(&devEuiText[i * 2], 3, "%02X", DEVEUI[7 - i]);
+    displayDirty = true;
+#endif
+    return true;
+}
 
 static void handleProvisionRoot() {
     String page = FPSTR(PROVISION_PAGE);
@@ -665,6 +753,7 @@ static void handleProvisionSave() {
         return;
     }
 
+    if (!saveProvisionCredentials()) return;
     saveNickname(value);
 
     String done = String(

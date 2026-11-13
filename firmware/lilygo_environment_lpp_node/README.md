@@ -50,6 +50,23 @@ Generate credentials with `python tools/generate_lorawan_credentials.py`;
 the new sketch folder gets its own gitignored header. A local copy of the
 original sketch's credential header can also be used with this sketch.
 
+The Wi-Fi setup page at **192.168.4.1** also has optional **DevEUI**,
+**JoinEUI / AppEUI**, and **AppKey** fields. Leave any field blank to keep
+its current value (the saved value, or the firmware default if no credentials
+have been saved). You can update one field without re-entering the others.
+Enter DevEUI and JoinEUI as **16 hexadecimal characters**, and AppKey as
+**32 hexadecimal characters**, without spaces or separators, in the normal
+order displayed by your network server. The firmware converts the EUIs to
+LMIC's byte order automatically. Invalid input rejects the submission before
+saving the nickname or credentials. Credential fields are never prefilled.
+
+Credential changes are stored together in ESP32 NVS (`sbms` / `otaa_creds`)
+and used for the subsequent OTAA join. They survive restarts, nickname resets,
+and ordinary reflashing without a flash erase. Once saved, they take precedence
+over the credential header, including for fields retained from defaults.
+Submitting all credential fields blank leaves credential storage untouched.
+Ensure your network server has matching credentials for the device.
+
 To rename an already named node, restart it and press **RST** again during
 the **three-second window** shown on Serial and the OLED. On the next boot,
 the stored marker clears the nickname and reopens the Wi-Fi naming portal.
