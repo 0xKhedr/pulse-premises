@@ -31,9 +31,13 @@ def build_device_state(
     else:
         current = current.astimezone(timezone.utc)
 
-    last_seen = _parse_timestamp(
-        device.get("last_seen") or device.get("telemetry_updated_at")
-    )
+    timestamps = [value for value in (
+        _parse_timestamp(device.get("last_seen")),
+        _parse_timestamp(device.get("telemetry_updated_at")),
+    ) if value is not None]
+    last_seen = max(timestamps) if timestamps else None
+    offline_after_seconds = max(1, int(offline_after_seconds))
+    stale_after_seconds = max(1, min(int(stale_after_seconds), offline_after_seconds))
     age_seconds = None
     if last_seen is None:
         connection_state = "never_connected"
@@ -51,5 +55,8 @@ def build_device_state(
         "connection_state": connection_state,
         "monitoring_state": "operational" if commissioned else "discovery",
         "last_seen_age_seconds": age_seconds,
+        "last_seen_at": last_seen.isoformat() if last_seen else None,
         "commissioned": commissioned,
+        "stale_after_seconds": stale_after_seconds,
+        "offline_after_seconds": offline_after_seconds,
     }

@@ -3,9 +3,11 @@ FROM ${TTS_IMAGE}
 
 USER root
 COPY --chmod=755 linux/stack-entrypoint.sh linux/stack-init.sh /setup/
+COPY linux/stack-journal.awk /setup/
 # Named volumes inherit ownership from the image on first use.
-RUN mkdir -p /srv/ttn-lorawan/public/blob \
-    && chown 886:886 /srv/ttn-lorawan/public/blob
+RUN mkdir -p /srv/ttn-lorawan/public/blob /var/log/ttn \
+    && chown 886:886 /srv/ttn-lorawan/public/blob /var/log/ttn \
+    && chmod 755 /var/log/ttn
 
 USER 886:886
 ENTRYPOINT ["/setup/stack-entrypoint.sh"]

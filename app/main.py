@@ -96,7 +96,14 @@ async def lifespan(app: FastAPI):
         task = asyncio.create_task(preview_heartbeat())
     else:
         task = asyncio.create_task(offline_watchdog())
+    from app.services.gateway_attempts import run_collector
+    gateway_task = asyncio.create_task(run_collector())
     yield
+    gateway_task.cancel()
+    try:
+        await gateway_task
+    except asyncio.CancelledError:
+        pass
     task.cancel()
     try:
         await task
@@ -4387,9 +4394,20 @@ def load_device_profile_context_for_webhook(conn: sqlite3.Connection,
         )
     else:
         device = dict(device_row)
+        clean_device_id = device['device_id']
         try:
-            conn.execute("UPDATE devices SET status = 'online', last_seen = CURRENT_TIMESTAMP WHERE device_id = ?", (clean_device_id,))
-            conn.commit()
+            if raw_envelope and raw_envelope.get('uplink_message'):
+                conn.execute("UPDATE devices SET status='online',last_seen=CURRENT_TIMESTAMP,ttn_device_id=? WHERE device_id=?",
+                             (str(end_device_ids.get('device_id') or clean_device_id), clean_device_id))
+                conn.execute("""UPDATE alarm_history SET resolved=1,resolved_by='system',resolved_at=CURRENT_TIMESTAMP,
+                    resolved_reason='Device telemetry resumed' WHERE device_id=? AND alarm_type='SYSTEM_OFFLINE' AND resolved=0""",
+                    (clean_device_id,))
+                latest = conn.execute("SELECT alarm_message FROM device_latest_telemetry WHERE device_id=?", (clean_device_id,)).fetchone()
+                if latest and 'OFFLINE' in str(latest['alarm_message'] or '').split(', '):
+                    remaining = [part for part in str(latest['alarm_message']).split(', ') if part != 'OFFLINE']
+                    conn.execute("UPDATE device_latest_telemetry SET alarm_active=?,alarm_message=? WHERE device_id=?",
+                                 (int(bool(remaining)), ', '.join(remaining) if remaining else 'OK', clean_device_id))
+                conn.commit()
         except Exception:
             pass
 
@@ -5636,40 +5654,29 @@ def check_offline_devices(conn: sqlite3.Connection, now: datetime | None = None)
     if now is None:
         now = datetime.now(timezone.utc)
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT
-            t.device_id,
-            t.updated_at,
-            t.alarm_active,
-            t.alarm_message,
-            d.client_id,
-            d.site_id,
-            d.building_id,
-            d.floor_id,
-            d.node_type,
-            d.building,
-            d.floor,
-            d.room
-        FROM device_latest_telemetry t
-        LEFT JOIN devices d ON t.device_id = d.device_id
-        WHERE d.is_placed = 1
-          AND d.floor_id IS NOT NULL
-    """)
+    cursor.execute("""SELECT d.*,t.updated_at AS telemetry_updated_at,t.alarm_message
+        FROM devices d LEFT JOIN device_latest_telemetry t ON t.device_id=d.device_id""")
     rows = cursor.fetchall()
     for row in rows:
         device_id = row["device_id"]
-        updated_at_str = row["updated_at"]
-        if not updated_at_str:
-            continue
-        updated_at = parse_datetime_safe(updated_at_str)
-        if not updated_at:
-            continue
-
-        if now - updated_at > timedelta(hours=24):
-            if row["alarm_message"] != "OFFLINE":
+        state = build_device_state(dict(row), now=now,
+            stale_after_seconds=settings.DEVICE_STALE_AFTER_SECONDS,
+            offline_after_seconds=settings.DEVICE_OFFLINE_AFTER_SECONDS)
+        if row['status'] != state['connection_state']:
+            cursor.execute("UPDATE devices SET status=? WHERE device_id=?", (state['connection_state'], device_id))
+            schedule_broadcast({'type': 'DEVICE_STATUS', 'device_id': device_id, **state},
+                client_id=row['client_id'],site_id=row['site_id'],building_id=row['building_id'],floor_id=row['floor_id'])
+        if state['commissioned'] and state['connection_state'] == 'offline':
+            if not conn.execute("SELECT 1 FROM alarm_history WHERE device_id=? AND alarm_type='SYSTEM_OFFLINE' AND resolved=0", (device_id,)).fetchone():
+                seconds = state['offline_after_seconds']
+                duration = f"{seconds // 3600} hours" if seconds % 3600 == 0 else f"{seconds} seconds"
+                previous = str(row['alarm_message'] or '')
+                messages = [part for part in previous.split(', ') if part and part not in {'OK', 'NORMAL', 'OFFLINE'}]
+                alarm_message = ', '.join([*messages, 'OFFLINE'])
                 cursor.execute(
-                    "UPDATE device_latest_telemetry SET alarm_active=1, alarm_message='OFFLINE' WHERE device_id=?",
-                    (device_id,),
+                    """INSERT INTO device_latest_telemetry(device_id,alarm_active,alarm_message,updated_at) VALUES (?,1,?,NULL)
+                        ON CONFLICT(device_id) DO UPDATE SET alarm_active=1,alarm_message=excluded.alarm_message""",
+                    (device_id, alarm_message),
                 )
                 cursor.execute(
                     """
@@ -5683,13 +5690,13 @@ def check_offline_devices(conn: sqlite3.Connection, now: datetime | None = None)
                         row["floor"],
                         row["room"],
                         "SYSTEM_OFFLINE",
-                        "Device has not sent data in 24 hours.",
+                        f"Device has not sent an uplink in {duration}.",
                     ),
                 )
                 alert_msg = {
                     "type": "ALARM",
                     "device_id": device_id,
-                    "message": "Device Offline (No data in 24h)",
+                    "message": f"Device Offline (No uplink in {duration})",
                     "timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
                 }
                 schedule_broadcast(
@@ -5699,6 +5706,15 @@ def check_offline_devices(conn: sqlite3.Connection, now: datetime | None = None)
                     building_id=row["building_id"],
                     floor_id=row["floor_id"],
                 )
+        elif state['connection_state'] in {'online', 'stale'}:
+            cursor.execute("""UPDATE alarm_history SET resolved=1,resolved_by='system',resolved_at=CURRENT_TIMESTAMP,
+                resolved_reason='Device connectivity restored' WHERE device_id=? AND alarm_type='SYSTEM_OFFLINE' AND resolved=0""",
+                (device_id,))
+            previous = str(row['alarm_message'] or '')
+            if 'OFFLINE' in previous.split(', '):
+                messages = [part for part in previous.split(', ') if part != 'OFFLINE']
+                cursor.execute("UPDATE device_latest_telemetry SET alarm_active=?,alarm_message=? WHERE device_id=?",
+                    (int(bool(messages)), ', '.join(messages) if messages else 'OK', device_id))
     conn.commit()
 
 
@@ -5710,7 +5726,7 @@ def purge_old_telemetry(conn: sqlite3.Connection):
         logger.error("Failed to purge old telemetry: %s", e)
 
 
-def run_offline_scan():
+def run_offline_scan(*, maintenance: bool = True):
     """
     One watchdog pass, executed entirely on a worker thread.
 
@@ -5721,8 +5737,9 @@ def run_offline_scan():
     conn = get_db_connection()
     try:
         check_offline_devices(conn)
-        cleanup_expired_sessions(conn)
-        purge_old_telemetry(conn)
+        if maintenance:
+            cleanup_expired_sessions(conn)
+            purge_old_telemetry(conn)
     finally:
         # Previously outside a finally, so every failed scan leaked a
         # connection -- once every 300s, for the life of the process.
@@ -5730,12 +5747,14 @@ def run_offline_scan():
 
 
 async def offline_watchdog():
+    scans = 0
     while True:
         try:
             # Off the event loop: the scan is blocking sqlite work.
-            await asyncio.to_thread(run_offline_scan)
+            await asyncio.to_thread(run_offline_scan, maintenance=scans % 10 == 0)
         except Exception as e:
             logger.error("Watchdog error: %s", e)
-        await asyncio.sleep(300)
+        scans += 1
+        await asyncio.sleep(30)
 
 

@@ -1764,7 +1764,7 @@ async function deleteSelectedBuildingDevice() {
         return;
     }
 
-    if (!confirm(`Delete device '${deviceId}'?`)) {
+    if (!confirm(`Delete device '${deviceId}' from SBMS and TTN? This removes its network registration. It must be explicitly approved again to re-enroll.`)) {
         return;
     }
 

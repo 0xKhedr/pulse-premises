@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     # itself localhost -- rejects registration with
     # network_server_address_mismatch unless this names what the stack expects.
     TTN_CLUSTER_ADDRESS: str = ""
+    # User/organization key with gateway create, info, settings and API-key rights.
+    # Separate from the application key and from a gateway's own link key.
+    TTN_GATEWAY_MANAGEMENT_API_KEY: str = ""
+    TTN_GATEWAY_OWNER_ID: str = "admin"
+    TTN_GATEWAY_OWNER_TYPE: str = "users"
+    TTN_GATEWAY_SERVER_ADDRESS: str = ""
+    # Read-only journal written by the bundled stack wrapper. Empty disables collection.
+    TTN_GATEWAY_ATTEMPT_LOG_DIR: str = ""
+    GATEWAY_APPROVAL_MAX_CANDIDATES: int = 500
 
     THINGSBOARD_ENABLED: bool = True
     THINGSBOARD_URL: str = "http://localhost:8080"
@@ -73,6 +82,8 @@ class Settings(BaseSettings):
     # New approval candidates allowed per discovery window. Repeat requests
     # update existing candidates without consuming additional quota.
     AUTO_ENROLLMENT_MAX_PER_WINDOW: int = 10
+    # An accepted device without an uplink after this time needs installer attention.
+    AUTO_ENROLLMENT_JOIN_WAIT_SECONDS: int = 900
     # Gateways whose traffic is watched. Empty means every gateway in the
     # gateways table.
     AUTO_ENROLLMENT_GATEWAY_IDS: str = ""

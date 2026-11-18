@@ -23,11 +23,30 @@
     </div>
     <p class="provisioning-message" data-provisioning-message role="status">Checking discovery availability…</p>
     <h3>Device approvals</h3>
-    <p class="muted">Pending devices and your decisions are saved when scanning stops. Rejected devices stay rejected across scans and restarts. Online means the first uplink has been received.</p>
+    <p class="muted">Review new nodes and track accepted nodes awaiting their first uplink. Revoking approval removes the TTN registration. A TTN session alone does not confirm that a node is sending data.</p>
+    <div class="provisioning-tabs" role="group" aria-label="Enrollment queue">
+        <button type="button" class="secondary" data-provisioning-filter="review" aria-pressed="true">Needs review <span data-provisioning-total="review">0</span></button>
+        <button type="button" class="secondary" data-provisioning-filter="waiting" aria-pressed="false">Awaiting uplink <span data-provisioning-total="waiting">0</span></button>
+        <button type="button" class="secondary" data-provisioning-filter="attention" aria-pressed="false">Needs attention <span data-provisioning-total="attention">0</span></button>
+        <button type="button" class="secondary" data-provisioning-filter="active" aria-pressed="false">Previously connected <span data-provisioning-total="active">0</span></button>
+        <button type="button" class="secondary" data-provisioning-filter="rejected" aria-pressed="false">Rejected <span data-provisioning-total="rejected">0</span></button>
+        <button type="button" class="secondary" data-provisioning-filter="all" aria-pressed="false">All <span data-provisioning-total="all">0</span></button>
+    </div>
+    <div class="provisioning-controls provisioning-review-controls">
+        <label>Search devices<input type="search" data-provisioning-search placeholder="Device ID, DevEUI or gateway"></label>
+        <label>Sort<select data-provisioning-sort><option value="newest">Last seen, newest first</option><option value="oldest">First seen, oldest first</option><option value="waiting">Longest wait first</option></select></label>
+    </div>
+    <div class="provisioning-bulk">
+        <label><input type="checkbox" data-provisioning-select-all> Select visible pending devices</label>
+        <span data-provisioning-selected>0 selected</span>
+        <button type="button" data-provisioning-bulk-accept disabled>Accept selected</button>
+        <button type="button" class="secondary" data-provisioning-bulk-reject disabled>Reject selected</button>
+    </div>
+    <p data-provisioning-action-message role="status" aria-live="polite"></p>
     <p data-provisioning-empty>No verified devices awaiting approval.</p>
     <div class="provisioning-queue" data-provisioning-queue hidden>
         <table>
-            <thead><tr><th scope="col">Node</th><th scope="col">Gateway / signal</th><th scope="col">Last seen</th><th scope="col">Status</th><th scope="col">Decision</th></tr></thead>
+            <thead><tr><th scope="col">Select</th><th scope="col">Node</th><th scope="col">Gateway / signal</th><th scope="col">Last join request</th><th scope="col">Status / TTN check</th><th scope="col">Actions</th></tr></thead>
             <tbody data-provisioning-candidates></tbody>
         </table>
     </div>

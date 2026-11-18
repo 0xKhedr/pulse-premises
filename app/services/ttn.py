@@ -27,9 +27,13 @@ class TTNClient:
             or self.base_url.replace("https://", "").replace("http://", "")
         )
 
-    def get_headers(self, *, gateway: bool = False) -> dict[str, str]:
+    def get_headers(self, *, gateway: bool = False, management: bool = False) -> dict[str, str]:
         api_key = self.api_key
-        if gateway:
+        if management:
+            api_key = settings.TTN_GATEWAY_MANAGEMENT_API_KEY.strip()
+            if not api_key:
+                raise RuntimeError("TTN gateway management key is not configured")
+        elif gateway:
             api_key = settings.AUTO_ENROLLMENT_GATEWAY_API_KEY.strip() or api_key
         return {
             "Authorization": f"Bearer {api_key}",
@@ -37,7 +41,8 @@ class TTNClient:
             "Accept": "application/json",
         }
 
-    def _request(self, method: str, path: str, *, gateway: bool = False, **kwargs) -> requests.Response:
+    def _request(self, method: str, path: str, *, gateway: bool = False,
+                 management: bool = False, **kwargs) -> requests.Response:
         if settings.PREVIEW_MODE:
             raise RuntimeError("TTN changes are unavailable in the preview workspace")
         url = f"{self.base_url}{path}"
@@ -45,7 +50,7 @@ class TTNClient:
             r = requests.request(
                 method,
                 url,
-                headers=self.get_headers(gateway=gateway),
+                headers=self.get_headers(gateway=gateway, management=management),
                 timeout=20,
                 **kwargs,
             )
@@ -53,9 +58,46 @@ class TTNClient:
             return r
         except requests.RequestException as e:
             logger.error(f"TTN request failed [{method} {path}]: {e}")
-            if hasattr(e, "response") and e.response is not None:
+            if not management and hasattr(e, "response") and e.response is not None:
                 logger.error(f"TTN response text: {e.response.text}")
             raise
+
+    def get_managed_gateway(self, gateway_id: str) -> dict[str, Any] | None:
+        try:
+            return self._request(
+                "GET", f"/api/v3/gateways/{quote(gateway_id, safe='')}", management=True,
+                params={"field_mask": "ids,name,attributes,frequency_plan_ids,require_authenticated_connection"},
+            ).json()
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code == 404:
+                return None
+            raise
+
+    def register_gateway(self, candidate: dict) -> dict[str, Any]:
+        owner_type = settings.TTN_GATEWAY_OWNER_TYPE
+        if owner_type not in {"users", "organizations"}:
+            raise ValueError("Gateway owner type must be users or organizations")
+        owner = settings.TTN_GATEWAY_OWNER_ID.strip()
+        if not owner:
+            raise ValueError("Gateway owner ID is required")
+        return self._request(
+            "POST", f"/api/v3/{owner_type}/{quote(owner, safe='')}/gateways", management=True,
+            json={"gateway": {
+                "ids": {"gateway_id": candidate["gateway_id"], "eui": candidate["eui"]},
+                "name": candidate["name"],
+                "attributes": {"sbms-approval": candidate["approval_token"]},
+                "frequency_plan_ids": [candidate["frequency_plan_id"]],
+                "gateway_server_address": settings.TTN_GATEWAY_SERVER_ADDRESS.strip() or self.host,
+                "require_authenticated_connection": bool(candidate["require_authenticated_connection"]),
+                "status_public": False, "location_public": False, "enforce_duty_cycle": True,
+            }},
+        ).json()
+
+    def create_gateway_link_key(self, gateway_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST", f"/api/v3/gateways/{quote(gateway_id, safe='')}/api-keys", management=True,
+            json={"api_key": {"name": "SBMS gateway connection", "rights": ["RIGHT_GATEWAY_LINK"]}},
+        ).json()
 
     def create_application_device(
         self, device_id: str, dev_eui: str, join_eui: str, name: str, description: str
@@ -210,11 +252,13 @@ function decodeUplink(input) {
         )
 
     def delete_device(self, device_id: str) -> None:
+        app_id = quote(self.app_id, safe="")
+        device_id = quote(device_id, safe="")
         paths = (
-            f"/api/v3/as/applications/{self.app_id}/devices/{device_id}",
-            f"/api/v3/ns/applications/{self.app_id}/devices/{device_id}",
-            f"/api/v3/js/applications/{self.app_id}/devices/{device_id}",
-            f"/api/v3/applications/{self.app_id}/devices/{device_id}",
+            f"/api/v3/as/applications/{app_id}/devices/{device_id}",
+            f"/api/v3/ns/applications/{app_id}/devices/{device_id}",
+            f"/api/v3/js/applications/{app_id}/devices/{device_id}",
+            f"/api/v3/applications/{app_id}/devices/{device_id}",
         )
         for path in paths:
             try:
@@ -227,7 +271,7 @@ function decodeUplink(input) {
     def get_application_device(self, device_id: str) -> dict[str, Any]:
         return self._request(
             "GET",
-            f"/api/v3/applications/{self.app_id}/devices/{device_id}",
+            f"/api/v3/applications/{quote(self.app_id, safe='')}/devices/{quote(device_id, safe='')}",
             params={"field_mask": "ids,name,created_at,updated_at"},
         ).json()
 
@@ -283,5 +327,29 @@ function decodeUplink(input) {
                 ):
                     return {}
             raise
+
+    def inspect_device_registration(self, device_id: str, dev_eui: str) -> dict[str, Any]:
+        """Read registration/session metadata only; never request session keys."""
+        suffix = f"applications/{quote(self.app_id, safe='')}/devices/{quote(device_id, safe='')}"
+        components = {}
+        session_started_at = None
+        for component in ("is", "ns", "as", "js"):
+            prefix = "" if component == "is" else component + "/"
+            fields = "ids,session.started_at" if component == "ns" else "ids"
+            try:
+                entry = self._request("GET", f"/api/v3/{prefix}{suffix}", params={"field_mask": fields}).json()
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code == 404:
+                    components[component] = "missing"
+                    continue
+                raise
+            observed_eui = entry.get("ids", {}).get("dev_eui", "")
+            if observed_eui and observed_eui.upper() != dev_eui.upper():
+                raise ValueError("TTN identity does not match the enrollment DevEUI")
+            components[component] = "registered"
+            if component == "ns":
+                session_started_at = entry.get("session", {}).get("started_at")
+        return {"components": components, "complete": all(v == "registered" for v in components.values()),
+                "session_started_at": session_started_at}
 
 ttn_client = TTNClient()

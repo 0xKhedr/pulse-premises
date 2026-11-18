@@ -164,6 +164,33 @@ scan. A changed root key requires a fresh verified join request before a saved
 candidate can be accepted. Restart the backend after updating so migration
 `012_device_enrollment_approvals` creates the approval queue automatically.
 
+The Devices page separates **Needs review**, **Awaiting uplink**, **Needs
+attention**, **Previously connected**, and **Rejected** queues. Search by
+identity or gateway, sort by age/wait time, and accept or reject up to 50
+selected pending devices. Bulk acceptance stops after a registration failure
+and leaves the remaining requests pending. Rejected nodes can be returned to
+review; acceptance still requires matching verified firmware credentials.
+
+For accepted nodes, **Check TTN** reads the Identity, Network, Application and
+Join Server registrations and the Network Server session timestamp, without
+requesting keys. A session existing in TTN does not prove the physical node
+received its join accept. The first authenticated uplink marks enrollment as
+connected. **Revoke approval** removes a waiting node from all TTN components
+and moves it to Rejected. Interrupted revocations remain blocked and can be
+retried. Registration failures are cleaned up in TTN before rejection.
+`AUTO_ENROLLMENT_JOIN_WAIT_SECONDS` defaults to 900 seconds; a longer wait is
+highlighted for installer attention, without automatically rejecting a node.
+
+Deleting a device in SBMS removes its TTN Application Server, Network Server,
+Join Server and Identity Server entries before deleting local current state.
+Missing TTN entries are harmless; failures retain the SBMS record so deletion
+can be retried. A durable admission block prevents queued or delayed uplinks
+from recreating a deleted device. Its saved enrollment decision is Rejected;
+return it to review and explicitly accept it to re-enroll. Audit and alarm
+history are retained, and current alarms are resolved on deletion.
+Explicit administrator provisioning can also re-enroll a deleted identity;
+an interrupted deletion must be finished first.
+
 ### Send a Class A downlink
 
 Device Management and Device Capabilities include **Send downlink**. Select
@@ -253,6 +280,16 @@ replacement registration fails.
 Device connection states are `never_connected`, `online`, `stale`, and
 `offline`. `DEVICE_STALE_AFTER_SECONDS` and `DEVICE_OFFLINE_AFTER_SECONDS`
 control the boundaries.
+Defaults are 5 minutes before stale and 24 hours before offline. The watchdog
+checks every 30 seconds, using the freshest authenticated uplink or stored
+telemetry timestamp. Devices that have never sent data remain
+`never_connected`. The same policy drives device cards, analytics, enrollment
+connectivity and persisted status. Unplaced devices receive connection status;
+offline alarms are emitted only after floor commissioning and are resolved
+when connectivity resumes. Set the timeouts above the device's expected
+reporting interval, allowing for missed uplinks and network delay. An offline
+state indicates missing uplinks; it cannot distinguish a powered-off node
+from lost radio coverage, a gateway outage or a webhook failure.
 
 ## Database
 

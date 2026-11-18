@@ -211,6 +211,7 @@ def provision(device: Device) -> dict:
         update_existing_device_metadata,
         validate_config,
     )
+    from app.services.device_lifecycle import clear_admission_block
     from app.services.lorawan_identity import derive_dev_eui_from_mac
 
     try:
@@ -225,6 +226,16 @@ def provision(device: Device) -> dict:
     conn = get_db_connection()
 
     try:
+        identity = derive_dev_eui_from_mac(chip_mac, namespace=settings.TTN_APP_ID)
+        block = conn.execute("""SELECT state FROM device_admission_blocks WHERE application_id=?
+            AND (device_id=? OR dev_eui=? COLLATE NOCASE) AND state IN ('deleting','failed') LIMIT 1""",
+            (settings.TTN_APP_ID, make_device_id(chip_mac), identity)).fetchone()
+        if block:
+            raise HTTPException(409, "Finish deleting this device from TTN before provisioning it again")
+        operation = conn.execute("""SELECT status,management_action FROM device_enrollment_candidates
+            WHERE application_id=? AND dev_eui=? COLLATE NOCASE""", (settings.TTN_APP_ID, identity)).fetchone()
+        if operation and (operation['status'] == 'registering' or operation['management_action']):
+            raise HTTPException(409, "Wait for the enrollment network operation to finish before provisioning")
         profile = resolve_sensor_profile_for_provision(conn, device)
         node_type = profile["node_type"]
         capabilities = profile["capabilities"]
@@ -346,6 +357,11 @@ def provision(device: Device) -> dict:
 
         save_device_profile_assignment(conn=conn, chip_mac=chip_mac, profile=profile)
         save_device_capabilities(conn, device_id, capabilities)
+        clear_admission_block(conn, device_id, dev_eui)
+        conn.execute("""UPDATE device_enrollment_candidates SET status='awaiting_join',
+            decided_by='admin provisioning',decided_at=CURRENT_TIMESTAMP,online_at=NULL,
+            registration_error=NULL,ttn_check_json=NULL,ttn_checked_at=NULL
+            WHERE application_id=? AND dev_eui=? COLLATE NOCASE""", (settings.TTN_APP_ID, dev_eui))
         saved = get_existing_device(conn, chip_mac)
         record_device_configuration_history(
             conn=conn, device_row=saved, profile=profile,

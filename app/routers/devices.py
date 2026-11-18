@@ -37,6 +37,7 @@ from app.main import (
     set_device_formatter_from_profile,
 )
 from app.schemas.core import DeviceDownlinkRequest, DeviceProfileAssignment, DeviceSendRateRequest
+from app.services.device_lifecycle import remove_device
 from app.services.device_profiles import assign_device_profile, mark_formatter_synced
 from app.services.device_state import build_device_state
 from app.services.downlinks import CONFIGURATION_F_PORT, decode_downlink_payload, encode_send_rate
@@ -175,6 +176,7 @@ def device_status(device_id: str):
     conn = db()
     try:
         row = get_device_metadata_by_device_id(conn, device_id)
+        latest = conn.execute("SELECT updated_at FROM device_latest_telemetry WHERE device_id=?", (device_id,)).fetchone()
         conn.close()
 
         if not row:
@@ -190,6 +192,9 @@ def device_status(device_id: str):
             telemetry = {}
 
         return {
+            **build_device_state({**dict(row), "telemetry_updated_at": latest["updated_at"] if latest else None},
+                stale_after_seconds=settings.DEVICE_STALE_AFTER_SECONDS,
+                offline_after_seconds=settings.DEVICE_OFFLINE_AFTER_SECONDS),
             "device_id": row["device_id"],
             "node_type": row["node_type"],
             "building": row["building"],
@@ -369,7 +374,7 @@ def devices_status():
             # =================================================
 
             state = build_device_state(
-                device,
+                {**device, "telemetry_updated_at": local_telemetry.get("local_updated_at")},
                 stale_after_seconds=settings.DEVICE_STALE_AFTER_SECONDS,
                 offline_after_seconds=settings.DEVICE_OFFLINE_AFTER_SECONDS,
             )
@@ -378,6 +383,7 @@ def devices_status():
                 {
                     **state,
                     "device_id": device_id,
+                    "deletion_error": device.get("deletion_error"),
 
                     "node_type": (
                         profile.get(
@@ -929,32 +935,23 @@ def assign_device_to_room(device_id: str, data: dict):
     finally:
         conn.close()
 @router.delete("/devices/{device_id}")
-def delete_device(device_id: str):
+def delete_device(device_id: str, request: Request):
     conn = db()
     try:
-
-        cur = conn.execute(
-            "DELETE FROM devices WHERE device_id = ?",
-            (device_id,)
-        )
-
-        conn.commit()
-        deleted = cur.rowcount
-        conn.close()
-
-        if deleted == 0:
-            raise HTTPException(status_code=404, detail="Device not found")
-
-        return {
-            "status": "deleted",
-            "device_id": device_id
-        }
-    except Exception:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        raise
+        device = conn.execute("SELECT * FROM devices WHERE device_id=?", (device_id,)).fetchone()
+        if device is None:
+            raise HTTPException(404, "Device not found")
+        candidate = conn.execute("""SELECT status FROM device_enrollment_candidates
+            WHERE application_id=? AND (device_id=? OR dev_eui=? COLLATE NOCASE)""",
+            (settings.TTN_APP_ID, device_id, device["dev_eui"] or "")).fetchone()
+        if candidate and candidate["status"] == "registering":
+            raise HTTPException(409, "Wait for enrollment registration to finish before deleting this device")
+        user = get_current_user_from_request(request) or {}
+        actor = str(user.get("email") or user.get("id") or "admin")
+        result = remove_device(conn, device_id, device["dev_eui"] or "", actor)
+        log_audit_event(conn, action="delete_device", actor=actor, target_type="device",
+                        target_id=device_id, details={"ttn_deleted": True, "dev_eui": device["dev_eui"]})
+        return result
     finally:
         conn.close()
 @router.get("/devices/{device_id}/latest-telemetry")

@@ -19,6 +19,7 @@ from app.main import (
     get_local_latest_telemetry,
     read_tb_latest_telemetry,
 )
+from app.services.device_state import build_device_state
 from app.services.export_safety import SafeDictWriter, redact_secrets
 
 router = APIRouter()
@@ -878,22 +879,11 @@ def admin_summary():
 
         now_utc = datetime.now(timezone.utc)
 
-        def get_local_device_status(local_telemetry):
-            if not local_telemetry:
-                return "offline", None
-
-            updated_at = local_telemetry.get("local_updated_at")
-            updated_dt = parse_datetime_safe(updated_at)
-
-            if not updated_dt:
-                return "offline", updated_at
-
-            seconds_ago = (now_utc - updated_dt).total_seconds()
-
-            if 0 <= seconds_ago <= 300 and (local_telemetry.get("alarm_message") or "").upper() != "OFFLINE":
-                return "online", updated_at
-
-            return "offline", updated_at
+        def get_local_device_status(local_telemetry, device):
+            state = build_device_state({**dict(device), "telemetry_updated_at": (local_telemetry or {}).get("local_updated_at")},
+                now=now_utc, stale_after_seconds=settings.DEVICE_STALE_AFTER_SECONDS,
+                offline_after_seconds=settings.DEVICE_OFFLINE_AFTER_SECONDS)
+            return state["connection_state"], state["last_seen_at"]
 
         total_clients = count_table("clients")
         total_sites = count_table("sites")
@@ -902,7 +892,7 @@ def admin_summary():
         total_rooms = count_table("rooms")
 
         device_rows = conn.execute("""
-        SELECT device_id
+        SELECT *
         FROM devices
         ORDER BY device_id
     """).fetchall()
@@ -921,45 +911,30 @@ def admin_summary():
         total_devices = len(device_rows)
         online_devices = 0
         offline_devices = 0
+        stale_devices = 0
+        never_connected_devices = 0
         last_device_seen = None
         device_summary_source = "local_database"
 
         tb_available = thingsboard_available_quick()
 
-        if tb_available:
-            device_summary_source = "thingsboard_with_local_fallback"
-
         for row in device_rows:
             device_id = row["device_id"]
 
             local_telemetry = read_local_latest_telemetry(device_id)
-            local_status, local_last_seen = get_local_device_status(local_telemetry)
+            local_status, local_last_seen = get_local_device_status(local_telemetry, row)
 
             selected_status = local_status
             selected_last_seen = local_last_seen
 
-            if tb_available:
-                try:
-                    tb_telemetry = read_tb_latest_telemetry(device_id)
-
-                    if has_real_tb_telemetry(tb_telemetry):
-                        selected_status = tb_telemetry.get("device_status", selected_status)
-                        selected_last_seen = tb_telemetry.get("last_seen_iso", selected_last_seen)
-
-                except Exception:
-                    pass
-
-            if selected_last_seen:
-                selected_dt = parse_datetime_safe(selected_last_seen)
-                if selected_dt:
-                    seconds_ago = (now_utc - selected_dt).total_seconds()
-                    if seconds_ago > 300 or seconds_ago < 0:
-                        selected_status = "offline"
-
             if selected_status == "online":
                 online_devices += 1
-            else:
+            elif selected_status == "offline":
                 offline_devices += 1
+            elif selected_status == "stale":
+                stale_devices += 1
+            else:
+                never_connected_devices += 1
 
             if selected_last_seen:
                 selected_dt = parse_datetime_safe(selected_last_seen)
@@ -1028,6 +1003,8 @@ def admin_summary():
             },
 
             "devices": {
+                "stale": stale_devices,
+                "never_connected": never_connected_devices,
                 "total": total_devices,
                 "online": online_devices,
                 "offline": offline_devices,

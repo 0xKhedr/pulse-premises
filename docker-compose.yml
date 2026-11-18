@@ -24,11 +24,14 @@ services:
       LOCAL_TEST_MODE: "false"
       PREVIEW_MODE: "false"
       TTN_BASE_URL: http://stack:1885
+      TTN_GATEWAY_ATTEMPT_LOG_DIR: /var/log/ttn
+      TTN_GATEWAY_SERVER_ADDRESS: ${TTS_HOST:?Set the building server address}
     ports:
       - "${SBMS_BIND_ADDRESS:-0.0.0.0}:${SBMS_HTTP_PORT:-8000}:8000"
     volumes:
       - sbms-data:/app/data
       - sbms-uploads:/app/uploads
+      - tts-gateway-journal:/var/log/ttn:ro
     depends_on:
       stack:
         condition: service_healthy
@@ -58,6 +61,7 @@ services:
       TTN_LW_CLUSTER_KEYS: ${TTS_CLUSTER_KEY:?Generate .env first}
       TTS_BOOTSTRAP_EMAIL: ${TTS_BOOTSTRAP_EMAIL:-admin@127.0.0.1}
       TTS_BOOTSTRAP_PASSWORD: ${TTS_BOOTSTRAP_PASSWORD:-admin}
+      SBMS_GATEWAY_JOURNAL: "true"
     ports:
       - "${SBMS_BIND_ADDRESS:-0.0.0.0}:1885:1885"
       - "${SBMS_BIND_ADDRESS:-0.0.0.0}:1700:1700/udp"
@@ -70,6 +74,7 @@ services:
         bind:
           create_host_path: false
       - tts-blob:/srv/ttn-lorawan/public/blob
+      - tts-gateway-journal:/var/log/ttn
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,6 +123,7 @@ volumes:
   tts-postgres:
   tts-redis:
   tts-blob:
+  tts-gateway-journal:
 
 secrets:
   sbms_local_ca:

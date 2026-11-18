@@ -412,7 +412,7 @@
                     }
 
                     const label = device.label || device.device_id;
-                    const status = device.telemetry?.device_status || "unknown";
+                    const status = device.connection_state || "never_connected";
 
                     card.innerHTML = `
                         <h3>${escapeHtml(label)} ${nodeTypeBadge(device)}</h3>
@@ -426,6 +426,7 @@
 
                         <div class="status-line">
                             Live Status: <b>${escapeHtml(status)}</b>
+                            <small>Stale after ${Math.round(device.stale_after_seconds / 60)} minutes · Offline after ${Math.round(device.offline_after_seconds / 60)} minutes without an uplink.</small>
                         </div>
 
                         <div class="profile-controls"></div>

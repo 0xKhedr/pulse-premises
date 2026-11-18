@@ -2,8 +2,10 @@ import json
 
 from fastapi import APIRouter, HTTPException
 
+from app.config import settings
 from app.db.connection import get_db_connection as db
 from app.main import read_tb_latest_telemetry
+from app.services.device_state import build_device_state
 
 router = APIRouter()
 
@@ -97,37 +99,30 @@ def floor_map_data(building: str, floor: str):
 def get_analytics():
     from datetime import datetime, timezone
 
-    from app.main import parse_datetime_safe
-
     conn = db()
     try:
-        device_rows = conn.execute("SELECT device_id FROM devices").fetchall()
+        device_rows = conn.execute("""SELECT d.*,t.updated_at AS telemetry_updated_at
+            FROM devices d LEFT JOIN device_latest_telemetry t ON t.device_id=d.device_id""").fetchall()
         total_devices = len(device_rows)
         online_devices = 0
         offline_devices = 0
+        stale_devices = 0
+        never_connected_devices = 0
 
         now_utc = datetime.now(timezone.utc)
 
         for row in device_rows:
-            dev_id = row["device_id"]
-            telem = conn.execute("""
-                SELECT updated_at, alarm_message
-                FROM device_latest_telemetry
-                WHERE device_id = ?
-            """, (dev_id,)).fetchone()
-
-            is_online = False
-            if telem and telem["updated_at"]:
-                updated_dt = parse_datetime_safe(telem["updated_at"])
-                if updated_dt:
-                    seconds_ago = (now_utc - updated_dt).total_seconds()
-                    if 0 <= seconds_ago <= 300 and (telem["alarm_message"] or "").upper() != "OFFLINE":
-                        is_online = True
-
-            if is_online:
+            state = build_device_state(dict(row), now=now_utc,
+                stale_after_seconds=settings.DEVICE_STALE_AFTER_SECONDS,
+                offline_after_seconds=settings.DEVICE_OFFLINE_AFTER_SECONDS)["connection_state"]
+            if state == "online":
                 online_devices += 1
-            else:
+            elif state == "offline":
                 offline_devices += 1
+            elif state == "stale":
+                stale_devices += 1
+            else:
+                never_connected_devices += 1
 
         cursor = conn.cursor()
 
@@ -144,6 +139,8 @@ def get_analytics():
             "active_devices": online_devices,
             "online_devices": online_devices,
             "offline_devices": offline_devices,
+            "stale_devices": stale_devices,
+            "never_connected_devices": never_connected_devices,
             "total_gateways": total_gateways,
             "alarms_today": alarms_today
         }

@@ -125,6 +125,53 @@ using `169.254.x.x`, configure the Ethernet return route using
 [Direct Ethernet gateway connection](NEW_MACHINE_SETUP.md#direct-ethernet-gateway-connection).
 Point the packet forwarder at the PC's Ethernet IPv4 address on UDP 1700.
 
+### Gateway connection approval
+
+The **Gateways** page includes a connection-request inbox. The bundled stack
+continues to require registered gateways; discovery does not admit traffic.
+Compose shares a bounded JSON failure journal with SBMS through the
+`tts-gateway-journal` volume, read-only in SBMS. No Docker socket is exposed.
+Rebuild both images after updating (`docker compose up -d --build --wait`);
+do not rerun the configuration generator on an existing installation.
+
+For acceptance, set `TTN_GATEWAY_MANAGEMENT_API_KEY` in `.env` to a **user or
+organization API key** permitted to create gateways under
+`TTN_GATEWAY_OWNER_ID` (default `admin`, owner type `users`). Include gateway
+information, settings and API-key management rights, and the rights it will
+grant to new gateway keys (`RIGHT_GATEWAY_LINK`). This is separate from the
+application API key and from `AUTO_ENROLLMENT_GATEWAY_API_KEY`. The latter
+remains the key used for health and device-enrollment traffic. It must also
+have access to newly accepted gateways for their health to be visible.
+
+Accept registers the EUI and chosen frequency plan in TTN and adds the gateway
+to SBMS, optionally assigning it to a site. A registration with an uncertain
+result can be retried with its original ID and radio settings. Definitively
+refused settings can be corrected before retrying. The approval marker
+in TTN lets SBMS reconcile a create that succeeded before a connection timed
+out. Existing unrelated TTN or SBMS registrations are never overwritten.
+For Basics Station, use **Create connection key** after acceptance, copy the
+one-time key into the gateway's LNS configuration, and reconnect. The browser
+does not persist this key; manage/revoke keys in the TTN Console. A key-creation
+timeout may have created a key: inspect TTN before creating another.
+
+Reject records a decision and leaves the unregistered gateway blocked by TTN.
+Repeated failures update its rejected record. It does not create a firewall
+rule or revoke an already registered gateway. UDP EUIs are self-reported and
+can be impersonated; use authenticated Basics Station for gateway identity.
+Verify hardware before accepting any request. The page shows collector
+availability separately from an empty inbox. Attempts only appear when TTN
+logs a gateway registration/authentication failure with an identifiable EUI
+or gateway ID; packet drops before that point are not visible. TTN may throttle
+failure logging, so counts represent observed failures, not every packet.
+The journal retains roughly 2 MiB, so prolonged SBMS downtime can lose older
+attempts. The inbox retains up to 500 distinct identities by default
+(`GATEWAY_APPROVAL_MAX_CANDIDATES`); it reports when this cap is reached.
+
+External/public TTN installations do not supply this journal automatically.
+Without access to server failure logs, the page reports that monitoring is
+not configured. For a host-run SBMS process reading a journal from a local TTN
+server, set `TTN_GATEWAY_ATTEMPT_LOG_DIR` to the journal directory.
+
 The default LoRaWAN AppKey is newly generated for this building. For existing
 sensors, copy their actual shared `LORAWAN_APP_KEY` and `JOIN_EUI` into
 `.env` before registration, or flash firmware with the new values.

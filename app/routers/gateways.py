@@ -1,18 +1,111 @@
 import logging
+from urllib.parse import urlsplit
 
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
-
-from fastapi import APIRouter, HTTPException
-
+from app.config import settings
 from app.db.connection import get_db_connection as db
 from app.main import (
+    get_current_user_from_request,
     log_audit_event,
     ttn_get_gateway_connection_stats,
     ttn_get_gateway_status,
 )
+from app.services import gateway_approvals, gateway_attempts
+from app.services.ttn import ttn_client
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _approval_admin(request: Request) -> dict:
+    user = get_current_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    if str(user.get("role", "")).lower() != "admin":
+        raise HTTPException(403, "Admin role required")
+    origin = request.headers.get("origin")
+    if request.method != "GET" and origin:
+        parsed = urlsplit(origin)
+        if (parsed.scheme, parsed.netloc) != (request.url.scheme, request.url.netloc):
+            raise HTTPException(403, "Gateway approval actions require the same browser origin")
+    return user
+
+
+@router.get("/gateways/approvals")
+def gateway_approval_inbox(request: Request):
+    _approval_admin(request)
+    conn = db()
+    try:
+        candidates = [gateway_approvals.public_candidate(dict(row)) for row in conn.execute(
+            "SELECT * FROM gateway_approval_candidates ORDER BY last_seen_at DESC, id DESC"
+        )]
+        sites = [dict(row) for row in conn.execute("SELECT id,name,client_id FROM sites ORDER BY name")]
+    finally:
+        conn.close()
+    return JSONResponse({
+        "collector": gateway_attempts.collector_status(),
+        "management_configured": bool(settings.TTN_GATEWAY_MANAGEMENT_API_KEY.strip()) and not settings.PREVIEW_MODE,
+        "default_frequency_plan_id": settings.LORAWAN_FREQUENCY_PLAN_ID,
+        "candidates": candidates, "sites": sites,
+    }, headers={"Cache-Control": "no-store"})
+
+
+@router.post("/gateways/approvals/{candidate_id}/accept")
+def accept_gateway_attempt(request: Request, candidate_id: int, data: dict):
+    user = _approval_admin(request)
+    actor = user.get("email") or str(user["id"])
+    conn = db()
+    try:
+        result = gateway_approvals.accept_candidate(conn, candidate_id, data, actor)
+        log_audit_event(conn, action="gateway_accepted", actor=actor, target_type="gateway",
+                        target_id=result["gateway_id"], gateway_id=result["gateway_id"],
+                        details={"candidate_id": candidate_id, "eui": result["eui"], "site_id": result["site_id"]})
+        return result
+    finally:
+        conn.close()
+
+
+@router.post("/gateways/approvals/{candidate_id}/reject")
+def reject_gateway_attempt(request: Request, candidate_id: int):
+    user = _approval_admin(request)
+    actor = user.get("email") or str(user["id"])
+    conn = db()
+    try:
+        result = gateway_approvals.reject_candidate(conn, candidate_id, actor)
+        log_audit_event(conn, action="gateway_rejected", actor=actor, target_type="gateway",
+                        target_id=result["eui"] or candidate_id, details={"candidate_id": candidate_id})
+        return result
+    finally:
+        conn.close()
+
+
+@router.post("/gateways/approvals/{candidate_id}/connection-key")
+def gateway_connection_key(request: Request, candidate_id: int):
+    user = _approval_admin(request)
+    gateway_approvals.check_enabled()
+    conn = db()
+    try:
+        candidate = gateway_approvals.candidate_by_id(conn, candidate_id)
+        if candidate["status"] != "accepted":
+            raise HTTPException(409, "Accept the gateway before creating a connection key")
+        try:
+            gateway = ttn_client.get_managed_gateway(candidate["gateway_id"])
+            gateway_approvals.assert_registration_matches(candidate, gateway)
+            key = ttn_client.create_gateway_link_key(candidate["gateway_id"])
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(502, "TTN could not confirm key creation. Check gateway API keys in the TTN Console before creating another key.") from exc
+        log_audit_event(conn, action="gateway_connection_key_created",
+                        actor=user.get("email") or str(user["id"]), target_type="gateway",
+                        target_id=candidate["gateway_id"], gateway_id=candidate["gateway_id"],
+                        details={"key_id": key.get("id")})
+        return JSONResponse({"gateway_id": candidate["gateway_id"], "key": key.get("key"),
+                             "key_id": key.get("id")}, headers={"Cache-Control": "no-store"})
+    finally:
+        conn.close()
 
 @router.get("/gateways/{gateway_id}/sync")
 def sync_gateway_status(gateway_id: str):
