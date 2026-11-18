@@ -49,28 +49,23 @@ Generated settings always use PostgreSQL password `root`, Console secret
 
 ## 4. Connect real devices
 
-In the TTN Console:
-
-1. Create an application with ID `smart-building-lora-2` (or your `.env` value
-   for `TTN_APP_ID`).
-2. Create an application API key with device/key management, traffic, and
-   integration rights. Paste it into `.env` as `TTN_API_KEY`.
-3. Under **Integrations > Webhooks**, add a custom JSON webhook:
-
-| Setting | Value |
-| --- | --- |
-| Base URL | `http://sbms-app:8000` |
-| Uplink message path | `/ttn-webhook` |
-| Header name | `X-Webhook-Secret` |
-| Header value | The `TTN_WEBHOOK_SECRET` value from `.env` |
+In the TTN Console, create one user backend key and save it in `.env` as
+`TTN_GATEWAY_MANAGEMENT_API_KEY`. Grant `RIGHT_USER_APPLICATIONS_CREATE`,
+`RIGHT_APPLICATION_ALL`, gateway create/info/settings/delete/API-key/link
+rights, `RIGHT_GATEWAY_STATUS_READ` and `RIGHT_GATEWAY_TRAFFIC_READ`.
+SBMS creates `TTN_APP_ID` if missing and configures its uplink webhook on
+startup. Existing applications and matching webhooks are reused. You can
+leave `TTN_API_KEY` empty. Compose supplies the internal webhook address and
+SBMS copies `TTN_WEBHOOK_SECRET` into the webhook's authentication header.
+The Gateways page reports setup status and permission errors.
 
 Register your gateway with its actual EUI and frequency plan. Configure its
 destination as the server's **LAN address**, UDP port **1700**, or
 `ws://<server>:1887` for Basics Station with a gateway link API key.
 Allow the relevant ports through the host firewall.
 
-For portal discovery, set `AUTO_ENROLLMENT_GATEWAY_API_KEY` in `.env` to a
-gateway traffic API key. Match the sensors' JoinEUI, AppKey, frequency plan,
+The shared backend key also handles portal discovery; no separate gateway
+traffic key is needed. Match the sensors' JoinEUI, AppKey, frequency plan,
 and protocol versions to `.env`. Apply environment changes with the command
 below, then open **Scan for new devices** in SBMS and approve the discovered
 devices. Place a device on a floor and verify a real reading.

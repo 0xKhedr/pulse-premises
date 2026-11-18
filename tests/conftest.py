@@ -4,6 +4,7 @@ import pytest
 
 # Point to a test database instead of production
 os.environ["DB_FILE"] = "test_smarthome.db"
+os.environ["TTN_AUTO_SETUP_ENABLED"] = "false"
 
 from fastapi.testclient import TestClient
 

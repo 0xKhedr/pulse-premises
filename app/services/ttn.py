@@ -20,7 +20,7 @@ class TTNClient:
     def __init__(self):
         self.base_url = settings.TTN_BASE_URL.rstrip("/")
         self.app_id = settings.TTN_APP_ID
-        self.api_key = settings.TTN_API_KEY
+        self.api_key = settings.TTN_API_KEY.strip() or settings.TTN_GATEWAY_MANAGEMENT_API_KEY.strip()
         # Where we connect. Not necessarily what the cluster calls itself.
         self.host = (
             settings.TTN_CLUSTER_ADDRESS.strip()
@@ -34,7 +34,8 @@ class TTNClient:
             if not api_key:
                 raise RuntimeError("TTN gateway management key is not configured")
         elif gateway:
-            api_key = settings.AUTO_ENROLLMENT_GATEWAY_API_KEY.strip() or api_key
+            api_key = (settings.TTN_GATEWAY_MANAGEMENT_API_KEY.strip()
+                       or settings.AUTO_ENROLLMENT_GATEWAY_API_KEY.strip() or api_key)
         return {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -42,7 +43,7 @@ class TTNClient:
         }
 
     def _request(self, method: str, path: str, *, gateway: bool = False,
-                 management: bool = False, **kwargs) -> requests.Response:
+                 management: bool = False, sensitive: bool = False, **kwargs) -> requests.Response:
         if settings.PREVIEW_MODE:
             raise RuntimeError("TTN changes are unavailable in the preview workspace")
         url = f"{self.base_url}{path}"
@@ -58,9 +59,57 @@ class TTNClient:
             return r
         except requests.RequestException as e:
             logger.error(f"TTN request failed [{method} {path}]: {e}")
-            if not management and hasattr(e, "response") and e.response is not None:
+            if not management and not sensitive and hasattr(e, "response") and e.response is not None:
                 logger.error(f"TTN response text: {e.response.text}")
             raise
+
+    def ensure_application(self) -> None:
+        path = f"/api/v3/applications/{quote(self.app_id, safe='')}"
+        try:
+            self._request("GET", path, params={"field_mask": "ids"})
+            return
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code != 404:
+                raise
+        owner_type = settings.TTN_GATEWAY_OWNER_TYPE
+        owner = settings.TTN_GATEWAY_OWNER_ID.strip()
+        if owner_type not in {"users", "organizations"} or not owner:
+            raise ValueError("Configure a valid TTN gateway/application owner")
+        try:
+            self._request(
+                "POST", f"/api/v3/{owner_type}/{quote(owner, safe='')}/applications", management=True,
+                json={"application": {
+                    "ids": {"application_id": self.app_id}, "name": "Smart Building",
+                    "network_server_address": self.host, "application_server_address": self.host,
+                    "join_server_address": self.host,
+                }},
+            )
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code != 409:
+                raise
+            # Another worker may have created it. Verify access before continuing.
+            self._request("GET", path, params={"field_mask": "ids"})
+
+    def list_application_webhooks(self) -> list[dict[str, Any]]:
+        hooks = []
+        page = 1
+        while True:
+            entries = self._request(
+                "GET", f"/api/v3/as/webhooks/{quote(self.app_id, safe='')}", sensitive=True,
+                params={"field_mask": "ids,base_url,headers,format,uplink_message,paused", "limit": 1000, "page": page},
+            ).json().get("webhooks", [])
+            hooks.extend(entries)
+            if len(entries) < 1000:
+                return hooks
+            page += 1
+
+    def set_application_webhook(self, webhook: dict[str, Any]) -> None:
+        self._request(
+            "PUT", f"/api/v3/as/webhooks/{quote(self.app_id, safe='')}/{quote(webhook['ids']['webhook_id'], safe='')}",
+            sensitive=True, json={"webhook": webhook, "field_mask": {
+                "paths": ["base_url", "headers", "format", "uplink_message", "paused"],
+            }},
+        )
 
     def get_managed_gateway(self, gateway_id: str) -> dict[str, Any] | None:
         try:
@@ -96,8 +145,18 @@ class TTNClient:
     def create_gateway_link_key(self, gateway_id: str) -> dict[str, Any]:
         return self._request(
             "POST", f"/api/v3/gateways/{quote(gateway_id, safe='')}/api-keys", management=True,
-            json={"api_key": {"name": "SBMS gateway connection", "rights": ["RIGHT_GATEWAY_LINK"]}},
+            json={"name": "SBMS gateway connection", "rights": ["RIGHT_GATEWAY_LINK"]},
         ).json()
+
+    def delete_gateway(self, gateway_id: str) -> None:
+        try:
+            self._request(
+                "DELETE", f"/api/v3/gateways/{quote(gateway_id, safe='')}", management=True,
+            )
+        except requests.HTTPError as exc:
+            # An already absent registration also completes a retried deletion.
+            if exc.response is None or exc.response.status_code != 404:
+                raise
 
     def create_application_device(
         self, device_id: str, dev_eui: str, join_eui: str, name: str, description: str

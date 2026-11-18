@@ -329,10 +329,14 @@ stable (default `smart-building`) to reuse the existing volumes. SBMS stores
 its SQLite database in `sbms-data` and uploaded files in `sbms-uploads`. Both
 volumes inherit ownership from the image's unprivileged user (UID 1000).
 
-Configure TTN's webhook with base URL `http://sbms-app:8000`, uplink path
-`/ttn-webhook`, and an `X-Webhook-Secret` header matching `TTN_WEBHOOK_SECRET`
-in `.env`. SBMS reaches TTN at `http://stack:1885` inside Compose. Set the
-application API key created in the bundled stack as `TTN_API_KEY` in `.env`.
+Set one user/organization backend key as `TTN_GATEWAY_MANAGEMENT_API_KEY` in
+`.env`, with gateway management, status and traffic rights, application
+creation rights, and `RIGHT_APPLICATION_ALL`. SBMS automatically creates
+`TTN_APP_ID` if missing and configures its uplink webhook at startup. Existing
+applications and matching webhooks are reused. A separate `TTN_API_KEY` is
+optional. Compose uses `http://sbms-app:8000/ttn-webhook` with the generated
+`TTN_WEBHOOK_SECRET`; override `TTN_WEBHOOK_BASE_URL` for external TTN.
+SBMS reaches TTN at `http://stack:1885` inside Compose.
 
 ### Editing templates and static files
 

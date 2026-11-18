@@ -1541,16 +1541,16 @@ async function deleteGateway() {
         return;
     }
 
-    if (!confirm("Delete gateway: " + gw.gateway_id + "?")) {
+    if (!confirm("Delete gateway " + gw.gateway_id + " from SBMS and TTN?")) {
         return;
     }
 
     try {
-        await fetchJson(`/gateways/${encodeURIComponent(gw.gateway_id)}`, {
+        await fetchJson(`/gateways/${encodeURIComponent(gw.id)}`, {
             method: "DELETE"
         });
 
-        showStatus("gatewayStatus", "Gateway deleted.", "good");
+        showStatus("gatewayStatus", "Gateway deleted from SBMS and TTN.", "good");
         await refreshAll();
         fillGatewayForm();
 

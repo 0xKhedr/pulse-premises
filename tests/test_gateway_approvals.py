@@ -340,4 +340,130 @@ def test_gateway_management_requests_use_separate_key(approval_db, monkeypatch):
     assert all(call[2]["headers"]["Authorization"] == "Bearer management-test-key" for call in calls)
     assert calls[0][1].endswith('/api/v3/users/gateway-admin/gateways')
     assert calls[0][2]["json"]["gateway"]["gateway_server_address"] == "building.local"
-    assert calls[1][2]["json"]["api_key"]["rights"] == ["RIGHT_GATEWAY_LINK"]
+    assert calls[1][2]["json"]["rights"] == ["RIGHT_GATEWAY_LINK"]
+
+
+def test_delete_gateway_removes_ttn_before_sbms_and_resets_approval(approval_db, registrar, monkeypatch):
+    item_id = candidate(approval_db)
+    accepted = approvals.accept_candidate(approval_db, item_id, {}, "tester")
+    gateway = approval_db.execute("SELECT * FROM gateways").fetchone()
+    old_token = approvals.candidate_by_id(approval_db, item_id)["approval_token"]
+    monkeypatch.setattr(ttn_client, "get_managed_gateway", lambda _: {"ids": {"eui": EUI}})
+    calls = []
+
+    def delete(gateway_id):
+        conn = get_db_connection()
+        try:
+            assert conn.execute("SELECT gateway_id FROM gateways").fetchone()[0] == gateway_id
+        finally:
+            conn.close()
+        calls.append(gateway_id)
+
+    monkeypatch.setattr(ttn_client, "delete_gateway", delete)
+    with TestClient(app) as client:
+        login(approval_db, client)
+        result = client.delete(f"/gateways/{gateway['id']}")
+        assert result.status_code == 200
+        assert result.json()["ttn_deleted"] is True
+        assert client.post(f"/gateways/approvals/{item_id}/connection-key").status_code == 409
+    assert calls == [accepted["gateway_id"]]
+    assert approval_db.execute("SELECT COUNT(*) FROM gateways").fetchone()[0] == 0
+    reset = approvals.candidate_by_id(approval_db, item_id)
+    assert reset["status"] == "pending"
+    assert reset["gateway_id"] is None
+    assert reset["approval_token"] != old_token
+    assert approval_db.execute("SELECT COUNT(*) FROM audit_log WHERE action='gateway_deleted'").fetchone()[0] == 1
+    attempts.record_failure(approval_db, attempts.parse_failure(failure_entry()), NOW)
+    approval_db.commit()
+    monkeypatch.setattr(ttn_client, "get_managed_gateway", lambda _: None)
+    assert approvals.accept_candidate(approval_db, item_id, {"gateway_id": "gw-replacement"}, "tester")["status"] == "accepted"
+
+
+@pytest.mark.parametrize("failure", ["timeout", 401, 403, 500])
+def test_delete_gateway_failure_retains_local_record_and_approval(approval_db, registrar, monkeypatch, failure):
+    item_id = candidate(approval_db)
+    approvals.accept_candidate(approval_db, item_id, {}, "tester")
+    gateway = approval_db.execute("SELECT * FROM gateways").fetchone()
+    monkeypatch.setattr(ttn_client, "get_managed_gateway", lambda _: {"ids": {"eui": EUI}})
+
+    def delete(_):
+        if failure == "timeout":
+            raise requests.Timeout("private upstream diagnostics")
+        response = requests.Response()
+        response.status_code = failure
+        raise requests.HTTPError("private upstream diagnostics", response=response)
+
+    monkeypatch.setattr(ttn_client, "delete_gateway", delete)
+    with TestClient(app) as client:
+        login(approval_db, client)
+        result = client.delete(f"/gateways/{gateway['id']}")
+    assert result.status_code == 502
+    assert "private upstream diagnostics" not in result.text
+    assert approval_db.execute("SELECT COUNT(*) FROM gateways").fetchone()[0] == 1
+    assert approvals.candidate_by_id(approval_db, item_id)["status"] == "accepted"
+
+
+def test_delete_manual_gateway_with_already_absent_ttn_registration(approval_db, monkeypatch):
+    gateway_id = approval_db.execute(
+        "INSERT INTO gateways(gateway_id,name) VALUES ('manual-gateway','Manual gateway')"
+    ).lastrowid
+    approval_db.commit()
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append(method)
+        response = requests.Response()
+        response.status_code = 404
+        response._content = b'{}'
+        return response
+
+    monkeypatch.setattr("app.services.ttn.requests.request", request)
+    with TestClient(app) as client:
+        login(approval_db, client)
+        assert client.delete(f"/gateways/{gateway_id}").status_code == 200
+    assert calls == ["GET", "DELETE"]
+    assert approval_db.execute("SELECT COUNT(*) FROM gateways").fetchone()[0] == 0
+
+
+def test_delete_gateway_guards_access_and_changed_identity(approval_db, registrar, monkeypatch):
+    item_id = candidate(approval_db)
+    approvals.accept_candidate(approval_db, item_id, {}, "tester")
+    gateway = approval_db.execute("SELECT * FROM gateways").fetchone()
+    monkeypatch.setattr(ttn_client, "get_managed_gateway", lambda _: {"ids": {"eui": "1122334455667788"}})
+
+    def never_delete(_):
+        raise AssertionError("Deletion must not reach TTN")
+
+    monkeypatch.setattr(ttn_client, "delete_gateway", never_delete)
+    with TestClient(app) as client:
+        path = f"/gateways/{gateway['id']}"
+        assert client.delete(path, follow_redirects=False).status_code in (302, 401)
+        login(approval_db, client, "client")
+        assert client.delete(path).status_code == 403
+        login(approval_db, client)
+        assert client.delete(path, headers={"Origin": "https://attacker.local"}).status_code == 403
+        assert client.delete(path).status_code == 409
+        monkeypatch.setattr(settings, "TTN_GATEWAY_MANAGEMENT_API_KEY", "")
+        assert client.delete(path).status_code == 409
+    assert approval_db.execute("SELECT COUNT(*) FROM gateways").fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("status", [200, 404, 403])
+def test_ttn_gateway_delete_retries_absent_registration_and_uses_management_key(approval_db, monkeypatch, status):
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append((method, url, kwargs["headers"]["Authorization"]))
+        response = requests.Response()
+        response.status_code = status
+        response._content = b'{}'
+        return response
+
+    monkeypatch.setattr("app.services.ttn.requests.request", request)
+    client = TTNClient()
+    if status == 403:
+        with pytest.raises(requests.HTTPError):
+            client.delete_gateway("test/gateway")
+    else:
+        client.delete_gateway("test/gateway")
+    assert calls == [("DELETE", f"{client.base_url}/api/v3/gateways/test%2Fgateway", "Bearer management-test-key")]

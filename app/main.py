@@ -98,7 +98,14 @@ async def lifespan(app: FastAPI):
         task = asyncio.create_task(offline_watchdog())
     from app.services.gateway_attempts import run_collector
     gateway_task = asyncio.create_task(run_collector())
+    from app.services.ttn_setup import run_setup
+    setup_task = asyncio.create_task(run_setup())
     yield
+    setup_task.cancel()
+    try:
+        await setup_task
+    except asyncio.CancelledError:
+        pass
     gateway_task.cancel()
     try:
         await gateway_task
@@ -137,7 +144,7 @@ if os.path.isdir('static'):
     app.mount('/static', StaticFiles(directory='static'), name='static')
 TTN_BASE = settings.TTN_BASE_URL.rstrip('/')
 APP_ID = settings.TTN_APP_ID
-API_KEY = settings.TTN_API_KEY
+API_KEY = ttn_client.api_key
 JOIN_EUI = settings.JOIN_EUI.upper()
 LORAWAN_APP_KEY = settings.LORAWAN_APP_KEY.upper()
 FREQUENCY_PLAN_ID = settings.LORAWAN_FREQUENCY_PLAN_ID
@@ -2291,7 +2298,7 @@ def generate_app_key() ->str:
 def validate_config() ->None:
     if not TTN_BASE or not APP_ID or not API_KEY:
         raise RuntimeError(
-            'TTN_BASE_URL, TTN_APP_ID, and TTN_API_KEY must be set in .env')
+            'Set TTN_BASE_URL, TTN_APP_ID, and TTN_GATEWAY_MANAGEMENT_API_KEY (or TTN_API_KEY) in .env')
     normalize_eui(JOIN_EUI, 16)
     normalize_eui(LORAWAN_APP_KEY, 32)
 

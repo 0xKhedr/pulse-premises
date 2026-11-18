@@ -12,6 +12,7 @@ def ttn(monkeypatch):
     monkeypatch.setattr(settings, "PREVIEW_MODE", False)
     monkeypatch.setattr(settings, "TTN_BASE_URL", "http://stack:1885")
     monkeypatch.setattr(settings, "TTN_API_KEY", "application-key")
+    monkeypatch.setattr(settings, "TTN_GATEWAY_MANAGEMENT_API_KEY", "")
     monkeypatch.setattr(settings, "AUTO_ENROLLMENT_GATEWAY_API_KEY", "gateway-key")
     return TTNClient()
 
@@ -73,3 +74,22 @@ def test_authentication_and_missing_gateway_errors_are_not_reported_as_offline(
     with pytest.raises(requests.HTTPError):
         ttn.get_gateway_stats("test-gateway")
     assert calls == ["Bearer gateway-key"]
+
+
+def test_shared_backend_key_handles_applications_and_gateways_without_per_gateway_keys(monkeypatch):
+    monkeypatch.setattr(settings, "PREVIEW_MODE", False)
+    monkeypatch.setattr(settings, "TTN_API_KEY", "")
+    monkeypatch.setattr(settings, "TTN_GATEWAY_MANAGEMENT_API_KEY", "shared-backend-key")
+    monkeypatch.setattr(settings, "AUTO_ENROLLMENT_GATEWAY_API_KEY", "expired-legacy-key")
+    client = TTNClient()
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append(kwargs["headers"]["Authorization"])
+        return response(200, {})
+
+    monkeypatch.setattr("app.services.ttn.requests.request", request)
+    client.get_application_device("test-node")
+    client.get_gateway_info("gateway-one")
+    client.get_gateway_stats("gateway-two")
+    assert calls == ["Bearer shared-backend-key"] * 3

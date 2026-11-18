@@ -13,7 +13,12 @@ class Settings(BaseSettings):
 
     TTN_BASE_URL: str = "https://eu1.cloud.thethings.network"
     TTN_APP_ID: str = "smart-building-lora-2"
+    # Optional application-scoped override. Otherwise use the shared backend key.
     TTN_API_KEY: str = ""
+    TTN_AUTO_SETUP_ENABLED: bool = True
+    # Reachable from TTN; Compose supplies its internal service address.
+    TTN_WEBHOOK_BASE_URL: str = ""
+    TTN_WEBHOOK_ID: str = "sbms"
     JOIN_EUI: str = "0000000000000000"
     LORAWAN_APP_KEY: str = ""
     LORAWAN_FREQUENCY_PLAN_ID: str = "EU_863_870_TTN"
@@ -28,8 +33,9 @@ class Settings(BaseSettings):
     # itself localhost -- rejects registration with
     # network_server_address_mismatch unless this names what the stack expects.
     TTN_CLUSTER_ADDRESS: str = ""
-    # User/organization key with gateway create, info, settings and API-key rights.
-    # Separate from the application key and from a gateway's own link key.
+    # Shared user/organization backend key for gateway and application management.
+    # Automatic setup also needs application creation and application settings rights.
+    # Never install this backend key on gateway hardware.
     TTN_GATEWAY_MANAGEMENT_API_KEY: str = ""
     TTN_GATEWAY_OWNER_ID: str = "admin"
     TTN_GATEWAY_OWNER_TYPE: str = "users"
@@ -87,13 +93,9 @@ class Settings(BaseSettings):
     # Gateways whose traffic is watched. Empty means every gateway in the
     # gateways table.
     AUTO_ENROLLMENT_GATEWAY_IDS: str = ""
-    # Enrollment reads gateway *traffic* events, which are a different scope
-    # from the application rights TTN_API_KEY carries: an application-scoped
-    # key silently receives only status events, never uplinks. Mint a key with
-    # RIGHT_GATEWAY_READ_TRAFFIC on the gateway and set it here. Falls back to
-    # TTN_API_KEY, which works only if that key happens to be gateway-scoped.
-    # Gateway monitoring also uses this key; include RIGHT_GATEWAY_INFO and
-    # RIGHT_GATEWAY_STATUS_READ alongside gateway traffic access.
+    # Legacy gateway key fallback when the shared backend key is unset.
+    # Gateway discovery/monitoring use the shared key first. Include
+    # RIGHT_GATEWAY_TRAFFIC_READ, RIGHT_GATEWAY_INFO and RIGHT_GATEWAY_STATUS_READ.
     AUTO_ENROLLMENT_GATEWAY_API_KEY: str = ""
 
     # A decoded uplink is self-describing, and the webhook already stores

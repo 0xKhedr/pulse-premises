@@ -24,6 +24,7 @@ import requests
 from app.config import settings
 from app.services import join_enrollment
 from app.services.lorawan_join import parse_join_request
+from app.services.ttn import ttn_client
 
 logger = logging.getLogger(__name__)
 
@@ -99,14 +100,7 @@ def _run(stop_event: threading.Event) -> None:
     from app.db.connection import get_db_connection
 
     base = settings.TTN_BASE_URL.rstrip("/")
-    # Gateway traffic is a separate right from application access; see
-    # AUTO_ENROLLMENT_GATEWAY_API_KEY in app/config.py.
-    api_key = settings.AUTO_ENROLLMENT_GATEWAY_API_KEY or settings.TTN_API_KEY
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Accept": "text/event-stream",
-        "Content-Type": "application/json",
-    }
+    headers = {**ttn_client.get_headers(gateway=True), "Accept": "text/event-stream"}
 
     identifiers = _gateway_identifiers()
     if not identifiers:
@@ -166,8 +160,8 @@ def _consume(base: str, headers: dict, identifiers: list[dict], conn, stop_event
         # the wrong key rather than of a quiet radio.
         logger.warning(
             "Enrollment listener saw no gateway traffic events. If devices are "
-            "transmitting, AUTO_ENROLLMENT_GATEWAY_API_KEY probably lacks "
-            "RIGHT_GATEWAY_READ_TRAFFIC."
+            "transmitting, the backend gateway key may lack "
+            "RIGHT_GATEWAY_TRAFFIC_READ."
         )
 
 

@@ -1,6 +1,8 @@
 import logging
+import uuid
 from urllib.parse import urlsplit
 
+import requests
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -12,7 +14,7 @@ from app.main import (
     ttn_get_gateway_connection_stats,
     ttn_get_gateway_status,
 )
-from app.services import gateway_approvals, gateway_attempts
+from app.services import gateway_approvals, gateway_attempts, ttn_setup
 from app.services.ttn import ttn_client
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,7 @@ def gateway_approval_inbox(request: Request):
         conn.close()
     return JSONResponse({
         "collector": gateway_attempts.collector_status(),
+        "ttn_setup": ttn_setup.status(),
         "management_configured": bool(settings.TTN_GATEWAY_MANAGEMENT_API_KEY.strip()) and not settings.PREVIEW_MODE,
         "default_frequency_plan_id": settings.LORAWAN_FREQUENCY_PLAN_ID,
         "candidates": candidates, "sites": sites,
@@ -473,40 +476,60 @@ def get_gateways(site_id: int | None = None):
     finally:
         conn.close()
 @router.delete("/gateways/{gateway_db_id}")
-def delete_gateway(gateway_db_id: int):
+def delete_gateway(request: Request, gateway_db_id: int):
+    user = _approval_admin(request)
+    gateway_approvals.check_enabled()
     conn = db()
     try:
-
-        row = conn.execute("""
-        SELECT *
-        FROM gateways
-        WHERE id = ?
-    """, (gateway_db_id,)).fetchone()
-
+        # Serialize local edits/approval with deletion, including the TTN call.
+        # If TTN fails, roll back and leave the local record available to retry.
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT * FROM gateways WHERE id=?", (gateway_db_id,)).fetchone()
         if not row:
-            conn.close()
-            raise HTTPException(
-                status_code=404,
-                detail="Gateway not found"
-            )
-
-        conn.execute("""
-        DELETE FROM gateways
-        WHERE id = ?
-    """, (gateway_db_id,))
-
-        conn.commit()
-        conn.close()
-
-        return {
-            "status": "deleted",
-            "deleted_gateway": dict(row)
-        }
-    except Exception:
+            raise HTTPException(404, "Gateway not found")
+        gateway_id = row["gateway_id"]
+        candidates = conn.execute(
+            "SELECT * FROM gateway_approval_candidates WHERE gateway_id=?", (gateway_id,)
+        ).fetchall()
+        if any(item["status"] == "registering" for item in candidates):
+            raise HTTPException(409, "Wait for gateway registration to finish before deleting it")
         try:
-            conn.rollback()
-        except Exception:
-            pass
+            remote = ttn_client.get_managed_gateway(gateway_id)
+            if remote and any(
+                item["eui"] and item["eui"].upper() != str(remote.get("ids", {}).get("eui", "")).upper()
+                for item in candidates
+            ):
+                raise HTTPException(409, "TTN gateway EUI differs from SBMS. Check its identity before deleting.")
+            ttn_client.delete_gateway(gateway_id)
+        except HTTPException:
+            raise
+        except requests.HTTPError as exc:
+            code = exc.response.status_code if exc.response is not None else None
+            message = (
+                "TTN refused gateway deletion. Check the management key's gateway information and delete rights."
+                if code in {401, 403} else
+                "TTN could not confirm gateway deletion. The SBMS record is retained; retry deletion."
+            )
+            raise HTTPException(502, message) from exc
+        except Exception as exc:
+            raise HTTPException(502, "TTN could not confirm gateway deletion. The SBMS record is retained; retry deletion.") from exc
+        # Release the old approval so a later failed connection can be reviewed
+        # and accepted again, without reusing the previous registration marker.
+        conn.execute("""
+            UPDATE gateway_approval_candidates SET status='pending', gateway_id=NULL,
+                approval_token=?, decided_by=NULL, decided_at=NULL,
+                registration_started_at=NULL, registration_error=NULL
+            WHERE gateway_id=?
+        """, (uuid.uuid4().hex, gateway_id))
+        conn.execute("DELETE FROM gateways WHERE id=?", (gateway_db_id,))
+        log_audit_event(conn, action="gateway_deleted",
+                        actor=user.get("email") or str(user["id"]), target_type="gateway",
+                        target_id=gateway_db_id, gateway_id=gateway_id,
+                        details={"ttn_deleted": True, "deleted_gateway": dict(row)})
+        conn.commit()
+        return {"status": "deleted", "deleted_gateway": dict(row), "ttn_deleted": True}
+    except Exception:
+        conn.rollback()
         raise
     finally:
         conn.close()

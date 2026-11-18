@@ -87,19 +87,23 @@ for starting TTN and its dependencies.
 
 Open `http://192.168.10.20:1885/console` and sign in as `admin`.
 
-Create an application with ID matching `TTN_APP_ID` in `.env`
-(`smart-building-lora-2` by default). Create an application API key with the
-rights needed to read/write end devices, read/write their keys, read traffic,
-and configure integrations. Store it as `TTN_API_KEY` in `.env`.
+Set one user/organization backend key as `TTN_GATEWAY_MANAGEMENT_API_KEY`.
+For the default user owner, grant `RIGHT_USER_APPLICATIONS_CREATE` and
+`RIGHT_APPLICATION_ALL`, as well as the gateway rights documented below.
+Creating an admin account does not grant every right to each API key.
+An organization owner needs the corresponding organization creation rights.
 
-In that application's **Integrations → Webhooks**, add a custom JSON webhook:
+On SBMS startup, automatic setup creates `TTN_APP_ID` (`smart-building-lora-2`
+by default) if absent and configures its JSON uplink webhook, including the
+`X-Webhook-Secret` header. Existing applications are preserved. An existing
+webhook pointing to this SBMS uplink endpoint is reused to avoid duplicates.
+Setup retries every 30 seconds after failures; the Gateways page shows its
+status. `TTN_API_KEY` is optional and overrides application access if supplied.
 
-| Setting | Value |
-| --- | --- |
-| Base URL | `http://sbms-app:8000` |
-| Uplink message path | `/ttn-webhook` |
-| Header name | `X-Webhook-Secret` |
-| Header value | The generated `TTN_WEBHOOK_SECRET` from `.env` |
+Compose supplies `TTN_WEBHOOK_BASE_URL=http://sbms-app:8000`; uplinks go to
+`/ttn-webhook`. Override that URL for an external TTN deployment. With no URL
+outside Compose, automatic application creation still runs, but webhook setup
+is skipped. `TTN_AUTO_SETUP_ENABLED=false` disables automatic setup entirely.
 
 `stack` and `sbms-app` resolve through the Compose network. Do not use
 `localhost` or `host.docker.internal` for the webhook. The SBMS-to-stack API URL
@@ -139,9 +143,13 @@ organization API key** permitted to create gateways under
 `TTN_GATEWAY_OWNER_ID` (default `admin`, owner type `users`). Include gateway
 information, settings and API-key management rights, and the rights it will
 grant to new gateway keys (`RIGHT_GATEWAY_LINK`). This is separate from the
-application API key and from `AUTO_ENROLLMENT_GATEWAY_API_KEY`. The latter
-remains the key used for health and device-enrollment traffic. It must also
-have access to newly accepted gateways for their health to be visible.
+application-scoped override `TTN_API_KEY`. Include `RIGHT_GATEWAY_DELETE`,
+`RIGHT_GATEWAY_STATUS_READ` and `RIGHT_GATEWAY_TRAFFIC_READ` for deletion,
+monitoring and device discovery. The shared backend key is used for all
+managed gateways; `AUTO_ENROLLMENT_GATEWAY_API_KEY` is only a legacy fallback
+when the shared key is unset. UDP gateways need no hardware API key. Basics
+Station gateways still need their own restricted link credentials; never
+copy the backend management key onto gateway hardware.
 
 Accept registers the EUI and chosen frequency plan in TTN and adds the gateway
 to SBMS, optionally assigning it to a site. A registration with an uncertain
@@ -153,6 +161,13 @@ For Basics Station, use **Create connection key** after acceptance, copy the
 one-time key into the gateway's LNS configuration, and reconnect. The browser
 does not persist this key; manage/revoke keys in the TTN Console. A key-creation
 timeout may have created a key: inspect TTN before creating another.
+
+Deleting a gateway from Asset Management first deletes its TTN registration,
+then removes its SBMS record and resets its approval entry for rediscovery.
+If TTN refuses deletion or cannot confirm it, SBMS retains the gateway so the
+operation can be retried. A TTN registration that is already absent is treated
+as success. TTN deletion releases the EUI but can reserve the old gateway ID;
+use a different gateway ID when registering again if TTN reports a conflict.
 
 Reject records a decision and leaves the unregistered gateway blocked by TTN.
 Repeated failures update its rejected record. It does not create a firewall

@@ -24,6 +24,7 @@ services:
       LOCAL_TEST_MODE: "false"
       PREVIEW_MODE: "false"
       TTN_BASE_URL: http://stack:1885
+      TTN_WEBHOOK_BASE_URL: ${TTN_WEBHOOK_BASE_URL:-http://sbms-app:8000}
       TTN_GATEWAY_ATTEMPT_LOG_DIR: /var/log/ttn
       TTN_GATEWAY_SERVER_ADDRESS: ${TTS_HOST:?Set the building server address}
     ports:

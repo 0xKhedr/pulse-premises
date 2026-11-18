@@ -38,6 +38,12 @@
         if (collector.error) el('approvalCollector').textContent += ` ${collector.error}`;
         el('approvalSetup').hidden = inbox.management_configured;
         el('approvalSetup').textContent = 'Acceptance needs a TTN gateway management key. Set TTN_GATEWAY_MANAGEMENT_API_KEY for the configured gateway owner and restart SBMS. Rejection is still available.';
+        const setup = inbox.ttn_setup || {};
+        el('ttnSetupStatus').textContent = !setup.enabled ? 'Automatic TTN application setup is disabled.'
+            : setup.error ? `TTN setup: ${setup.error}`
+            : setup.application_ready && setup.webhook_ready ? 'TTN application and uplink webhook are ready.'
+            : setup.application_ready && !setup.webhook_enabled ? 'TTN application is ready. Configure the SBMS address reachable from TTN to enable automatic webhook setup.'
+            : 'Preparing the TTN application and webhook automatically…';
         const items = inbox.candidates.filter(item => filter === 'all' || (filter === 'pending' ? reviewStates.includes(item.status) : item.status === filter));
         if (!items.length) {
             el('approvalRows').innerHTML = `<tr><td colspan="6">${collector.active ? 'No matching gateway connection requests.' : 'No matching requests recorded. Monitoring is currently unavailable.'}</td></tr>`;

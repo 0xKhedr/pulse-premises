@@ -82,21 +82,16 @@ trusted LAN; configure TLS for exposure beyond it.
 
 ## 4. Connect TTN to SBMS
 
-In the TTN Console:
+Create one user/organization backend key in the TTN Console and set it as
+`TTN_GATEWAY_MANAGEMENT_API_KEY` in `.env`. It needs application creation,
+`RIGHT_APPLICATION_ALL`, gateway management, status-read and traffic-read
+rights. See [the deployment guide](README.md#gateway-connection-approval).
 
-1. Create an application matching `TTN_APP_ID` in `.env`
-   (`smart-building-lora-2` by default).
-2. Create an application API key with rights to read/write end devices and
-   their keys, read traffic, and configure integrations. Set it as `TTN_API_KEY`
-   in `.env`.
-3. Add a custom JSON webhook under the application's Integrations > Webhooks:
-
-| Setting | Value |
-| --- | --- |
-| Base URL | `http://sbms-app:8000` |
-| Uplink message path | `/ttn-webhook` |
-| Header name | `X-Webhook-Secret` |
-| Header value | `TTN_WEBHOOK_SECRET` from `.env` |
+SBMS automatically creates `TTN_APP_ID` if absent and configures its JSON
+uplink webhook on startup. Existing applications and matching webhooks are
+reused. `TTN_API_KEY` is an optional application-scoped override. Compose
+supplies `http://sbms-app:8000` as the webhook base URL; authentication uses
+`TTN_WEBHOOK_SECRET`. The Gateways page displays setup status.
 
 Apply environment changes with `docker compose up -d --wait`.
 
@@ -104,8 +99,8 @@ Register the gateway with its actual EUI and matching frequency plan. Point
 Semtech UDP forwarders at the server's LAN address on UDP 1700, or Basics
 Station at `ws://<server>:1887` with a gateway link API key.
 
-For portal discovery, set `AUTO_ENROLLMENT_GATEWAY_API_KEY` to a key with gateway
-traffic access and configure `AUTO_ENROLLMENT_GATEWAY_IDS` as appropriate.
+For portal discovery, the shared backend key provides gateway traffic access.
+Configure `AUTO_ENROLLMENT_GATEWAY_IDS` if only specific gateways should be watched.
 Auto-enrollment still requires an administrator to open a scan window and
 approve each device.
 
