@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import mimetypes
 import os
 import re
 import secrets
@@ -141,6 +142,9 @@ UPLOAD_DIR = 'uploads'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount('/uploads', StaticFiles(directory=UPLOAD_DIR), name='uploads')
 if os.path.isdir('static'):
+    # Windows registry MIME mappings can identify WOFF2 as text/plain.
+    # Serve the bundled fonts consistently on Windows and Linux.
+    mimetypes.add_type('font/woff2', '.woff2')
     app.mount('/static', StaticFiles(directory='static'), name='static')
 TTN_BASE = settings.TTN_BASE_URL.rstrip('/')
 APP_ID = settings.TTN_APP_ID

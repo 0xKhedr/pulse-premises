@@ -8,14 +8,10 @@
   "description": "IoT Smart Building Telemetry Dashboard",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/192/2905/2905145.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/2905/2905145.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

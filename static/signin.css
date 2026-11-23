@@ -1,4 +1,4 @@
-@import url('/static/admin_dashboard.css?v=4');
+@import url('/static/admin_dashboard.css?v=5');
 body { background: radial-gradient(ellipse at top left, #dbeafe, transparent 55%), #f4f7fb !important; min-height: 100vh; }
 .login-card, body > .card { padding: 34px; background: #fff !important; border: 1px solid #e4eaf1 !important; box-shadow: 0 20px 70px #18375912 !important; }
 h1 { color: #142033 !important; font-family: Manrope, 'Segoe UI', sans-serif; }

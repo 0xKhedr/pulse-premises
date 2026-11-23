@@ -1,4 +1,4 @@
-@import url('/static/admin_dashboard.css?v=4');
+@import url('/static/admin_dashboard.css?v=5');
 html { color-scheme: light !important; }
 body.workspace { margin: 0 !important; padding: 0 !important; height: auto; }
 .workspace-content { padding: 30px; max-width: 1600px; margin: auto; }

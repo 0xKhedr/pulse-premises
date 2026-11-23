@@ -272,6 +272,26 @@ while the stack is stopped. Do not change the PostgreSQL major version by
 changing its image tag alone. PostgreSQL/Redis tags are pinned to a release
 series; pin immutable digests as part of the server's release process.
 
+## LAN-only frontend assets
+
+SBMS serves Chart.js, Intro.js, DM Sans, Manrope, and the application icon from
+the image's `/static` directory. Browser page rendering does not require an
+internet connection on the Raspberry Pi or client computers. The pinned files
+and their licenses are committed under `static/vendor`; a first visit also
+works without a warm browser cache. This does not replace connectivity needed
+by configured external integrations.
+
+After updating the checkout, rebuild the application service:
+
+```bash
+docker compose up -d --build --no-deps sbms-app
+```
+
+Refresh the page after the container is healthy. A plain container restart
+does not copy new templates or static files into an existing image. The asset
+query versions and service worker cache version are updated with this change
+to retire cached stylesheets that imported Google Fonts.
+
 ## Optional ThingsBoard
 
 To connect a separately installed ThingsBoard server, set
