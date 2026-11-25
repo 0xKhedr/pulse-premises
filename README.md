@@ -106,6 +106,20 @@ Set `COOKIE_SECURE=true` for any deployment served over HTTPS.
 - API docs: `/docs`
 - Readiness check: `/healthz`
 
+Floor-map device labels are compact and truncate with an ellipsis. Hover or
+keyboard-focus a marker to see its full name, readings, last seen time and
+other device details. Offline devices are red, devices with active alarms or
+battery warnings are yellow, healthy devices are green, and stale or
+never-connected devices are gray. Offline status takes priority over alerts.
+The colors follow the configured stale/offline thresholds.
+
+Administrators can rename a device and choose its map icon under **Name & map
+icon** in **Devices**, the live floor details panel, or the node placement
+editor. **Automatic** follows the profile/device type; a chosen icon is saved
+for that device across all maps. A website rename stays in place when the
+firmware sends its nickname again. These settings change the website display;
+the board's stored nickname and LoRaWAN identity are unchanged.
+
 Provisioning and provisioning-option endpoints require an authenticated admin
 session because provisioning responses contain LoRaWAN root credentials. TTN
 uplinks use the separate `/ttn-webhook` endpoint and authenticate with

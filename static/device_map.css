@@ -1,0 +1,47 @@
+.device-map-marker[data-state="online"], .device-map-legend [data-state="online"] { --device-status: #15803d; --device-ink: #fff; }
+.device-map-marker[data-state="offline"], .device-map-legend [data-state="offline"] { --device-status: #dc2626; --device-ink: #fff; }
+.device-map-marker[data-state="alert"], .device-map-legend [data-state="alert"] { --device-status: #facc15; --device-ink: #422006; }
+.device-map-marker[data-state="stale"], .device-map-legend [data-state="stale"],
+.device-map-marker[data-state="never_connected"] { --device-status: #64748b; --device-ink: #fff; }
+.device-map-marker.device-map-marker {
+    position: absolute; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 6px;
+    width: auto; height: auto; max-width: 156px; padding: 6px 10px; border-radius: 999px;
+    background: var(--device-status) !important; color: var(--device-ink) !important;
+    border: 2px solid #fff; font: 600 13px/1.3 system-ui, sans-serif; white-space: nowrap;
+    cursor: pointer; box-shadow: 0 2px 8px #0f172a35; box-sizing: border-box;
+}
+.device-map-marker svg { width: 18px; height: 18px; flex: 0 0 18px; pointer-events: none; }
+.device-map-marker svg, .device-map-icon-choice svg { fill: none !important; stroke: currentColor !important; stroke-width: 1.8; }
+.device-map-marker .device-map-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: inherit !important; }
+.device-map-marker:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; z-index: 30; }
+.device-map-tooltip {
+    position: fixed; z-index: 10005; width: 280px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+    overflow: auto; box-sizing: border-box; padding: 16px; border: 1px solid #cbd5e1; border-radius: 14px;
+    color: #0f172a; background: #fff; box-shadow: 0 12px 40px #0f172a38; pointer-events: none;
+    font: 14px/1.45 system-ui, sans-serif; overflow-wrap: anywhere;
+}
+.device-map-tooltip[hidden] { display: none; }
+.device-map-tooltip-title { display: block; font-size: 16px; line-height: 1.3; margin-bottom: 6px; }
+.device-map-tooltip-status { font-weight: 700; }
+.device-map-tooltip-location { color: #475569; margin-bottom: 12px; }
+.device-map-readings { display: grid; grid-template-columns: 1fr auto; gap: 7px 14px; margin: 10px 0; }
+.device-map-readings dt { color: #475569; }
+.device-map-readings dd { margin: 0; font-weight: 650; text-align: right; }
+.device-map-tooltip-meta { color: #64748b; font-size: 12px; margin-top: 5px; }
+.device-map-alert-message { color: #92400e; }
+.device-map-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; font: 14px/1.5 system-ui, sans-serif; }
+.device-map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.device-map-legend span::before { content: ''; width: 9px; height: 9px; background: var(--device-status); border-radius: 50%; }
+.device-map-editor { margin: 16px 0; padding: 12px; border: 1px solid #cbd5e1; border-radius: 12px; background: #fff; color: #0f172a; }
+.device-map-editor summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.device-map-editor form { margin-top: 14px; }
+.device-map-editor label { display: block; margin: 10px 0 6px; font-size: 14px; font-weight: 600; color: #334155; }
+.device-map-editor input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px; color: #0f172a !important; background: #fff !important; font-size: 16px; }
+.device-map-help { color: #64748b; font-size: 12px; line-height: 1.5; }
+.device-map-icon-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.device-map-icon-picker .device-map-icon-choice, .workspace-content .device-map-icon-picker .device-map-icon-choice { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0; padding: 8px 3px !important; border: 1px solid #cbd5e1 !important; border-radius: 8px; background: #f8fafc !important; color: #334155 !important; cursor: pointer; font-size: 11px; }
+.device-map-icon-choice svg { width: 21px; height: 21px; }
+.device-map-icon-picker .device-map-icon-choice[aria-pressed="true"], .workspace-content .device-map-icon-picker .device-map-icon-choice[aria-pressed="true"] { border-color: #2563eb !important; background: #eff6ff !important; outline: 1px solid #2563eb; color: #1d4ed8 !important; }
+.device-map-save { width: 100%; margin-top: 12px; padding: 10px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+.device-map-save-message { color: #475569; font-size: 13px; line-height: 1.5; }
+.device-map-editor button:disabled { opacity: .55; cursor: wait; }

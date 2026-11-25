@@ -296,6 +296,8 @@ hr{
 </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
 <link rel="stylesheet" href="/static/workspace.css?v=7">
+<link rel="stylesheet" href="/static/device_map.css?v=1">
+<script src="/static/device_map.js?v=1"></script>
 </head>
 
 {% set workspace_title = 'Live floor' %}
@@ -312,6 +314,7 @@ hr{
     <label>Floor:</label>
     <select id="floorId" onchange="loadFloor()"></select>
     <button type="button" onclick="loadFloor()">Refresh floor</button>
+    <div id="deviceMapLegend"></div>
 </div>
 
 <div class="viewer" id="viewer">
@@ -323,6 +326,7 @@ hr{
 <div id="sidePanel">
     <button class="closeBtn" aria-label="Close device details" onclick="closePanel()">X</button>
     <h2 id="panelTitle">Device</h2>
+    <div id="deviceAppearanceEditor"></div>
     <div id="panelBody"></div>
 </div>
 
@@ -334,6 +338,7 @@ const image = document.getElementById("floorImage");
 const overlay = document.getElementById("overlay");
 const nodesLayer = document.getElementById("nodesLayer");
 const panel = document.getElementById("sidePanel");
+DeviceMap.legend(document.getElementById("deviceMapLegend"));
 
 function valueOrDash(v){
     if(v === null || v === undefined || v === "") return "--";
@@ -400,22 +405,22 @@ function allFloorDevices(){
 }
 
 function drawNodes(){
-    nodesLayer.innerHTML = "";
+    const existing = new Map(Array.from(nodesLayer.children).map(node => [node.dataset.deviceId, node]));
+    const retained = new Set();
 
     allFloorDevices().forEach(({device, room}) => {
-            const node = document.createElement("div");
+            const node = existing.get(device.device_id) || document.createElement("div");
 
             const px = device.x ?? room?.x;
             const py = device.y ?? room?.y;
             if (px === null || px === undefined || py === null || py === undefined) return;
             const pos = originalToDisplay({x:px, y:py});
 
-            node.className = "node " + (isAlarm(device) ? "node-red" : "node-green");
+            node.className = "node";
             node.style.left = pos.x + "px";
             node.style.top = pos.y + "px";
 
-            node.innerText =
-                iconFor(device.node_type) + " " + (device.label || device.device_id);
+            DeviceMap.renderMarker(node, device, room);
 
             node.onclick = function(e){
                 e.stopPropagation();
@@ -423,51 +428,11 @@ function drawNodes(){
             };
 
             nodesLayer.appendChild(node);
+            retained.add(node);
 
-            applyLatestTelemetryColor(node, device);
     });
+    existing.forEach(node => { if (!retained.has(node)) node.remove(); });
 }
-
-async function applyLatestTelemetryColor(node, device){
-    try {
-        const res = await fetch(`/devices/${device.device_id}/latest-telemetry`);
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-        const telemetry = data.telemetry || {};
-
-        const batteryStatus = telemetry.battery_status;
-        const alarmActive = data.alarm_active === 1 || data.alarm_active === true;
-
-        node.classList.remove("node-green", "node-orange", "node-red");
-
-        if (alarmActive || batteryStatus === "critical") {
-            node.classList.add("node-red");
-        }
-
-        else if (batteryStatus === "low") {
-            node.classList.add("node-orange");
-        }
-
-        else {
-            node.classList.add("node-green");
-        }
-
-        if (batteryStatus) {
-            node.title =
-                (device.label || device.device_id) +
-                " | Battery: " +
-                (telemetry.battery_percent || "--") +
-                "% | Status: " +
-                batteryStatus;
-        }
-
-    } catch (e) {
-        console.log("Could not load node battery color", e);
-    }
-}
-
 
 function hasCapability(device, capability){
     const caps = device.capabilities || [];
@@ -1120,6 +1085,13 @@ async function openPanel(
         device.device_id;
 
     selectedRoomId = room?.id || null;
+    DeviceMap.mountEditor(document.getElementById("deviceAppearanceEditor"), device, saved => {
+        allFloorDevices().forEach(entry => {
+            if (entry.device.device_id === saved.device_id) Object.assign(entry.device, saved);
+        });
+        document.getElementById("panelTitle").textContent = saved.label || saved.device_id;
+        drawNodes();
+    });
 
     document.getElementById(
         "panelTitle"
@@ -1256,6 +1228,8 @@ async function openPanel(
 
 function closePanel(){
     selectedDeviceId = null;
+    const editor = document.querySelector('#deviceAppearanceEditor details');
+    if (editor) editor.open = false;
     panel.classList.remove("open");
 }
 
@@ -1356,7 +1330,7 @@ async function loadFloor(){
 }
 
 setInterval(() => {
-    if(document.getElementById("floorId").value){
+    if(document.getElementById("floorId").value && !document.querySelector('#deviceAppearanceEditor details[open]')){
         loadFloor();
     }
 }, 5000);

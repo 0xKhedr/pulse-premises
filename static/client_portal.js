@@ -153,10 +153,12 @@ function drawFloor() {
     }
 
     document.getElementById("viewerArea").innerHTML = `
+        <div id="clientMapLegend" style="margin-bottom:12px"></div>
         <div class="viewer" id="viewer">
             <img id="floorImage" src="${escapeHtml(floor.image_path)}">
         </div>
     `;
+    DeviceMap.legend(document.getElementById('clientMapLegend'));
 
     const img = document.getElementById("floorImage");
 
@@ -171,13 +173,17 @@ function drawFloor() {
 }
 
 function drawDevices() {
+    const viewer = document.getElementById("viewer");
+    if (!viewer) return;
     if (!currentLiveData.permissions.can_view_devices) {
+        viewer.querySelectorAll('.node-marker').forEach(marker => marker.remove());
         return;
     }
 
-    const viewer = document.getElementById("viewer");
     const img = document.getElementById("floorImage");
     const floor = currentLiveData.floor;
+    const existing = new Map(Array.from(viewer.querySelectorAll('.node-marker')).map(marker => [marker.dataset.deviceId, marker]));
+    const retained = new Set();
 
     const deviceEntries = (currentLiveData.floor_devices || [])
         .map(device => ({device, room: null}));
@@ -191,17 +197,20 @@ function drawDevices() {
     });
 
     deviceEntries.forEach(({device, room}) => {
-            if (device.x === null || device.y === null) {
+            const x = device.x ?? room?.x, y = device.y ?? room?.y;
+            if (x === null || x === undefined || y === null || y === undefined) {
                 return;
             }
 
-            const marker = document.createElement("div");
+            const marker = existing.get(device.device_id) || document.createElement("div");
             marker.className = "node-marker";
-            marker.innerHTML = "●";
-            marker.title = device.label || device.device_id;
+            DeviceMap.renderMarker(marker, device, room, {
+                showReadings: Boolean(currentLiveData.permissions.can_view_telemetry),
+                showAlerts: Boolean(currentLiveData.permissions.can_view_alarms),
+            });
 
-            marker.style.left = (device.x * img.clientWidth / floor.image_width) + "px";
-            marker.style.top = (device.y * img.clientHeight / floor.image_height) + "px";
+            marker.style.left = (x * img.clientWidth / floor.image_width) + "px";
+            marker.style.top = (y * img.clientHeight / floor.image_height) + "px";
 
             marker.onclick = async function(event) {
                 event.stopPropagation();
@@ -221,7 +230,9 @@ function drawDevices() {
             };
 
             viewer.appendChild(marker);
+            retained.add(marker);
     });
+    existing.forEach(marker => { if (!retained.has(marker)) marker.remove(); });
 }
 
 async function loadDeviceTelemetry(device, room) {
@@ -362,11 +373,13 @@ async function loadDeviceTelemetry(device, room) {
 }
 
 function drawGateways() {
+    const viewer = document.getElementById("viewer");
+    if (!viewer) return;
+    viewer.querySelectorAll('.gateway-marker').forEach(marker => marker.remove());
     if (!currentLiveData.permissions.can_view_gateways) {
         return;
     }
 
-    const viewer = document.getElementById("viewer");
     const img = document.getElementById("floorImage");
     const floor = currentLiveData.floor;
 
@@ -482,4 +495,20 @@ function exportClientFullStructureCsv() {
 
 loadStructure();
 loadClientActivityLog();
+
+let refreshingMap = false;
+setInterval(async () => {
+    if (!selectedFloorId || refreshingMap || document.hidden) return;
+    const floorId = selectedFloorId;
+    refreshingMap = true;
+    try {
+        const response = await fetch(`/client-portal/${userId}/floors/${floorId}/live`);
+        if (!response.ok || selectedFloorId !== floorId) return;
+        const data = await response.json();
+        if (selectedFloorId !== floorId) return;
+        currentLiveData = data;
+        drawDevices(); drawGateways();
+    } catch (error) { console.log('Map refresh unavailable', error); }
+    finally { refreshingMap = false; }
+}, 10000);
 

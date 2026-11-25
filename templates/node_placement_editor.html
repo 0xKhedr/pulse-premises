@@ -412,6 +412,8 @@ hr{
 </style>
 <link rel="stylesheet" href="/static/bright_theme.css">
 <link rel="stylesheet" href="/static/workspace.css?v=7">
+<link rel="stylesheet" href="/static/device_map.css?v=1">
+<script src="/static/device_map.js?v=1"></script>
 </head>
 
 {% set workspace_title = 'Node placement' %}
@@ -436,6 +438,7 @@ hr{
     </span>
 
     <span id="floorBreadcrumb" class="hint">Select a floor</span>
+    <div id="deviceMapLegend"></div>
 
     <button class="addDeviceBtn" onclick="openAddDeviceModal()">
         + Add New Device
@@ -482,6 +485,7 @@ hr{
 
         <label>Selected Device</label>
         <input id="selectedDeviceName" readonly>
+        <div id="deviceAppearanceEditor"></div>
 
         <span id="roomAssignmentSection">
             <label>Assign To Room</label>
@@ -541,6 +545,7 @@ let dragging = false;
 let dragDevice = null;
 let unplacedDevices = [];
 let discoveredDrawerOpen = true;
+DeviceMap.legend(document.getElementById("deviceMapLegend"));
 
 function toggleDiscoveredDrawer() {
     discoveredDrawerOpen = !discoveredDrawerOpen;
@@ -655,7 +660,7 @@ function placeUnplacedDevice(deviceId, displayX = null, displayY = null) {
 
     existingNode.style.left = centerDisplayX + "px";
     existingNode.style.top = centerDisplayY + "px";
-    existingNode.innerText = iconFor(dev.node_type) + " " + (dev.label || dev.device_id);
+    DeviceMap.renderMarker(existingNode, dev, null);
 
     existingNode.onmousedown = function(e) {
         e.preventDefault();
@@ -895,6 +900,7 @@ function drawRooms(){
 }
 
 function drawNodes(){
+    DeviceMap.hideTooltip();
     nodesLayer.innerHTML = "";
 
     allDevices().forEach(device => {
@@ -912,8 +918,7 @@ function drawNodes(){
         node.style.left = pos.x + "px";
         node.style.top = pos.y + "px";
 
-        node.innerText =
-            iconFor(device.node_type) + " " + (device.label || device.device_id);
+        DeviceMap.renderMarker(node, device, room);
 
         node.onmousedown = function(e){
             e.preventDefault();
@@ -975,6 +980,12 @@ function selectDevice(device, nodeEl){
         device.label || device.device_id;
 
     document.getElementById("roomSelect").value = device.room_id || "";
+    DeviceMap.mountEditor(document.getElementById("deviceAppearanceEditor"), device, saved => {
+        Object.assign(device, saved);
+        document.getElementById("selectedDeviceName").value = saved.label || saved.device_id;
+        if (selectedNodeEl) DeviceMap.renderMarker(selectedNodeEl, device, device._room);
+        renderDeviceList();
+    });
     renderDeviceList();
 }
 

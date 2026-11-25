@@ -208,6 +208,8 @@ static bool     displayDirty   = true;
 static bool     observerJoined = false;
 static size_t   observerPage = 0;
 static unsigned long lastObserverPageAt = 0;
+static bool     nextUplinkScheduled = false;
+static uint32_t nextUplinkScheduledAt = 0;
 #endif
 
 // Class A application data is available when EV_TXCOMPLETE closes RX1/RX2.
@@ -258,6 +260,11 @@ static void waitForNextUplink(osjob_t* job) {
 }
 
 static void scheduleNextUplink() {
+#if ENABLE_OLED
+    nextUplinkScheduledAt = millis();
+    nextUplinkScheduled = true;
+    displayDirty = true;
+#endif
     sendWaitRemainingSeconds = txIntervalSeconds;
     waitForNextUplink(&sendjob);
 }
@@ -584,30 +591,147 @@ static void buildAccessPointCredentials() {
 }
 
 #if ENABLE_OLED
-static void renderProvisioningScreen(const char* note) {
-    if (!oledReady) return;
+// BEGIN OLED UI HELPERS
+// The default GFX font is 6x8 pixels. Explicit widths keep text inside each
+// panel; wrapping is always off, including on setup and error screens.
+static void beginScreen() {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+}
 
-    display.setCursor(0, 0);
-    display.println(F("SETUP - NAME ME"));
-    display.drawFastHLine(0, 10, OLED_WIDTH, SSD1306_WHITE);
+static void screenText(int16_t x, int16_t y, const char* text, size_t columns) {
+    display.setCursor(x, y);
+    for (size_t i = 0; text[i] && i < columns; ++i) display.write(text[i]);
+}
 
-    display.setCursor(0, 14);
-    display.print(F("WiFi "));
-    display.println(apSsid);
+static void screenBanner(const char* title, const char* badge) {
+    display.fillRect(0, 0, OLED_WIDTH, 10, SSD1306_WHITE);
+    display.setTextColor(SSD1306_BLACK);
+    screenText(3, 1, title, 16);
+    screenText(OLED_WIDTH - strlen(badge) * 6 - 3, 1, badge, 3);
+    display.setTextColor(SSD1306_WHITE);
+}
 
-    display.setCursor(0, 24);
-    display.print(F("Pass "));
-    display.println(apPassword);
+static void screenIdentity() {
+    const char* title = strlen(nickname) ? nickname : "ENVIRONMENT";
+    const size_t length = strlen(title);
+    // Pause at either end of long names, then move one character per second.
+    const size_t overflow = length > 21 ? length - 21 : 0;
+    size_t offset = overflow ? (millis() / 1000) % (overflow + 5) : 0;
+    offset = offset < 2 ? 0 : offset - 2;
+    if (offset > overflow) offset = overflow;
+    display.fillRect(0, 0, OLED_WIDTH, 10, SSD1306_WHITE);
+    display.setTextColor(SSD1306_BLACK);
+    screenText(1, 1, title + offset, 21);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 11);
+    display.print(F("EUI "));
+    display.print(devEuiText);
+    display.drawFastHLine(0, 19, OLED_WIDTH, SSD1306_WHITE);
+}
 
-    display.setCursor(0, 34);
-    display.println(F("Open 192.168.4.1"));
+static uint32_t remainingUplinkSeconds() {
+    const uint32_t elapsed = uint32_t(millis() - nextUplinkScheduledAt) / 1000;
+    return elapsed >= txIntervalSeconds ? 0 : txIntervalSeconds - elapsed;
+}
 
-    display.drawFastHLine(0, 45, OLED_WIDTH, SSD1306_WHITE);
-    display.setCursor(0, 49);
-    display.println(note);
+// Lower-left panel: metadata and printable text in ten columns. Paging never
+// takes identity, radio status or readings off screen.
+static size_t downlinkPanelPages() {
+    if (!downlinkObserver.length) return 1;
+    return 1 + (downlinkObserver.length + 7) / 8;
+}
+
+static void downlinkPanelText(char* output, size_t page) {
+    if (!downlinkObserver.count) {
+        strcpy(output, "None yet");
+        return;
+    }
+    page %= downlinkPanelPages();
+    if (!page) {
+        snprintf(output, 11, "P%u %uB", downlinkObserver.port,
+                 (unsigned)downlinkObserver.length);
+        return;
+    }
+    const size_t start = (page - 1) * 8;
+    size_t written = 0;
+    output[written++] = 'T';
+    output[written++] = ':';
+    for (size_t i = start; i < downlinkObserver.length && i < start + 8; ++i) {
+        const uint8_t value = downlinkObserver.bytes[i];
+        output[written++] = value >= 32 && value <= 126 ? char(value) : '.';
+    }
+    output[written] = '\0';
+}
+
+static const char* compactSensorName() {
+    if (!strncmp(sensorName, "SHT30", 5)) return "SHT3x";
+    if (!strncmp(sensorName, "SHT20", 5)) return "SHT2x";
+    if (!strncmp(sensorName, "AHT", 3)) return "AHTx0";
+    return sensorName;
+}
+
+static void sensorValue(int16_t y, float value, const char* unit) {
+    char text[12];
+    if (!environmentalReadingValid || !isfinite(value)) {
+        strcpy(text, "--");
+    } else {
+        snprintf(text, sizeof(text), "%.1f", (double)value);
+    }
+    // Extreme temperatures and 100% humidity still fit inside their panel.
+    const uint8_t scale = strlen(text) <= 4 ? 2 : 1;
+    display.setTextSize(scale);
+    screenText(118 - strlen(text) * 6 * scale, y + (scale == 1 ? 4 : 0), text, 8);
+    display.setTextSize(1);
+    screenText(121, y + 3, unit, 1);
+}
+
+static void renderMessageScreen(const char* title, const char* line1,
+                                const char* line2, const char* footer) {
+    if (!oledReady) return;
+    beginScreen();
+    screenBanner(title, "");
+    screenText(3, 23, line1, 20);
+    screenText(3, 35, line2, 20);
+    display.drawFastHLine(0, 51, OLED_WIDTH, SSD1306_WHITE);
+    screenText(3, 56, footer, 20);
+    display.display();
+}
+
+static void renderResetScreen(uint32_t remainingMs) {
+    if (!oledReady) return;
+    beginScreen();
+    char countdown[4];
+    snprintf(countdown, sizeof(countdown), "%lus", (unsigned long)((remainingMs + 999) / 1000));
+    screenBanner("RENAME DEVICE", countdown);
+    screenText(1, 15, nickname, 21);
+    screenText(7, 29, "Press RST to rename", 19);
+    screenText(7, 40, "Or wait to continue", 19);
+    display.drawRect(0, 56, OLED_WIDTH, 7, SSD1306_WHITE);
+    display.fillRect(2, 58, (OLED_WIDTH - 4) * remainingMs / RESET_WINDOW_MS,
+                     3, SSD1306_WHITE);
+    display.display();
+}
+// END OLED UI HELPERS
+
+static void renderProvisioningScreen(const char* note) {
+    if (!oledReady) return;
+    beginScreen();
+    screenBanner("DEVICE SETUP", "1/2");
+    const char* labels[] = {"WiFi", "Key", "Open"};
+    const char* values[] = {apSsid, apPassword, "192.168.4.1"};
+    for (uint8_t i = 0; i < 3; ++i) {
+        const int16_t y = 15 + i * 12;
+        display.drawRect(0, y - 1, 10, 10, SSD1306_WHITE);
+        display.setCursor(2, y);
+        display.print(i + 1);
+        screenText(15, y, labels[i], 4);
+        screenText(45, y, values[i], 13);
+    }
+    display.drawFastHLine(0, 52, OLED_WIDTH, SSD1306_WHITE);
+    screenText(1, 56, note, 21);
     display.display();
 }
 #endif
@@ -790,7 +914,7 @@ void runProvisioningPortal() {
     delay(300);
 
 #if ENABLE_OLED
-    renderProvisioningScreen("Waiting...");
+    renderProvisioningScreen("Connect your phone");
 #endif
 
     provisioningServer.on("/", HTTP_GET, handleProvisionRoot);
@@ -812,7 +936,7 @@ void runProvisioningPortal() {
             lastScreen = millis();
 #if ENABLE_OLED
             char note[22];
-            snprintf(note, sizeof(note), "%u client%s",
+            snprintf(note, sizeof(note), "%u phone%s connected",
                      WiFi.softAPgetStationNum(),
                      WiFi.softAPgetStationNum() == 1 ? "" : "s");
             renderProvisioningScreen(note);
@@ -829,18 +953,7 @@ void runProvisioningPortal() {
     Serial.println(F("'. Wi-Fi off, joining LoRaWAN."));
 
 #if ENABLE_OLED
-    if (oledReady) {
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.println(F("SAVED"));
-        display.drawFastHLine(0, 10, OLED_WIDTH, SSD1306_WHITE);
-        display.setCursor(0, 16);
-        display.println(nickname);
-        display.setCursor(0, 40);
-        display.println(F("WiFi off."));
-        display.println(F("Joining LoRaWAN..."));
-        display.display();
-    }
+    renderMessageScreen("SETUP COMPLETE", "Name saved", nickname, "Joining LoRaWAN...");
 #endif
     delay(1500);
 }
@@ -871,18 +984,18 @@ static bool renameRequested() {
                   static_cast<unsigned long>(RESET_WINDOW_MS / 1000));
 
 #if ENABLE_OLED
-    if (oledReady) {
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.println(F("SBMS LoRaWAN Node"));
-        display.setCursor(0, 24);
-        display.println(F("Press RST within 3s"));
-        display.println(F("to rename."));
-        display.display();
+    const uint32_t windowStartedAt = millis();
+    while (uint32_t(millis() - windowStartedAt) < RESET_WINDOW_MS) {
+        renderResetScreen(RESET_WINDOW_MS - uint32_t(millis() - windowStartedAt));
+        const uint32_t elapsed = uint32_t(millis() - windowStartedAt);
+        if (elapsed < RESET_WINDOW_MS) {
+            const uint32_t remaining = RESET_WINDOW_MS - elapsed;
+            delay(remaining < 100 ? remaining : 100);
+        }
     }
-#endif
-
+#else
     delay(RESET_WINDOW_MS);
+#endif
     if (resetPreferences.putBool("rename_pending", false) != 1) {
         Serial.println(F("[ERROR] Cannot clear reset-window marker."));
     }
@@ -902,90 +1015,51 @@ static uint8_t currentSpreadingFactor() {
 // it inside a callback risks missing an RX window.
 static void renderDisplay() {
     if (!oledReady) return;
+    beginScreen();
+    screenIdentity();
+    display.drawFastVLine(65, 21, 43, SSD1306_WHITE);
 
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-
+    char line[11];
     if (observerJoined) {
-        display.setTextWrap(false);
-        display.setCursor(0, 0);
-        display.print(F("DOWNLINK / CLASS A"));
-        display.drawFastHLine(0, 9, OLED_WIDTH, SSD1306_WHITE);
-        if (!downlinkObserver.count) {
-            display.setCursor(0, 14);
-            display.print(F("No downlink yet."));
-            display.setCursor(0, 26);
-            display.print(F("RX after each uplink"));
-            display.setCursor(0, 38);
-            display.print(F("TX #"));
-            display.print(uplinkCount);
-            display.setCursor(0, 52);
-            display.print(nickname);
-        } else {
-            char line[DownlinkObserver::Columns + 1];
-            display.setCursor(0, 12);
-            snprintf(line, sizeof(line), "#%lu Port:%u", (unsigned long)downlinkObserver.count,
-                     downlinkObserver.port);
-            display.print(line);
-            const bool textPage = observerPage < downlinkObserver.textPages();
-            const size_t page = textPage ? observerPage : observerPage - downlinkObserver.textPages();
-            display.setCursor(0, 22);
-            snprintf(line, sizeof(line), "%uB %s %u/%u", (unsigned)downlinkObserver.length,
-                     textPage ? "TEXT" : "HEX", (unsigned)page + 1,
-                     (unsigned)(textPage ? downlinkObserver.textPages() : downlinkObserver.hexPages()));
-            display.print(line);
-            for (size_t row = 0; row < DownlinkObserver::Rows; ++row) {
-                downlinkObserver.formatRow(observerPage, row, line);
-                display.setCursor(0, 32 + row * 8);
-                display.print(line);
-            }
-        }
-        display.display();
-        display.setTextWrap(true);
-        return;
-    }
-
-    // The nickname is the whole point of having one, so it takes the title
-    // line when set; otherwise the generic name stands in.
-    display.setCursor(0, 0);
-    display.println(strlen(nickname) ? nickname : "SBMS LoRaWAN Node");
-    display.drawFastHLine(0, 10, OLED_WIDTH, SSD1306_WHITE);
-
-    // The DevEUI you need in order to register this board.
-    display.setCursor(0, 14);
-    display.print(F("EUI "));
-    display.println(devEuiText);
-
-    display.setCursor(0, 25);
-    display.print(F("State "));
-    display.println(joinState);
-
-    display.setCursor(0, 35);
-    display.print(F("TX "));
-    display.print(uplinkCount);
-    display.print(F("  "));
-    display.print(lastPayloadLen);
-    display.print(F("B"));
-    uint8_t sf = currentSpreadingFactor();
-    if (sf) {
-        display.print(F("  SF"));
-        display.print(sf);
-    }
-
-    display.drawFastHLine(0, 45, OLED_WIDTH, SSD1306_WHITE);
-
-    display.setCursor(0, 49);
-    if (environmentalReadingValid) {
-        display.print(lastTemp, 1);
-        display.print(F("C "));
-        display.print(lastHum, 1);
-        display.print(F("%"));
+        snprintf(line, sizeof(line), "LORA SF%u", currentSpreadingFactor());
+        screenText(0, 21, line, 10);
+        screenText(0, 30, "ONLINE", 10);
     } else {
-        display.print(F("SENSOR ERROR"));
+        screenText(0, 21, "LoRaWAN", 10);
+        screenText(0, 30, !strcmp(joinState, "WAITING JOIN") ? "WAIT JOIN" : joinState, 10);
     }
-    display.setCursor(0, 57);
-    display.print(sensorName);
+
+    if (nextUplinkScheduled) {
+        const uint32_t seconds = remainingUplinkSeconds();
+        if (seconds >= 3600) {
+            snprintf(line, sizeof(line), "UP %luh%02lu", (unsigned long)(seconds / 3600),
+                     (unsigned long)((seconds % 3600) / 60));
+        } else {
+            snprintf(line, sizeof(line), "UP %02lu:%02lu", (unsigned long)(seconds / 60),
+                     (unsigned long)(seconds % 60));
+        }
+        screenText(0, 39, seconds ? line : "UP DUE", 10);
+    } else {
+        screenText(0, 39, observerJoined ? "UP QUEUED" : "UP --:--", 10);
+    }
+
+    display.drawFastHLine(0, 47, 63, SSD1306_WHITE);
+    if (downlinkObserver.count > 999) strcpy(line, "DOWN #999+");
+    else snprintf(line, sizeof(line), "DOWN #%lu", (unsigned long)downlinkObserver.count);
+    screenText(0, 48, line, 10);
+    downlinkPanelText(line, observerPage);
+    screenText(0, 56, line, 10);
+
+    if (!strcmp(sensorName, "NOT DETECTED")) {
+        screenText(69, 21, "NOT FOUND", 9);
+    } else {
+        char sensor[11];
+        snprintf(sensor, sizeof(sensor), "%s %s", compactSensorName(),
+                 environmentalReadingValid ? "OK" : "!");
+        screenText(69, 21, sensor, 9);
+    }
+    sensorValue(32, lastTemp, "C");
+    sensorValue(49, lastHum, "%");
 
     display.display();
 }
@@ -996,6 +1070,10 @@ void do_send(osjob_t* j) {
         Serial.println(F("[LMIC] OP_TXRXPEND, not sending now"));
         return;
     }
+#if ENABLE_OLED
+    nextUplinkScheduled = false;
+    displayDirty = true;
+#endif
 
     // The nickname goes out as its own uplink on its own port. It carries no
     // sensor data, and the cloud handles it before profile validation, so it
@@ -1157,14 +1235,7 @@ void setup() {
     if (!oledReady) {
         Serial.println(F("[WARN] SSD1306 not found; continuing without the display."));
     } else {
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setTextColor(SSD1306_WHITE);
-        display.setCursor(0, 0);
-        display.println(F("SBMS LoRaWAN Node"));
-        display.println();
-        display.println(F("Starting up..."));
-        display.display();
+        renderMessageScreen("ENVIRONMENT", "Starting up...", "Preparing hardware", "SBMS / LoRaWAN");
     }
 #endif
 
@@ -1217,15 +1288,7 @@ void setup() {
     if (!os_init_ex((const void*)&lmic_pins)) {
         Serial.println(F("[FATAL] SX1276 initialization failed. Check board revision and LoRa pins."));
 #if ENABLE_OLED
-        if (oledReady) {
-            display.clearDisplay();
-            display.setCursor(0, 0);
-            display.println(F("LoRa INIT FAILED"));
-            display.println();
-            display.println(F("Check board revision"));
-            display.println(F("and SX1276 pins."));
-            display.display();
-        }
+        renderMessageScreen("RADIO ERROR", "Check board revision", "and SX1276 pins", "Restart after fixing");
 #endif
         while (true) {
             delay(1000);
@@ -1238,6 +1301,10 @@ void setup() {
 
     // Start OTAA Join and initial transmission
     Serial.println(F("[INFO] Starting LoRaWAN transmission..."));
+#if ENABLE_OLED
+    joinState = "JOINING";
+    renderDisplay();
+#endif
     do_send(&sendjob);
 }
 
@@ -1249,15 +1316,21 @@ void loop() {
 
 #if ENABLE_OLED
     if (observerJoined && downlinkObserver.count && (millis() - lastObserverPageAt) >= 4000) {
-        observerPage = (observerPage + 1) % downlinkObserver.pageCount();
+        observerPage = (observerPage + 1) % downlinkPanelPages();
         lastObserverPageAt = millis();
         displayDirty = true;
+    }
+    static uint32_t lastDisplayTick = 0;
+    if (uint32_t(millis() - lastDisplayTick) >= 1000) {
+        lastDisplayTick = millis();
+        displayDirty = true;  // Countdown and long identity names advance while idle.
     }
     // Refresh at most every 250 ms, and never while a transmission or receive
     // window is pending -- os_runloop_once() has to be serviced promptly, and
     // the I2C framebuffer push is comparatively slow.
     static unsigned long lastRender = 0;
     if (displayDirty && !(LMIC.opmode & OP_TXRXPEND)
+        && !os_queryTimeCriticalJobs(ms2osticks(100))
         && (millis() - lastRender) > 250) {
         lastRender = millis();
         displayDirty = false;

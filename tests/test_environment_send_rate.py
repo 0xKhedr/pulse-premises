@@ -1,8 +1,8 @@
 """Compile the real configuration handler/timer with simulated NVS and LMIC."""
 
-from pathlib import Path
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -24,6 +24,10 @@ def test_environment_send_rate_persists_validates_and_schedules_without_overflow
 #include "DownlinkObserver.h"
 #define F(x) x
 #define OP_TXRXPEND 0x80
+#define ENABLE_OLED 1
+bool nextUplinkScheduled = false, displayDirty = false;
+uint32_t nextUplinkScheduledAt = 0, milliseconds = 1000;
+uint32_t millis() { return milliseconds; }
 struct { unsigned opmode = 0; } LMIC;
 struct { void println(const char*) {} void printf(const char*, ...) {} } Serial;
 struct osjob_t {} sendjob;
@@ -71,9 +75,16 @@ int main() {
     assert(SendRateConfig::decode(42, fiveMinutes, 6, seconds) && seconds == 300);
 
     scheduleNextUplink(); assert(deadline == 30 * 32768);
+#ifdef CHECK_DISPLAY_TIMER
+    assert(nextUplinkScheduled && displayDirty && nextUplinkScheduledAt == 1000);
+    milliseconds = 9000; displayDirty = false;
+#endif
     receive(300);
     assert(txIntervalSeconds == 300 && flash["send_interval"] == 300 && writes == 1);
     assert(deadline == 300 * 32768 && sent == 0);
+#ifdef CHECK_DISPLAY_TIMER
+    assert(nextUplinkScheduled && displayDirty && nextUplinkScheduledAt == 9000);
+#endif
     unsigned before = scheduled;
     applyObservedConfiguration(); receive(300);
     assert(writes == 1 && scheduled == before); // Duplicate is idempotent.
@@ -114,6 +125,8 @@ int main() {
         for name in ("SendRateConfig", "DownlinkObserver"):
             inline = sketch.split(f"// BEGIN INLINE {name}\n", 1)[1].split(f"// END INLINE {name}", 1)[0]
             harness = harness.replace(f'#include "{name}.h"', inline)
+    else:
+        harness = "#define CHECK_DISPLAY_TIMER\n" + harness
     source.write_text(harness + functions + scenarios, encoding="utf-8")
     result = subprocess.run([compiler, "-std=c++11", "-Wall", "-Wextra", "-pedantic", "-I", str(folder),
                              str(source), "-o", str(binary)], capture_output=True, text=True)

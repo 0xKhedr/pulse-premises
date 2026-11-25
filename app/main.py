@@ -4125,8 +4125,16 @@ def apply_device_label_uplink(conn, device: dict, frm_payload) -> dict:
     The nickname is cosmetic: identity stays the DevEUI, and nothing about
     routing, placement or telemetry depends on it. It exists so a person
     looking at the discovery inbox can tell which physical box is which.
+    A name explicitly saved on the website takes precedence over this uplink.
     """
     device_id = device.get('device_id')
+    # A website name belongs to the operator. Periodic firmware nickname
+    # announcements must not silently undo it, even with an older snapshot.
+    saved = conn.execute('SELECT label, label_locked FROM devices WHERE device_id = ?',
+                         (device_id,)).fetchone()
+    if saved and saved['label_locked']:
+        return {'status': 'label_unchanged', 'device_id': device_id,
+            'label': saved['label'], 'telemetry_stored': False, 'thingsboard_sent': False}
     label = parse_label_uplink(frm_payload)
     if not label:
         logger.info(
@@ -4141,10 +4149,15 @@ def apply_device_label_uplink(conn, device: dict, frm_payload) -> dict:
             'label': label, 'telemetry_stored': False,
             'thingsboard_sent': False}
 
-    conn.execute(
+    changed = conn.execute(
         'UPDATE devices SET label = ?, updated_at = CURRENT_TIMESTAMP'
-        ' WHERE device_id = ?', (label, device_id))
+        ' WHERE device_id = ? AND label_locked = 0', (label, device_id))
     conn.commit()
+    if not changed.rowcount:
+        current = conn.execute('SELECT label FROM devices WHERE device_id = ?', (device_id,)).fetchone()
+        return {'status': 'label_unchanged', 'device_id': device_id,
+            'label': current['label'] if current else previous,
+            'telemetry_stored': False, 'thingsboard_sent': False}
     try:
         log_audit_event(conn, action='device_label_from_uplink',
             target_type='device', target_id=device_id, actor='lora',

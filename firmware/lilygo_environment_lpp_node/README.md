@@ -34,7 +34,7 @@ If several supported sensors are attached, the first successfully detected
 family in the sketch's probe order is used.
 
 Open Serial Monitor at **115200 baud** to see the I2C scan, detected family,
-address, and measured values. If detection fails, the OLED shows `SENSOR ERROR`
+address, and measured values. If detection fails, the OLED shows `NOT FOUND`
 and Serial Monitor lists the detected addresses. No simulated data is sent;
 the sketch retries after the configured send interval (30 seconds by default).
 Unknown sensor types need another driver.
@@ -80,7 +80,7 @@ For a new node, open **Scan for new devices** in the web portal, then power
 on the board and save its nickname. The board's verified join request appears
 as **Pending approval**. Select **Accept** to register it on the network;
 LMIC retries OTAA automatically, so no power cycle is needed. Until a join is
-accepted, the OLED shows `WAITING JOIN` after an unanswered request. This can
+accepted, the OLED shows `WAIT JOIN` after an unanswered request. This can
 also mean missing coverage or incorrect credentials; it is not proof that a
 gateway heard the request. After joining, the nickname uplink on port 10 lets
 the portal confirm **Online**, even before the first sensor reading.
@@ -88,15 +88,42 @@ the portal confirm **Online**, even before the first sensor reading.
 The approval gate is enforced by the backend and also works with the previous
 firmware. Reflash this sketch to get the updated OLED/serial explanations.
 
+## OLED dashboard
+
+The 128×64 OLED keeps four areas visible together:
+
+- **Top:** an inverted nickname banner and the complete DevEUI. Long nicknames
+  scroll without moving the rest of the dashboard.
+- **Upper left:** LoRaWAN join status, spreading factor once joined, and an
+  `UP mm:ss` countdown to the next scheduled uplink attempt. Intervals of an
+  hour or longer use `UP 1h00`. Before joining, `UP --:--` means no application
+  timer is scheduled. `UP QUEUED` means an uplink has been handed to LMIC.
+- **Lower left:** the application downlink count and rotating message details.
+- **Right:** sensor family and `OK` / `!` status, with temperature in °C and
+  relative humidity in %. Readings retain one decimal place; extreme values
+  use smaller text to fit. Missing or failed readings show dashes.
+
+The countdown follows the active send interval, including configuration
+changes and sensor retries. It describes the next attempt; radio duty-cycle
+limits can delay the actual transmission. Display updates pause during radio
+transmit/receive activity and resume when LMIC is idle. Readings are the last
+sensor sample, refreshed at startup and at each scheduled sensor attempt.
+
+Setup uses numbered Wi-Fi, password, and address instructions with a phone
+connection count. The startup rename prompt shows a three-second countdown
+and shrinking progress bar. Startup, setup completion, and radio errors use
+matching title bars and footers.
+
 ## Class A downlink observer
 
-After joining, the OLED switches to **DOWNLINK / CLASS A**. It initially shows
-that no downlink has arrived. Each application downlink replaces the displayed
-message, with its receive count, FPort, and byte length. TEXT and HEX pages
-rotate every four seconds; long payloads use multiple pages rather than being
-clipped. TEXT shows printable ASCII and dots for other bytes; HEX preserves
-the full binary message. The same bytes are logged on Serial at 115200 baud.
-The last message is retained in RAM until another downlink or a restart.
+Each application downlink replaces the lower-left message. Its details rotate
+every four seconds: FPort and byte length, then `T:` text segments. Text shows
+printable ASCII and dots for other bytes. The OLED has no hex payload pages.
+Long messages use additional text segments inside this
+panel while the other dashboard areas stay visible. The receive count is
+capped visually at `999+`. An empty payload shows its port and `0B`.
+The complete bytes are also logged on Serial at 115200 baud. The last message
+is retained in RAM until another downlink or a restart.
 
 In the portal's **Device Management** or **Device Capabilities** page, open
 **Send downlink**, choose the joined node, use FPort **1**, and enter a message

@@ -36,7 +36,8 @@ from app.main import (
     set_device_formatter,
     set_device_formatter_from_profile,
 )
-from app.schemas.core import DeviceDownlinkRequest, DeviceProfileAssignment, DeviceSendRateRequest
+from app.schemas.core import DeviceDownlinkRequest, DevicePresentationUpdate, DeviceProfileAssignment, DeviceSendRateRequest
+from app.services.device_label import sanitize_label
 from app.services.device_lifecycle import remove_device
 from app.services.device_profiles import assign_device_profile, mark_formatter_synced
 from app.services.device_state import build_device_state
@@ -46,6 +47,48 @@ from app.services.join_enrollment import uplink_is_blocked
 from app.services.ttn import ttn_client
 
 router = APIRouter()
+
+
+@router.patch("/devices/{device_id}/presentation")
+def update_device_presentation(device_id: str, data: DevicePresentationUpdate, request: Request):
+    user = get_current_user_from_request(request)
+    if not user or str(user.get("role") or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Administrator access required")
+    if not data.model_fields_set:
+        raise HTTPException(status_code=422, detail="Provide a name or map icon")
+    changes = {}
+    if "label" in data.model_fields_set:
+        label = sanitize_label(data.label)
+        if not label:
+            raise HTTPException(status_code=422, detail="Use 1–48 characters: letters, numbers, spaces, _ . - / #")
+        changes.update(label=label, label_locked=1)
+    if "map_icon" in data.model_fields_set:
+        if data.map_icon is None:
+            raise HTTPException(status_code=422, detail="Choose an icon or Automatic")
+        changes["map_icon"] = None if data.map_icon == "auto" else data.map_icon
+    conn = db()
+    try:
+        previous = conn.execute(
+            "SELECT device_id, label, map_icon FROM devices WHERE device_id = ?", (device_id,),
+        ).fetchone()
+        if previous is None:
+            raise HTTPException(status_code=404, detail="Device not found")
+        columns = ", ".join(f"{column} = ?" for column in changes)
+        conn.execute(f"UPDATE devices SET {columns}, updated_at = CURRENT_TIMESTAMP WHERE device_id = ?",
+                     (*changes.values(), device_id))
+        log_audit_event(
+            conn, action="device_presentation_updated", target_type="device", target_id=device_id,
+            actor=str(user.get("email") or user.get("id") or "admin"),
+            details={"previous": dict(previous), "changes": changes},
+            **get_device_scope_for_audit(conn, device_id),
+        )
+        conn.commit()
+        updated = conn.execute(
+            "SELECT device_id, label, map_icon FROM devices WHERE device_id = ?", (device_id,),
+        ).fetchone()
+        return dict(updated)
+    finally:
+        conn.close()
 
 
 @router.get("/devices/downlink-targets")
@@ -204,6 +247,7 @@ def device_status(device_id: str):
             "x": row["x"],
             "y": row["y"],
             "icon_type": row["icon_type"],
+            "map_icon": row["map_icon"],
             "telemetry": telemetry,
         }
     finally:
@@ -460,6 +504,7 @@ def devices_status():
                     "label": device.get(
                         "label"
                     ),
+                    "map_icon": device.get("map_icon"),
 
                     "x": device.get("x"),
                     "y": device.get("y"),

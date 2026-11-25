@@ -1,9 +1,9 @@
 """Exercise the firmware's actual reset-window function across simulated boots."""
 
-from pathlib import Path
 import re
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -21,6 +21,7 @@ def test_reset_window_survives_reset_and_is_consumed_once(tmp_path, node):
     harness = r'''
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <string>
 #define ENABLE_OLED 1
@@ -39,6 +40,12 @@ struct {
 std::map<std::string, bool> flash;
 bool failOpen = false, failWrite = false, resetDuringWindow = false;
 unsigned elapsed = 0;
+unsigned renderCost = 0;
+unsigned long millis() { return elapsed; }
+void renderResetScreen(uint32_t remaining) {
+    assert(remaining > 0 && remaining <= 3000);
+    elapsed += renderCost;
+}
 struct PowerReset {};
 struct Preferences {
     bool begin(const char*, bool) { return !failOpen; }
@@ -63,6 +70,18 @@ int main() {
     // An uninterrupted startup keeps the name and clears the marker.
     assert(!renameRequested());
     assert(elapsed == 3000 && !flash["rename_pending"]);
+
+    // OLED transfers consume real time; animation must not extend the window.
+    renderCost = 25;
+    elapsed = 0;
+    assert(!renameRequested());
+    assert(elapsed == 3000 && !flash["rename_pending"]);
+    elapsed = 0xfffffff0u;
+    const unsigned startedAt = elapsed;
+    assert(!renameRequested());
+    assert(unsigned(elapsed - startedAt) == 3000 && !flash["rename_pending"]);
+    renderCost = 0;
+    elapsed = 0;
 
     // Reset kills execution during the wait, while flash retains the marker.
     resetDuringWindow = true;

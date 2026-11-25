@@ -11,6 +11,16 @@ class DeviceProfileAssignment(BaseModel):
     profile_id: int = Field(gt=0, strict=True)
 
 
+class DevicePresentationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str | None = Field(default=None, max_length=48)
+    map_icon: Literal[
+        "auto", "sensor", "thermometer", "humidity", "energy", "shield",
+        "occupancy", "water", "meter", "light", "door", "solar",
+    ] | None = None
+
+
 class DeviceDownlinkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

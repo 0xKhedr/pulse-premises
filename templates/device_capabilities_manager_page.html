@@ -175,6 +175,8 @@
     </style>
     <link rel="stylesheet" href="/static/bright_theme.css">
 <link rel="stylesheet" href="/static/workspace.css?v=7">
+<link rel="stylesheet" href="/static/device_map.css?v=1">
+<script src="/static/device_map.js?v=1"></script>
 </head>
 
 {% set workspace_title = 'Device capabilities' %}
@@ -430,6 +432,7 @@
                         </div>
 
                         <div class="profile-controls"></div>
+                        <div data-device-appearance></div>
                         <p><a data-device-configuration>Configuration</a></p>
                         <button type="button" data-send-downlink>Send downlink</button>
 
@@ -445,6 +448,10 @@
                     `;
 
                     renderProfileControls(card, device, profiles);
+                    DeviceMap.mountEditor(card.querySelector('[data-device-appearance]'), device, saved => {
+                        Object.assign(device, saved);
+                        card.querySelector('h3').innerHTML = `${escapeHtml(device.label || device.device_id)} ${nodeTypeBadge(device)}`;
+                    });
                     card.querySelector('[data-device-configuration]').href = `/devices/${encodeURIComponent(device.device_id)}/configuration-page`;
                     card.querySelector('[data-send-downlink]').addEventListener('click', () => window.selectDeviceDownlink(device.device_id));
                     card.querySelector(".cap-save").addEventListener("click", () => saveCapabilities(device.device_id));
